@@ -21,6 +21,13 @@
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
   }
+  /* touch-action is not inherited. Any element left at "auto" still
+     takes a double tap as a zoom, and the gaps around the round pads
+     are exactly where a thumb misses. Cover the whole surface. */
+  #app, #app * { touch-action: none; }
+  #drawer * { touch-action: manipulation; }   /* keeps scroll and sliders */
+  #startOverlay, #startOverlay * { touch-action: manipulation; }
+
   #app {
     position: fixed;
     inset: 0;
@@ -289,7 +296,8 @@
   input[type=text] {
     width: 100%; padding: 11px 12px; border-radius: 12px;
     border: 1px solid #232d3a; background: #0d1219; color: #dbe4ee;
-    font-size: 15px; font-family: ui-monospace, "SF Mono", monospace;
+    font-size: 16px;   /* under 16 px, iOS zooms the page on focus */
+    font-family: ui-monospace, "SF Mono", monospace;
   }
   input[type=text].bad { border-color: #ff5d7a; color: #ff9db0; }
   .hint { font-size: 12px; color: #55677a; margin-top: 6px; line-height: 1.4; }
@@ -741,11 +749,19 @@ function setStatus(cls, text) {
   $("stateText").textContent = text;
 }
 
-function showBanner(text) {
+let bannerSrc = null;
+function showBanner(text, src) {
+  src = src || "msg";
+  if (src === "zoom" && bannerSrc && bannerSrc !== "zoom") return;  // a real warning wins
+  bannerSrc = src;
   $("banner").textContent = text;
   $("banner").classList.add("show");
 }
-function hideBanner() { $("banner").classList.remove("show"); }
+function hideBanner(src) {
+  if (src && bannerSrc !== src) return;
+  bannerSrc = null;
+  $("banner").classList.remove("show");
+}
 
 async function probeAuth() {
   // Tell a stale link apart from a dead network, so the phone can say which.
@@ -1027,6 +1043,29 @@ holdButton($("btnHot"),
   () => { if (hotSent) send({ t: "k", key: hotSent, s: 0 }); hotSent = null; haptic(); });
 
 document.addEventListener("contextmenu", e => e.preventDefault());
+
+/* ---------------- keep iOS from zooming the page ---------------- */
+
+// Safari ignores user-scalable=no, so block the pinch on the surface.
+for (const ev of ["gesturestart", "gesturechange", "gestureend"]) {
+  $("app").addEventListener(ev, e => e.preventDefault());
+}
+
+// If the page is zoomed anyway, say so. There is no API to reset it.
+function checkZoom() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  if (vv.scale > 1.02) {
+    showBanner("The page is zoomed in. Pinch out with two fingers to fit "
+             + "it to the screen again.", "zoom");
+  } else {
+    hideBanner("zoom");
+  }
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", checkZoom);
+  window.visualViewport.addEventListener("scroll", checkZoom);
+}
 
 /* ---------------- hotkey names (mirrors the agent) ---------------- */
 
