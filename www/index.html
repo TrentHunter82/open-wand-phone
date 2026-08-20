@@ -84,17 +84,27 @@
   /* ---- warning banner ---- */
   #banner {
     display: none;
-    margin: 0 12px 6px;
-    padding: 10px 12px;
+    position: absolute; left: 12px; right: 12px; top: 42px; z-index: 15;
+    padding: 12px 14px;
     border-radius: 12px;
     background: #3a2a10;
     border: 1px solid #7a5a1c;
     color: #f0cd7d;
     font-size: 13px;
     line-height: 1.35;
-    flex: 0 0 auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .5);
   }
   #banner.show { display: block; }
+  #fitBtn {
+    display: none;
+    width: 100%; margin-top: 10px; padding: 12px;
+    min-height: 48px;
+    border-radius: 10px;
+    border: 1px solid #f0cd7d; background: #4a3614; color: #ffe6ad;
+    font-size: 15px; font-weight: 600;
+    touch-action: manipulation;
+  }
+  #banner.zoom #fitBtn { display: block; }
 
   /* ---- surface: the clutch, plus the one-finger scroll strip ---- */
   #surface {
@@ -332,7 +342,10 @@
     <button id="gear" aria-label="settings">&#9881;</button>
   </div>
 
-  <div id="banner"></div>
+  <div id="banner">
+    <div id="bannerText"></div>
+    <button id="fitBtn">Fit to screen</button>
+  </div>
 
   <div id="surface">
     <div id="clutch"><span id="clutchLabel">TOUCH TO MOVE &middot; TAP TO CLICK</span></div>
@@ -550,7 +563,10 @@ function haptic(minGapMs = 0) {
   const now = performance.now();
   if (now - lastHapticT < minGapMs) return;
   lastHapticT = now;
-  try { $("hapticLabel").click(); } catch {}      // iOS: label -> switch toggle tick
+  try {
+    $("hapticLabel").click();                      // iOS: label -> switch toggle tick
+    $("hapticTick").blur();                        // never leave focus on it
+  } catch {}
   try { if (navigator.vibrate) navigator.vibrate(8); } catch {}  // non-iOS fallback
 }
 const hapticSupported = "switch" in document.createElement("input");
@@ -754,13 +770,14 @@ function showBanner(text, src) {
   src = src || "msg";
   if (src === "zoom" && bannerSrc && bannerSrc !== "zoom") return;  // a real warning wins
   bannerSrc = src;
-  $("banner").textContent = text;
+  $("bannerText").textContent = text;
+  $("banner").classList.toggle("zoom", src === "zoom");
   $("banner").classList.add("show");
 }
 function hideBanner(src) {
   if (src && bannerSrc !== src) return;
   bannerSrc = null;
-  $("banner").classList.remove("show");
+  $("banner").classList.remove("show", "zoom");
 }
 
 async function probeAuth() {
@@ -1046,18 +1063,39 @@ document.addEventListener("contextmenu", e => e.preventDefault());
 
 /* ---------------- keep iOS from zooming the page ---------------- */
 
-// Safari ignores user-scalable=no, so block the pinch on the surface.
-for (const ev of ["gesturestart", "gesturechange", "gestureend"]) {
-  $("app").addEventListener(ev, e => e.preventDefault());
-}
+// The reliable iOS fix: refuse the second tap of a double tap. Safari
+// zooms on double tap even where touch-action says not to. Leave the
+// pinch alone, or a zoomed page has no way back.
+let lastTouchEndT = 0;
+$("app").addEventListener("touchend", e => {
+  if (e.target.closest("#gear, #fitBtn")) return;   // these need their click
+  const now = Date.now();
+  if (now - lastTouchEndT <= 350) e.preventDefault();
+  lastTouchEndT = now;
+}, { passive: false });
 
-// If the page is zoomed anyway, say so. There is no API to reset it.
+// Put a zoomed page back. Toggling the viewport tag resets the scale on
+// iOS; a reload always does, so that is the fallback.
+function fitToScreen() {
+  const vp = document.querySelector("meta[name=viewport]");
+  const orig = vp.content;
+  vp.content = "width=device-width, initial-scale=1, maximum-scale=1, "
+             + "user-scalable=no, viewport-fit=cover";
+  document.body.offsetHeight;                      // force a reflow
+  setTimeout(() => { vp.content = orig; }, 60);
+  setTimeout(() => {
+    const vv = window.visualViewport;
+    if (vv && vv.scale > 1.02) location.reload();   // last resort, always works
+  }, 500);
+}
+$("fitBtn").addEventListener("click", fitToScreen);
+
 function checkZoom() {
   const vv = window.visualViewport;
   if (!vv) return;
   if (vv.scale > 1.02) {
-    showBanner("The page is zoomed in. Pinch out with two fingers to fit "
-             + "it to the screen again.", "zoom");
+    showBanner("The page is zoomed to " + vv.scale.toFixed(1)
+             + "x. Tap Fit to screen, or pinch out with two fingers.", "zoom");
   } else {
     hideBanner("zoom");
   }

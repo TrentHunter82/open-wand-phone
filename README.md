@@ -210,11 +210,13 @@ SendInput.
   administrator, or click a normal window first.
 - **Amber bar, "This link is out of date":** the token changed. Scan
   the new QR code on the PC.
-- **The page got too big for the screen:** Safari zoomed in. Pinch out
-  with two fingers to fit it again. The page shows an amber bar while
-  it stays zoomed. The page now refuses the double tap and the pinch on
-  the control surface, and the hotkey field is 16 px, so Safari does
-  not zoom when you tap it.
+- **The page got too big for the screen:** Safari zoomed in. An amber
+  bar appears with a **Fit to screen** button. Tap it. The button
+  resets the page scale, and it reloads the page if that fails. You
+  can also pinch out with two fingers. The page refuses the second tap
+  of a double tap, and the hotkey field is 16 px, so Safari has no
+  reason to zoom. The pinch stays available on purpose, because a
+  zoomed page needs a way back.
 - **Motion permission denied:** in Safari, tap **aA → Website
   Settings**, allow **Motion & Orientation**, then reload.
 - **Phone slept and does not reconnect:** the page reconnects with
