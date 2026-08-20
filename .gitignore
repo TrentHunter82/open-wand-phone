@@ -1,0 +1,13 @@
+# Generated on each machine at run time. wand-key.pem is a real private
+# key and wand-token.txt is a live credential. Never commit these.
+wand-cert.pem
+wand-key.pem
+wand-token.txt
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Local working copies and logs
+_backup/
+*.log

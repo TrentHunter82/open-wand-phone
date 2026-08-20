@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0d12">
+<title>OPEN WAND</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: #0a0d12;
+    color: #dbe4ee;
+    font-family: -apple-system, "SF Pro", system-ui, sans-serif;
+    -webkit-text-size-adjust: 100%;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+  #app {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+             env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  /* ---- status strip ---- */
+  #status {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 7px;
+    padding: 10px 14px 8px;
+    font-size: 13px;
+    color: #8fa2b8;
+    flex: 0 0 auto;
+  }
+  #dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #4a5561; flex: 0 0 auto;
+    transition: background .2s;
+  }
+  #dot.connecting { background: #e2b93b; }
+  #dot.connected  { background: #38d39f; }
+  #stateText {
+    color: #a9bccf;
+    min-width: 0; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+  }
+  #pps {
+    margin-left: auto; font-variant-numeric: tabular-nums;
+    color: #6f8399; font-size: 12px;
+    white-space: nowrap; flex: 0 0 auto;
+  }
+  .chip {
+    padding: 3px 8px; border-radius: 10px;
+    background: #1a212b; color: #7d8fa4; font-size: 11px;
+    letter-spacing: .06em; font-weight: 600;
+    white-space: nowrap; flex: 0 0 auto;
+  }
+  #micState.on { background: #3b1420; color: #ff5d7a; }
+  #simBadge  { background: #14283b; color: #58a6ff; display: none; }
+  #modeBadge { background: #1b2a1f; color: #38d39f; display: none; }
+  #blockedChip { background: #3b1420; color: #ff5d7a; display: none; }
+  #gear {
+    background: none; border: none; color: #8fa2b8;
+    font-size: 22px; padding: 2px 6px; line-height: 1;
+    flex: 0 0 auto;
+  }
+
+  /* ---- warning banner ---- */
+  #banner {
+    display: none;
+    margin: 0 12px 6px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: #3a2a10;
+    border: 1px solid #7a5a1c;
+    color: #f0cd7d;
+    font-size: 13px;
+    line-height: 1.35;
+    flex: 0 0 auto;
+  }
+  #banner.show { display: block; }
+
+  /* ---- surface: the clutch, plus the one-finger scroll strip ---- */
+  #surface {
+    flex: 1 1 auto;
+    display: flex;
+    gap: 8px;
+    margin: 2px 12px 8px;
+    min-height: 0;
+  }
+  #surface.mirror { flex-direction: row-reverse; }   /* strip to the left hand */
+
+  #scrollStrip {
+    flex: 0 0 54px;
+    display: none;
+    align-items: center; justify-content: center;
+    border-radius: 20px;
+    border: 2px dashed #2b3644;
+    background: #0e131a;
+    touch-action: none;
+    transition: background .1s, border-color .1s;
+  }
+  #scrollStrip.show { display: flex; }
+  #scrollStrip.active {
+    background: #0e1826;
+    border-style: solid;
+    border-color: #58a6ff;
+  }
+  #stripLabel {
+    writing-mode: vertical-rl;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: .34em;
+    color: #3d4b5c;
+  }
+  #scrollStrip.active #stripLabel { color: #58a6ff; }
+
+  /* ---- clutch: fills the middle, where the thumb rests ---- */
+  #clutch {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 90px;
+    border-radius: 20px;
+    border: 2px dashed #2b3644;
+    background: #0e131a;
+    display: flex; align-items: center; justify-content: center;
+    color: #55677a;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-align: center;
+    touch-action: none;
+    transition: background .1s, border-color .1s, color .1s;
+  }
+  #clutch.engaged {
+    background: #0f2018;
+    border-style: solid;
+    border-color: #38d39f;
+    color: #38d39f;
+  }
+  #clutch.scrolling {
+    background: #0e1826;
+    border-style: solid;
+    border-color: #58a6ff;
+    color: #58a6ff;
+  }
+  #clutch.dragging {
+    background: #1d1830;
+    border-style: solid;
+    border-color: #9d8cff;
+    color: #9d8cff;
+  }
+
+  /* ---- pads: round, thumb-sized, sized off the screen width ---- */
+  :root {
+    --pad: clamp(62px, 18.5vw, 86px);
+    --padBig: clamp(74px, 22.5vw, 102px);
+  }
+  .pad {
+    border: 1px solid #232d3a;
+    border-radius: 50%;
+    background: #141a22;
+    color: #dbe4ee;
+    font-size: 21px;
+    font-weight: 600;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 3px;
+    touch-action: none;
+  }
+  .padwrap {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 5px;
+    flex: 0 0 auto;
+  }
+  .padwrap small { font-size: 10px; color: #5d6f84; letter-spacing: .03em; }
+  .padwrap .pad { width: var(--pad); height: var(--pad); }
+  .padwrap.big .pad { width: var(--padBig); height: var(--padBig); font-size: 24px; }
+  .pad.active { background: #1f4f46; border-color: #38d39f; }
+
+  #hotRow {
+    display: none;
+    padding: 0 12px 8px;
+    flex: 0 0 auto;
+  }
+  #hotRow.show { display: block; }
+  #btnHot {
+    width: 100%; height: 62px;
+    font-size: 16px; letter-spacing: .06em;
+  }
+  #btnHot.active { background: #2b3a52; border-color: #58a6ff; }
+
+  #buttons {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 0 12px calc(10px + env(safe-area-inset-bottom));
+    flex: 0 0 auto;
+  }
+  #buttons.mirror { flex-direction: row-reverse; }   /* row for the left hand */
+  #btnMic.active, #btnMic.on { background: #3b1420; border-color: #ff5d7a; }
+  #btnHalf.active { background: #2a2440; border-color: #9d8cff; }
+
+  /* landscape and short screens: keep the clutch usable */
+  @media (max-height: 520px) {
+    :root { --pad: 56px; --padBig: 66px; }
+    #status { padding: 6px 12px 4px; }
+    #surface { margin: 2px 10px 6px; }
+    #clutch { min-height: 60px; font-size: 12px; }
+    #scrollStrip { flex: 0 0 46px; }
+    #buttons { padding: 0 10px calc(6px + env(safe-area-inset-bottom)); }
+    .pad { font-size: 18px; }
+    .padwrap small { display: none; }
+    #hotRow { padding: 0 10px 6px; }
+    #btnHot { height: 44px; font-size: 14px; }
+  }
+
+  /* ---- start overlay ---- */
+  #startOverlay {
+    position: fixed; inset: 0; z-index: 40;
+    background: #0a0d12;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 18px;
+    padding: 20px;
+  }
+  #startOverlay h1 { font-size: 20px; letter-spacing: .2em; color: #8fa2b8; }
+  #startBtn {
+    width: 200px; height: 200px; border-radius: 50%;
+    border: 2px solid #38d39f;
+    background: #10201b; color: #38d39f;
+    font-size: 28px; font-weight: 700; letter-spacing: .1em;
+  }
+  #startNote { color: #5d6f84; font-size: 13px; max-width: 280px; text-align: center; line-height: 1.4; }
+
+  /* ---- settings drawer ---- */
+  #scrim {
+    position: fixed; inset: 0; z-index: 19;
+    background: rgba(4, 7, 11, .55);
+    opacity: 0; pointer-events: none;
+    transition: opacity .22s ease-out;
+  }
+  #scrim.open { opacity: 1; pointer-events: auto; }
+  #drawer {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    background: #10161e;
+    border-top: 1px solid #232d3a;
+    border-radius: 18px 18px 0 0;
+    padding: 8px 18px calc(18px + env(safe-area-inset-bottom));
+    transform: translateY(105%);
+    transition: transform .22s ease-out;
+    max-height: 88%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+  #drawer.open { transform: translateY(0); }
+  #grip {
+    width: 38px; height: 4px; border-radius: 2px;
+    background: #2b3644; margin: 4px auto 12px;
+  }
+  .sect {
+    font-size: 11px; letter-spacing: .16em; color: #55677a;
+    margin: 18px 0 2px; padding-bottom: 6px;
+    border-bottom: 1px solid #1b2430;
+  }
+  .sect:first-of-type { margin-top: 0; }
+  .row { margin: 12px 0; }
+  .row label {
+    display: flex; justify-content: space-between; gap: 10px;
+    font-size: 13px; color: #8fa2b8; margin-bottom: 6px;
+  }
+  .row label b { color: #dbe4ee; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+  input[type=range] { width: 100%; accent-color: #38d39f; height: 28px; }
+  .toggles {
+    display: flex; flex-wrap: wrap; gap: 10px 18px;
+    margin: 12px 0; font-size: 14px;
+  }
+  .toggles label { display: flex; gap: 8px; align-items: center; color: #8fa2b8; }
+  input[type=checkbox], input[type=radio] { width: 20px; height: 20px; accent-color: #38d39f; }
+  input[type=text] {
+    width: 100%; padding: 11px 12px; border-radius: 12px;
+    border: 1px solid #232d3a; background: #0d1219; color: #dbe4ee;
+    font-size: 15px; font-family: ui-monospace, "SF Mono", monospace;
+  }
+  input[type=text].bad { border-color: #ff5d7a; color: #ff9db0; }
+  .hint { font-size: 12px; color: #55677a; margin-top: 6px; line-height: 1.4; }
+  #trace {
+    width: 100%; height: 84px; display: none;
+    border-radius: 12px; background: #0b1017; border: 1px solid #1b2430;
+    margin-top: 10px;
+  }
+  #trace.show { display: block; }
+  .drawerBtns {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px;
+  }
+  .drawerBtns button {
+    padding: 13px; border-radius: 12px;
+    border: 1px solid #232d3a; background: #141a22; color: #dbe4ee;
+    font-size: 14px;
+  }
+  #copyBtn { border-color: #38d39f; color: #38d39f; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="status">
+    <div id="dot"></div>
+    <span id="stateText">offline</span>
+    <span class="chip" id="simBadge">SIM</span>
+    <span class="chip" id="modeBadge">ABS</span>
+    <span class="chip" id="blockedChip">BLOCKED</span>
+    <span id="pps">0 pps</span>
+    <span class="chip" id="micState">MIC off</span>
+    <button id="gear" aria-label="settings">&#9881;</button>
+  </div>
+
+  <div id="banner"></div>
+
+  <div id="surface">
+    <div id="clutch"><span id="clutchLabel">TOUCH TO MOVE &middot; TAP TO CLICK</span></div>
+    <div id="scrollStrip"><div id="stripLabel">SCROLL</div></div>
+  </div>
+
+  <!-- iOS haptic hack: activating a label around a switch input plays the
+       system tick (same pattern as the ios-haptics package) -->
+  <label id="hapticLabel" style="display:none" aria-hidden="true">
+    <input type="checkbox" switch id="hapticTick" tabindex="-1">
+  </label>
+
+  <div id="hotRow">
+    <button class="pad" id="btnHot">HOTKEY<small>hold</small></button>
+  </div>
+
+  <div id="buttons">
+    <div class="padwrap"><button class="pad" id="btnHalf">&frac12;</button><small>precision</small></div>
+    <div class="padwrap"><button class="pad" id="btnMic">MIC</button><small>hold to talk</small></div>
+    <div class="padwrap"><button class="pad" id="btnR">R</button><small>hold</small></div>
+    <div class="padwrap big"><button class="pad" id="btnL">L</button><small>hold / drag</small></div>
+  </div>
+</div>
+
+<div id="scrim"></div>
+
+<div id="drawer">
+  <div id="grip"></div>
+
+  <div class="sect">FEEL</div>
+  <div class="row">
+    <label>Reach &mdash; higher = slower cursor <b id="vReach"></b></label>
+    <input type="range" id="sReach" min="10" max="150" step="1">
+  </div>
+  <div class="row">
+    <label>Curve &mdash; higher = calm slow, wild flicks <b id="vCurve"></b></label>
+    <input type="range" id="sCurve" min="1.0" max="1.6" step="0.05">
+  </div>
+  <div class="row">
+    <label>min_cutoff &mdash; LOWER = steadier at rest <b id="vMinCutoff"></b></label>
+    <input type="range" id="sMinCutoff" min="0.1" max="5" step="0.1">
+  </div>
+  <div class="row">
+    <label>beta &mdash; higher = snappier fast moves <b id="vBeta"></b></label>
+    <input type="range" id="sBeta" min="0" max="0.05" step="0.001">
+  </div>
+  <div class="row">
+    <label>Deadzone &mdash; ignore tremor below this <b id="vDeadzone"></b></label>
+    <input type="range" id="sDeadzone" min="0" max="5" step="0.1">
+  </div>
+  <div class="toggles">
+    <label><input type="checkbox" id="cTrace"> Show trace</label>
+  </div>
+  <canvas id="trace" width="600" height="168"></canvas>
+  <div class="hint" id="traceHint" style="display:none">
+    Dim = raw rate. Bright = filtered. Grey band = deadzone. Hold the
+    clutch and keep the hand still: the bright line must sit inside the band.
+  </div>
+
+  <div class="sect">TOUCH</div>
+  <div class="row">
+    <label>Touch guard &mdash; absorb tap-on / lift-off twitch <b id="vGuard"></b></label>
+    <input type="range" id="sGuard" min="0" max="250" step="10">
+  </div>
+  <div class="toggles">
+    <label><input type="checkbox" id="cTapClick"> Tap to click</label>
+    <label><input type="checkbox" id="cDragLock"> Tap-hold to drag</label>
+    <label><input type="checkbox" id="cHaptics"> Haptics</label>
+  </div>
+  <div class="hint">
+    Tap-hold to drag: tap once, then touch again and keep the thumb down.
+    The left button latches, so you drag with the wand. Lift to drop.
+  </div>
+
+  <div class="sect">SCROLL</div>
+  <div class="row">
+    <label>Drag px per notch, lower = faster <b id="vScrollPx"></b></label>
+    <input type="range" id="sScrollPx" min="10" max="80" step="2">
+  </div>
+  <div class="toggles">
+    <label><input type="checkbox" id="cStrip"> Scroll strip</label>
+    <label><input type="checkbox" id="cScrollInv"> Invert scroll</label>
+  </div>
+  <div class="hint">
+    The strip is the tall bar beside the clutch. Drag it with one finger
+    to scroll. It moves to the left side with the left-hand layout. Two
+    fingers in the clutch zone still scroll as well.
+  </div>
+
+  <div class="sect">GRIP</div>
+  <div class="toggles">
+    <label><input type="radio" name="pAxis" id="axTop" value="top"> Point with top edge</label>
+    <label><input type="radio" name="pAxis" id="axBack" value="back"> Point with back</label>
+  </div>
+  <div class="toggles">
+    <label><input type="checkbox" id="cMirror"> Left-hand buttons</label>
+    <label><input type="checkbox" id="cInvX"> Invert X</label>
+    <label><input type="checkbox" id="cInvY"> Invert Y</label>
+  </div>
+
+  <div class="sect">HOTKEY PAD</div>
+  <div class="toggles">
+    <label><input type="checkbox" id="cShowHot"> Show the hotkey pad</label>
+  </div>
+  <div class="row">
+    <input type="text" id="tHot" spellcheck="false" autocapitalize="off"
+           autocomplete="off" placeholder="ctrl+alt+f8">
+    <div class="hint">
+      Up to four keys, joined by +. Names: ctrl, alt, shift, win, f1&ndash;f24,
+      a&ndash;z, 0&ndash;9, esc, tab, space, enter, backspace, delete, insert,
+      home, end, pageup, pagedown, up, down, left, right.
+    </div>
+  </div>
+
+  <div class="sect">ABOUT</div>
+  <div class="hint" id="about">not connected</div>
+
+  <div class="drawerBtns">
+    <button id="hapticTestBtn">Test haptic</button>
+    <button id="resetBtn">Defaults</button>
+    <button id="copyBtn">Copy constants</button>
+    <button id="closeBtn">Close</button>
+  </div>
+  <div class="hint" id="hapticSupport" style="margin-top:10px"></div>
+</div>
+
+<div id="startOverlay">
+  <h1>OPEN WAND</h1>
+  <button id="startBtn">START</button>
+  <div id="startNote">Tap START, then allow motion access. Keep this tab in the foreground.</div>
+</div>
+
+<script>
+"use strict";
+
+/* ---------------- settings ---------------- */
+
+const DEFAULTS = {   // owner-tuned daily-driver values
+  reach: 135,        // degrees of yaw per (virtual) screen width
+  curve: 1.0,        // gain curve exponent
+  minCutoff: 4.0,    // 1-euro filter, Hz
+  beta: 0.025,       // 1-euro filter speed coefficient
+  deadzone: 2.5,     // deg/s; filtered rates below this are ignored (hand tremor floor)
+  guard: 130,        // ms; ignore motion after touch-down, undo motion sent just before lift
+  scrollPx: 30,      // px of two-finger drag per wheel notch
+  scrollInvert: false,
+  tapClick: true,    // quick tap in the clutch zone = left click
+  leftHanded: false, // mirror the button row
+  haptics: true,     // haptic ticks on clutch, buttons, and scroll notches
+  invertX: false,
+  invertY: false,
+  pointAxis: "top",  // "top" = top edge points at the screen; "back" = back of the phone
+  hotkey: "ctrl+alt+f8",  // the assignable fifth pad
+  showHotkey: false,      // that pad is hidden until it is wanted
+  trace: false,           // live rate plot in the drawer
+  scrollStrip: true,      // one-finger scroll strip beside the clutch
+  dragLock: true,         // tap, then touch and hold, to latch a drag
+};
+const D_CUTOFF = 1.0;
+const REF_HZ = 60;          // the curve is shaped at this rate, then scaled by dt,
+const REF_DT = 1 / REF_HZ;  // so the feel does not change with the sensor rate
+const LS_KEY = "wand.settings.v1";
+
+let S = loadSettings();
+
+function loadSettings() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
+    return { ...DEFAULTS, ...raw };
+  } catch { return { ...DEFAULTS }; }
+}
+function saveSettings() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch {}
+}
+
+/* ---------------- state ---------------- */
+
+const qsParams = new URLSearchParams(location.search);
+const TOKEN = qsParams.get("k") || "";
+const SIM = qsParams.get("sim") === "1";
+
+let ws = null;
+let started = false;
+let backoff = 400;
+let failStreak = 0;      // sockets that closed before they ever opened
+let probing = false;
+let screenW = 1920, screenH = 1080;
+let agentVer = "?", agentAbs = false;
+let clutched = false, clutchId = null;
+let scrollId = null;                   // second finger in the clutch zone = scroll
+const twoFinger = { lastY: 0, acc: 0 };
+let stripId = null;                    // one finger on the scroll strip
+const stripDrag = { lastY: 0, acc: 0 };
+let lastTapEndT = -1e9;                // a recent tap arms the tap-hold drag
+let dragLatched = false, dragTimer = 0;
+let engageT = 0;      // guard re-arm time (engage, and after each scroll)
+let clutchDownT = 0;  // actual touch-down time, for tap-to-click
+let didScroll = false, movedAcc = 0;   // per-hold: scrolled? cursor px moved?
+let sentLog = [];     // recent sent deltas, for the lift undo
+let precision = false;
+let micOn = false;
+let sentCount = 0;
+let wakeLock = null;
+let lastMotionT = null;
+let g = null;      // measured gravity unit vector, device frame (points world-down on iOS)
+let lastR = null;  // last valid wand-right axis, for the straight-up/down case
+
+const $ = id => document.getElementById(id);
+
+/* ---------------- haptics ---------------- */
+
+let lastHapticT = 0;
+function haptic(minGapMs = 0) {
+  if (!S.haptics) return;
+  const now = performance.now();
+  if (now - lastHapticT < minGapMs) return;
+  lastHapticT = now;
+  try { $("hapticLabel").click(); } catch {}      // iOS: label -> switch toggle tick
+  try { if (navigator.vibrate) navigator.vibrate(8); } catch {}  // non-iOS fallback
+}
+const hapticSupported = "switch" in document.createElement("input");
+
+/* ---------------- 1-euro filter (handoff formulation) ---------------- */
+
+class OneEuro {
+  constructor() { this.reset(); }
+  reset() { this.dhat = 0; this.prev = null; }
+  static alpha(fc, dt) { return 1 / (1 + 1 / (2 * Math.PI * fc * dt)); }
+  filter(raw, dt) {
+    this.dhat += OneEuro.alpha(D_CUTOFF, dt) * (raw - this.dhat);
+    const fc = S.minCutoff + S.beta * Math.abs(this.dhat);
+    if (this.prev === null) this.prev = raw;
+    else this.prev += OneEuro.alpha(fc, dt) * (raw - this.prev);
+    return this.prev;
+  }
+}
+const fYaw = new OneEuro();
+const fPitch = new OneEuro();
+
+/* ---------------- vector helpers ---------------- */
+
+function dot(a, b) { return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]; }
+function cross(a, b) {
+  return [a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2], a[0]*b[1] - a[1]*b[0]];
+}
+function norm(v) {
+  const n = Math.hypot(v[0], v[1], v[2]);
+  return n < 1e-9 ? null : [v[0]/n, v[1]/n, v[2]/n];
+}
+
+/* ---------------- motion pipeline ---------------- */
+
+function updateGravity(a, dt) {
+  const v = norm([a.x, a.y, a.z]);
+  if (!v) return;
+  if (g === null) { g = v; return; }
+  const al = dt / (0.2 + dt);                     // tau = 200 ms
+  const mixed = [
+    g[0] + al * (v[0] - g[0]),
+    g[1] + al * (v[1] - g[1]),
+    g[2] + al * (v[2] - g[2]),
+  ];
+  g = norm(mixed) || g;
+}
+
+function onMotion(e) {
+  const now = performance.now();
+  const dt = lastMotionT === null
+    ? REF_DT
+    : Math.min(0.05, Math.max(0.005, (now - lastMotionT) / 1000));
+  lastMotionT = now;
+
+  const a = e.accelerationIncludingGravity;
+  if (a && a.x !== null) updateGravity(a, dt);
+
+  const rr = e.rotationRate;
+  if (!rr || rr.alpha === null || g === null) return;
+
+  // iOS reports deg/s, and in raw gyro order: alpha = about X,
+  // beta = about Y, gamma = about Z (NOT the W3C alpha-about-Z order).
+  const d = Math.PI / 180;
+  const w = [rr.alpha * d, rr.beta * d, rr.gamma * d];  // device X, Y, Z
+
+  // Pointer model: the cursor follows the tip of the pointing axis,
+  // like a laser pointer. Gravity only supplies "which way is up",
+  // so any roll of the grip keeps left = left.
+  // iOS legacy sign: measured gravity points world-DOWN (flat face-up
+  // gives z = -9.81), so world-up in the device frame is -g.
+  const up = [-g[0], -g[1], -g[2]];
+  const p = S.pointAxis === "back" ? [0, 0, -1] : [0, 1, 0];  // pointing axis
+  let r = norm(cross(p, up));                     // horizontal-right of the wand
+  if (r) lastR = r; else r = lastR;               // hold last frame if pointing straight up/down
+  if (!r) return;
+  const q = cross(r, p);                          // wand-up axis (unit: r perpendicular to p)
+  const tip = cross(w, p);                        // velocity direction of the wand tip
+  processRates(dot(tip, r), dot(tip, q), dt);     // rightward rate, upward rate
+}
+
+function shape(v) {
+  return Math.sign(v) * Math.pow(Math.abs(v), S.curve);
+}
+
+function deadzone(rate) {
+  const dz = S.deadzone * Math.PI / 180;
+  return Math.sign(rate) * Math.max(0, Math.abs(rate) - dz);
+}
+
+function processRates(rightRate, upRate, dt) {
+  if (scrollId !== null) return;                     // scroll mode freezes the cursor
+  const live = clutched && ws && ws.readyState === 1;
+  if (!live && !traceOn) return;                     // the trace watches the filter too
+  const now = performance.now();
+  const xf = deadzone(fYaw.filter(rightRate, dt));   // filters warm up during the guard
+  const yf = deadzone(fPitch.filter(upRate, dt));
+  traceAdd(rightRate, xf);
+  if (!live) return;
+  if (now - engageT < S.guard) return;               // touch-down settle window
+  const k = screenW / (S.reach * Math.PI / 180);     // px per rad
+  const p = precision ? 0.5 : 1.0;
+  // Shape the rate at the reference frame time, then scale by the real dt.
+  // Cursor speed then depends on hand speed only, not on the sensor rate.
+  const scale = dt / REF_DT;
+  const dx = shape(xf * k * REF_DT) * scale * (S.invertX ? -1 : 1) * p;
+  const dy = shape(-yf * k * REF_DT) * scale * (S.invertY ? -1 : 1) * p;  // screen y grows downward
+  send({ t: "m", dx: +dx.toFixed(2), dy: +dy.toFixed(2) });
+  sentCount++;
+  movedAcc += Math.abs(dx) + Math.abs(dy);
+  sentLog.push({ t: now, dx, dy });
+  while (sentLog.length && now - sentLog[0].t > 500) sentLog.shift();
+}
+
+/* ---------------- trace ---------------- */
+
+const TRACE_N = 240;
+const traceRaw = new Float32Array(TRACE_N);
+const traceFil = new Float32Array(TRACE_N);
+let traceI = 0, traceOn = false, traceRAF = 0;
+
+function traceAdd(raw, filtered) {
+  if (!traceOn) return;
+  traceRaw[traceI] = raw * 180 / Math.PI;                       // deg/s
+  traceFil[traceI] = filtered === null ? 0 : filtered * 180 / Math.PI;
+  traceI = (traceI + 1) % TRACE_N;
+}
+
+function sizeTrace() {
+  // Match the backing store to the real box, or the plot comes out stretched.
+  const c = $("trace");
+  const r = c.getBoundingClientRect();
+  if (!r.width) return;
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  const w = Math.round(r.width * dpr), h = Math.round(r.height * dpr);
+  if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+}
+
+function drawTrace() {
+  const c = $("trace");
+  const ctx = c.getContext("2d");
+  const W = c.width, H = c.height, mid = H / 2;
+  const u = H / 84;                 // one CSS pixel of canvas height
+  let peak = 8;
+  for (let i = 0; i < TRACE_N; i++) peak = Math.max(peak, Math.abs(traceRaw[i]));
+  const sy = (mid - 4 * u) / peak;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = "#212d3c";                                     // deadzone band
+  const dzh = Math.max(1.5 * u, S.deadzone * sy);                // always visible
+  ctx.fillRect(0, mid - dzh, W, dzh * 2);
+  ctx.strokeStyle = "#3a4757"; ctx.lineWidth = u;
+  ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(W, mid); ctx.stroke();
+
+  const line = (buf, color, width) => {
+    ctx.strokeStyle = color; ctx.lineWidth = width * u;
+    ctx.lineJoin = "round"; ctx.beginPath();
+    for (let i = 0; i < TRACE_N; i++) {
+      const v = buf[(traceI + i) % TRACE_N];
+      const x = i / (TRACE_N - 1) * W;
+      const y = mid - v * sy;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  };
+  line(traceRaw, "#4d7099", 1.5);
+  line(traceFil, "#38d39f", 2);
+
+  ctx.fillStyle = "#6f8399";
+  ctx.font = (11 * u).toFixed(0) + "px -apple-system, system-ui, sans-serif";
+  ctx.fillText("±" + peak.toFixed(0) + " deg/s", 7 * u, 14 * u);
+}
+
+function traceTick() {
+  if (!traceOn) { traceRAF = 0; return; }
+  drawTrace();
+  traceRAF = requestAnimationFrame(traceTick);
+}
+
+function setTrace(on) {
+  traceOn = on && drawer.classList.contains("open");
+  $("trace").classList.toggle("show", !!S.trace);
+  $("traceHint").style.display = S.trace ? "block" : "none";
+  if (traceOn) sizeTrace();
+  if (traceOn && !traceRAF) traceRAF = requestAnimationFrame(traceTick);
+}
+window.addEventListener("resize", () => { if (traceOn) sizeTrace(); });
+
+/* ---------------- websocket ---------------- */
+
+function send(obj) {
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj));
+}
+
+function setStatus(cls, text) {
+  $("dot").className = cls;
+  $("stateText").textContent = text;
+}
+
+function showBanner(text) {
+  $("banner").textContent = text;
+  $("banner").classList.add("show");
+}
+function hideBanner() { $("banner").classList.remove("show"); }
+
+async function probeAuth() {
+  // Tell a stale link apart from a dead network, so the phone can say which.
+  if (probing) return;
+  probing = true;
+  try {
+    const r = await fetch("/auth?k=" + encodeURIComponent(TOKEN), { cache: "no-store" });
+    if (r.status === 403) {
+      showBanner("This link is out of date. Scan the new QR code on the PC, "
+               + "or run the agent without --new-token.");
+    } else if (r.ok) {
+      hideBanner();
+    }
+  } catch {}          // the PC is unreachable; the retry loop handles it
+  probing = false;
+}
+
+function connect() {
+  if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
+  setStatus("connecting", "connecting…");
+  const sock = new WebSocket(`wss://${location.host}/ws?k=${encodeURIComponent(TOKEN)}`);
+  ws = sock;
+  let opened = false;
+
+  sock.onopen = () => {
+    opened = true;
+    backoff = 400;
+    failStreak = 0;
+    hideBanner();
+    setStatus("connected", "connected");
+  };
+  sock.onmessage = ev => {
+    try {
+      const f = JSON.parse(ev.data);
+      if (f.t === "hello") {
+        screenW = f.w; screenH = f.h;
+        agentVer = f.ver || "1.0";
+        agentAbs = !!f.abs;
+        $("modeBadge").style.display = agentAbs ? "inline" : "none";
+        updateAbout();
+      } else if (f.t === "stat") {
+        $("blockedChip").style.display = f.blocked ? "inline" : "none";
+        if (f.blocked) {
+          showBanner("Windows is blocking the input. An elevated window has "
+                   + "the focus. Run the agent as administrator to reach it.");
+        } else {
+          hideBanner();
+        }
+      }
+    } catch {}
+  };
+  sock.onclose = () => {
+    if (ws !== sock) return;           // a newer socket already took over
+    setStatus("", "offline");
+    $("blockedChip").style.display = "none";
+    if (!opened && ++failStreak >= 2) probeAuth();
+    if (started) {
+      setTimeout(connect, backoff);
+      backoff = Math.min(backoff * 2, 4000);
+    }
+  };
+  sock.onerror = () => { try { sock.close(); } catch {} };
+}
+
+setInterval(() => send({ t: "p" }), 500);          // 2 Hz heartbeat
+setInterval(() => {
+  $("pps").textContent = sentCount + " pps";
+  sentCount = 0;
+}, 1000);
+
+/* ---------------- wake lock ---------------- */
+
+async function acquireWakeLock() {
+  try {
+    if ("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen");
+  } catch {}
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && started) {
+    acquireWakeLock();
+    if (!ws || ws.readyState > 1) { backoff = 400; connect(); }
+  }
+});
+
+/* ---------------- clutch ---------------- */
+
+const clutch = $("clutch");
+const IDLE_LABEL = "TOUCH TO MOVE · TAP TO CLICK";
+const DOUBLE_TAP_MS = 320;   // a hold that starts this soon after a tap is a drag
+const DRAG_LATCH_MS = 170;   // hold the second touch this long to latch it
+
+function setClutchLabel(text) { $("clutchLabel").textContent = text; }
+
+function scrollDrag(st, clientY) {
+  const dy = clientY - st.lastY;
+  st.lastY = clientY;
+  if (!dy) return;
+  let v = dy / S.scrollPx;      // natural: drag like on the phone screen
+  if (S.scrollInvert) v = -v;
+  send({ t: "w", v: +v.toFixed(3) });
+  st.acc += v;
+  if (Math.abs(st.acc) >= 1) {
+    st.acc %= 1;
+    haptic(50);                 // one detent tick per wheel notch
+  }
+}
+
+function latchDrag() {
+  // Tap, then touch and hold: hold the left button down until the lift.
+  dragTimer = 0;
+  if (!clutched || dragLatched || scrollId !== null) return;
+  dragLatched = true;
+  send({ t: "b", btn: "l", s: 1 });
+  clutch.classList.add("dragging");
+  setClutchLabel("DRAG");
+  haptic();
+}
+
+function engageClutch(id) {
+  clutchId = id;
+  clutched = true;
+  engageT = performance.now();
+  clutchDownT = engageT;
+  didScroll = false;
+  movedAcc = 0;
+  sentLog = [];
+  fYaw.reset();
+  fPitch.reset();
+  clutch.classList.add("engaged");
+  setClutchLabel("MOVING");
+  haptic();
+  if (S.dragLock && performance.now() - lastTapEndT < DOUBLE_TAP_MS) {
+    dragTimer = setTimeout(latchDrag, DRAG_LATCH_MS);
+  }
+}
+function undoRecent() {
+  // Take back the motion a touch twitch just caused.
+  const cut = performance.now() - S.guard;
+  let ux = 0, uy = 0;
+  for (const f of sentLog) if (f.t >= cut) { ux += f.dx; uy += f.dy; }
+  sentLog = [];
+  if (ux || uy) send({ t: "m", dx: +(-ux).toFixed(2), dy: +(-uy).toFixed(2) });
+}
+function releaseClutch() {
+  clutchId = null;
+  clutched = false;
+  clutch.classList.remove("engaged", "dragging");
+  setClutchLabel(IDLE_LABEL);
+  haptic();
+  if (dragTimer) { clearTimeout(dragTimer); dragTimer = 0; }
+  if (dragLatched) {
+    dragLatched = false;
+    undoRecent();                                    // drop where you aimed
+    send({ t: "b", btn: "l", s: 0 });
+    return;
+  }
+  const held = performance.now() - clutchDownT;
+  if (!didScroll && held < 200 && movedAcc < 6) {    // a quick, still tap
+    lastTapEndT = performance.now();                 // this arms the drag latch
+    if (S.tapClick) {
+      send({ t: "b", btn: "l", s: 1 });
+      setTimeout(() => send({ t: "b", btn: "l", s: 0 }), 30);
+    }
+    sentLog = [];
+    return;                                          // nothing moved; nothing to undo
+  }
+  undoRecent();
+}
+function endScroll() {
+  scrollId = null;
+  clutch.classList.remove("scrolling");
+  if (clutched) setClutchLabel(dragLatched ? "DRAG" : "MOVING");
+  fYaw.reset();
+  fPitch.reset();
+  engageT = performance.now();  // settle again before the cursor resumes
+}
+
+clutch.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  if (clutchId === null) {
+    try { clutch.setPointerCapture(e.pointerId); } catch {}
+    engageClutch(e.pointerId);
+  } else if (scrollId === null && e.pointerId !== clutchId) {
+    try { clutch.setPointerCapture(e.pointerId); } catch {}
+    scrollId = e.pointerId;
+    twoFinger.lastY = e.clientY;
+    twoFinger.acc = 0;
+    didScroll = true;
+    undoRecent();               // take back the second-finger tap twitch
+    clutch.classList.add("scrolling");
+    setClutchLabel("SCROLL");
+    haptic();
+  }
+});
+clutch.addEventListener("pointermove", e => {
+  if (e.pointerId !== scrollId) return;
+  e.preventDefault();
+  scrollDrag(twoFinger, e.clientY);
+});
+for (const ev of ["pointerup", "pointercancel"]) {
+  clutch.addEventListener(ev, e => {
+    e.preventDefault();
+    if (e.pointerId === clutchId) releaseClutch();
+    if (e.pointerId === scrollId) endScroll();
+  });
+}
+
+/* ---------------- one-finger scroll strip ---------------- */
+
+const strip = $("scrollStrip");
+
+strip.addEventListener("pointerdown", e => {
+  e.preventDefault();
+  if (stripId !== null) return;
+  try { strip.setPointerCapture(e.pointerId); } catch {}
+  stripId = e.pointerId;
+  stripDrag.lastY = e.clientY;
+  stripDrag.acc = 0;
+  strip.classList.add("active");
+  haptic();
+});
+strip.addEventListener("pointermove", e => {
+  if (e.pointerId !== stripId) return;
+  e.preventDefault();
+  scrollDrag(stripDrag, e.clientY);
+});
+for (const ev of ["pointerup", "pointercancel"]) {
+  strip.addEventListener(ev, e => {
+    e.preventDefault();
+    if (e.pointerId !== stripId) return;
+    stripId = null;
+    strip.classList.remove("active");
+    haptic();
+  });
+}
+
+/* ---------------- buttons ---------------- */
+
+function holdButton(el, onDown, onUp) {
+  el.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    if (el.classList.contains("active")) return;
+    try { el.setPointerCapture(e.pointerId); } catch {}
+    el.classList.add("active");
+    haptic();
+    onDown();
+  });
+  for (const ev of ["pointerup", "pointercancel"]) {
+    el.addEventListener(ev, e => {
+      e.preventDefault();
+      if (!el.classList.contains("active")) return;
+      el.classList.remove("active");
+      onUp();
+    });
+  }
+}
+
+holdButton($("btnL"), () => send({ t: "b", btn: "l", s: 1 }),
+                      () => send({ t: "b", btn: "l", s: 0 }));
+holdButton($("btnR"), () => send({ t: "b", btn: "r", s: 1 }),
+                      () => send({ t: "b", btn: "r", s: 0 }));
+holdButton($("btnHalf"), () => { precision = true; },
+                         () => { precision = false; });
+
+function setMicUI(on) {
+  micOn = on;
+  $("btnMic").classList.toggle("on", on);
+  $("micState").classList.toggle("on", on);
+  $("micState").textContent = on ? "REC" : "MIC off";
+}
+holdButton($("btnMic"),
+  () => { send({ t: "k", key: "f8", s: 1 }); setMicUI(true); },   // hold = record
+  () => { send({ t: "k", key: "f8", s: 0 }); setMicUI(false); haptic(); }); // release = paste
+
+// The fifth pad sends whatever combo the drawer holds.
+let hotSent = null;   // the combo that is down now, so the release always matches
+holdButton($("btnHot"),
+  () => { hotSent = S.hotkey; send({ t: "k", key: hotSent, s: 1 }); },
+  () => { if (hotSent) send({ t: "k", key: hotSent, s: 0 }); hotSent = null; haptic(); });
+
+document.addEventListener("contextmenu", e => e.preventDefault());
+
+/* ---------------- hotkey names (mirrors the agent) ---------------- */
+
+const KEY_NAMES = new Set([
+  "ctrl", "control", "alt", "shift", "win", "cmd", "meta",
+  "esc", "escape", "tab", "space", "enter", "return", "backspace",
+  "up", "down", "left", "right", "home", "end", "pageup", "pagedown",
+  "insert", "delete", "printscreen", "capslock",
+  "minus", "equals", "comma", "period", "slash", "backslash",
+  "semicolon", "quote", "backtick", "lbracket", "rbracket",
+]);
+for (let i = 1; i <= 24; i++) KEY_NAMES.add("f" + i);
+for (const c of "abcdefghijklmnopqrstuvwxyz0123456789") KEY_NAMES.add(c);
+
+function validCombo(spec) {
+  const parts = String(spec).toLowerCase().split("+").map(p => p.trim()).filter(Boolean);
+  return parts.length >= 1 && parts.length <= 4 && parts.every(p => KEY_NAMES.has(p));
+}
+function applyHotkey() {
+  $("btnHot").firstChild.nodeValue = S.hotkey.toUpperCase();
+  $("hotRow").classList.toggle("show", S.showHotkey);
+}
+
+/* ---------------- settings UI ---------------- */
+
+const drawer = $("drawer");
+const scrim = $("scrim");
+
+function openDrawer(open) {
+  drawer.classList.toggle("open", open);
+  scrim.classList.toggle("open", open);
+  setTrace(S.trace);
+}
+$("gear").addEventListener("click", () => openDrawer(!drawer.classList.contains("open")));
+$("closeBtn").addEventListener("click", () => openDrawer(false));
+scrim.addEventListener("click", () => openDrawer(false));
+
+const SLIDERS = [
+  ["sReach", "vReach", "reach", v => v.toFixed(0) + "°"],
+  ["sCurve", "vCurve", "curve", v => v.toFixed(2)],
+  ["sMinCutoff", "vMinCutoff", "minCutoff", v => v.toFixed(1)],
+  ["sBeta", "vBeta", "beta", v => v.toFixed(3)],
+  ["sDeadzone", "vDeadzone", "deadzone", v => v.toFixed(1) + "°/s"],
+  ["sGuard", "vGuard", "guard", v => v.toFixed(0) + " ms"],
+  ["sScrollPx", "vScrollPx", "scrollPx", v => v.toFixed(0) + " px"],
+];
+
+function updateAbout() {
+  $("about").textContent = ws && ws.readyState === 1
+    ? `agent ${agentVer} · desktop ${screenW}×${screenH} px · pointer `
+      + (agentAbs ? "absolute" : "relative (turn off Enhance pointer precision)")
+    : "not connected";
+}
+
+function refreshUI() {
+  for (const [sid, vid, key, fmt] of SLIDERS) {
+    $(sid).value = S[key];
+    $(vid).textContent = fmt(S[key]);
+  }
+  $("cInvX").checked = S.invertX;
+  $("cInvY").checked = S.invertY;
+  $("cScrollInv").checked = S.scrollInvert;
+  $("cTapClick").checked = S.tapClick;
+  $("cMirror").checked = S.leftHanded;
+  $("cHaptics").checked = S.haptics;
+  $("cShowHot").checked = S.showHotkey;
+  $("cTrace").checked = S.trace;
+  $("cStrip").checked = S.scrollStrip;
+  $("cDragLock").checked = S.dragLock;
+  $("scrollStrip").classList.toggle("show", S.scrollStrip);
+  $("surface").classList.toggle("mirror", S.leftHanded);
+  $("tHot").value = S.hotkey;
+  $("tHot").classList.toggle("bad", !validCombo(S.hotkey));
+  $("buttons").classList.toggle("mirror", S.leftHanded);
+  $("axTop").checked = S.pointAxis !== "back";
+  $("axBack").checked = S.pointAxis === "back";
+  applyHotkey();
+  setTrace(S.trace);
+  updateAbout();
+}
+
+for (const [sid, vid, key, fmt] of SLIDERS) {
+  $(sid).addEventListener("input", e => {
+    S[key] = parseFloat(e.target.value);
+    $(vid).textContent = fmt(S[key]);
+    saveSettings();
+  });
+}
+const CHECKS = [
+  ["cInvX", "invertX"], ["cInvY", "invertY"], ["cScrollInv", "scrollInvert"],
+  ["cTapClick", "tapClick"], ["cDragLock", "dragLock"],
+];
+for (const [id, key] of CHECKS) {
+  $(id).addEventListener("change", e => { S[key] = e.target.checked; saveSettings(); });
+}
+$("cHaptics").addEventListener("change", e => {
+  S.haptics = e.target.checked;
+  saveSettings();
+  if (S.haptics) haptic();  // confirm with a tick
+});
+$("cMirror").addEventListener("change", e => {
+  S.leftHanded = e.target.checked;
+  $("buttons").classList.toggle("mirror", S.leftHanded);
+  $("surface").classList.toggle("mirror", S.leftHanded);
+  saveSettings();
+});
+$("cStrip").addEventListener("change", e => {
+  S.scrollStrip = e.target.checked;
+  $("scrollStrip").classList.toggle("show", S.scrollStrip);
+  saveSettings();
+});
+$("cShowHot").addEventListener("change", e => {
+  S.showHotkey = e.target.checked;
+  saveSettings();
+  applyHotkey();
+});
+$("cTrace").addEventListener("change", e => {
+  S.trace = e.target.checked;
+  saveSettings();
+  setTrace(S.trace);
+});
+$("tHot").addEventListener("input", e => {
+  const v = e.target.value.trim().toLowerCase();
+  const ok = validCombo(v);
+  e.target.classList.toggle("bad", !ok);
+  if (!ok) return;
+  S.hotkey = v;
+  saveSettings();
+  applyHotkey();
+});
+for (const id of ["axTop", "axBack"]) {
+  $(id).addEventListener("change", e => {
+    if (e.target.checked) { S.pointAxis = e.target.value; lastR = null; saveSettings(); }
+  });
+}
+
+$("hapticSupport").textContent = hapticSupported
+  ? "Switch control: supported by this browser. Also check iOS Settings > Sounds & Haptics > System Haptics."
+  : "Switch control: NOT supported by this browser. Haptics need iOS 17.4+, ideally iOS 18.";
+
+$("hapticTestBtn").addEventListener("click", () => {
+  // three spaced ticks so a working haptic is unmistakable
+  const was = S.haptics;
+  S.haptics = true;
+  haptic();
+  setTimeout(haptic, 150);
+  setTimeout(haptic, 300);
+  setTimeout(() => { S.haptics = was; }, 400);
+});
+
+$("resetBtn").addEventListener("click", () => {
+  S = { ...DEFAULTS };
+  saveSettings();
+  refreshUI();
+});
+
+$("copyBtn").addEventListener("click", async () => {
+  const blob = JSON.stringify({
+    reach_deg: S.reach,
+    curve_exp: S.curve,
+    curve_ref_hz: REF_HZ,
+    min_cutoff_hz: S.minCutoff,
+    beta: S.beta,
+    d_cutoff_hz: D_CUTOFF,
+    gravity_tau_s: 0.2,
+    deadzone_dps: S.deadzone,
+    touch_guard_ms: S.guard,
+    scroll_px_per_notch: S.scrollPx,
+    scroll_invert: S.scrollInvert,
+    scroll_strip: S.scrollStrip,
+    tap_click: S.tapClick,
+    drag_lock: S.dragLock,
+    double_tap_ms: DOUBLE_TAP_MS,
+    drag_latch_ms: DRAG_LATCH_MS,
+    haptics: S.haptics,
+    point_axis: S.pointAxis,
+    invert_x: S.invertX,
+    invert_y: S.invertY,
+    hotkey: S.hotkey,
+  }, null, 2);
+  try {
+    await navigator.clipboard.writeText(blob);
+    $("copyBtn").textContent = "Copied!";
+  } catch {
+    prompt("Copy the constants:", blob);
+  }
+  setTimeout(() => { $("copyBtn").textContent = "Copy constants"; }, 1200);
+});
+
+refreshUI();
+
+/* ---------------- sim mode ---------------- */
+
+function startSim() {
+  $("simBadge").style.display = "inline";
+  let t = 0;
+  setInterval(() => {
+    const dt = 1 / 60;
+    t += dt;
+    // slow figure-eight: 1:2 Lissajous in angular rate
+    const yawRate = 1.2 * Math.sin(2 * Math.PI * 0.12 * t);
+    const pitchRate = 0.7 * Math.sin(2 * Math.PI * 0.24 * t + Math.PI / 2);
+    processRates(yawRate, pitchRate, dt);
+  }, 16);
+}
+
+/* ---------------- start ---------------- */
+
+$("startBtn").addEventListener("click", async () => {
+  if (!SIM && typeof DeviceMotionEvent !== "undefined"
+      && typeof DeviceMotionEvent.requestPermission === "function") {
+    try {
+      const r = await DeviceMotionEvent.requestPermission();  // must be in this gesture
+      if (r !== "granted") {
+        $("startNote").textContent =
+          "Motion access denied. Open the aA menu > Website Settings and allow Motion, then reload.";
+        return;
+      }
+    } catch (err) {
+      $("startNote").textContent = "Motion permission failed: " + err;
+      return;
+    }
+  }
+  started = true;
+  if (SIM) startSim();
+  else window.addEventListener("devicemotion", onMotion);
+  await acquireWakeLock();
+  connect();
+  $("startOverlay").style.display = "none";
+});
+</script>
+</body>
+</html>
