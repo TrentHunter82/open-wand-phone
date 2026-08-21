@@ -87,6 +87,18 @@ bar that tells you to scan the new QR code.
   presses, MIC stop, and each scroll notch. Needs iOS 17.4 or newer
   and **Settings → Sounds & Haptics → System Haptics** on. Toggle in
   the drawer.
+
+  The tick comes from a hidden `<input type="checkbox" switch>`. iOS
+  plays it as the switch renders its change, so that element must stay
+  in the layout at its natural size. Do not give it `display: none`,
+  and do not force it to checkbox size. Either one kills the tick.
+
+  The HAPTICS section of the drawer holds three tests. A fires the
+  hidden switch through its label. B clicks the input. C is a plain
+  switch you toggle by hand, so it is the control. If C ticks and A or
+  B does not, the trick is at fault. If C gives nothing, the phone is
+  playing no haptics: check Low Power Mode. The section also reports
+  whether the browser has the switch element, and the iOS version.
 - **Two-finger scroll:** the older way. It is **off by default** now.
   A second finger on the clutch zone is how Safari decides you asked
   it to zoom the page, and that setting sticks. The scroll strip does

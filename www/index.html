@@ -83,6 +83,19 @@
     flex: 0 0 auto;
   }
 
+  /* The switch that plays the tick must render, or iOS has nothing to
+     play. Keep it in the layout, one pixel wide and invisible. */
+  #hapticLabel {
+    position: fixed; left: 0; bottom: 0;
+    width: 56px; height: 36px;     /* room for the whole switch, unclipped */
+    opacity: .01;
+    pointer-events: none;
+    z-index: -1;
+  }
+  /* Do not force the switch to checkbox size. At 20x20 Safari can fall
+     back to a plain checkbox, and the tick goes with it. */
+  #hapticTick { width: 51px; height: 31px; margin: 0; }
+
   /* ---- warning banner ---- */
   #banner {
     display: none;
@@ -329,6 +342,8 @@
     font-size: 14px;
   }
   #copyBtn { border-color: #38d39f; color: #38d39f; }
+  #hapticReal { width: 52px; height: 32px; accent-color: #38d39f; }
+  #realRow label { align-items: center; }
 </style>
 </head>
 <body>
@@ -358,7 +373,7 @@
 
   <!-- iOS haptic hack: activating a label around a switch input plays the
        system tick (same pattern as the ios-haptics package) -->
-  <label id="hapticLabel" style="display:none" aria-hidden="true">
+  <label id="hapticLabel" aria-hidden="true">
     <input type="checkbox" switch id="hapticTick" tabindex="-1">
   </label>
 
@@ -417,12 +432,32 @@
   <div class="toggles">
     <label><input type="checkbox" id="cTapClick"> Tap to click</label>
     <label><input type="checkbox" id="cDragLock"> Tap-hold to drag</label>
-    <label><input type="checkbox" id="cHaptics"> Haptics</label>
   </div>
   <div class="hint">
     Tap-hold to drag: tap once, then touch again and keep the thumb down.
     The left button latches, so you drag with the wand. Lift to drop.
   </div>
+
+  <div class="sect">HAPTICS</div>
+  <div class="toggles">
+    <label><input type="checkbox" id="cHaptics"> Haptics on</label>
+  </div>
+  <div class="drawerBtns">
+    <button id="hapticTestBtn">Test A &mdash; label</button>
+    <button id="hapticTestB">Test B &mdash; input</button>
+  </div>
+  <div class="row" id="realRow">
+    <label>Test C &mdash; toggle this switch by hand <b></b></label>
+    <input type="checkbox" switch id="hapticReal">
+  </div>
+  <div class="hint">
+    Each test plays three ticks. Test C is a plain iOS switch, so it is
+    the control. If C ticks and A or B does not, the trick is at fault.
+    If C gives nothing, the phone plays no haptics at all: turn off Low
+    Power Mode, and check Settings, Sounds &amp; Haptics, System
+    Haptics.
+  </div>
+  <div class="hint" id="hapticSupport"></div>
 
   <div class="sect">SCROLL</div>
   <div class="row">
@@ -499,7 +534,7 @@
     <button id="copyBtn">Copy constants</button>
     <button id="closeBtn">Close</button>
   </div>
-  <div class="hint" id="hapticSupport" style="margin-top:10px"></div>
+
 </div>
 
 <div id="startOverlay">
@@ -595,12 +630,16 @@ function haptic(minGapMs = 0) {
   const now = performance.now();
   if (now - lastHapticT < minGapMs) return;
   lastHapticT = now;
-  try {
-    $("hapticLabel").click();                      // iOS: label -> switch toggle tick
-    $("hapticTick").blur();                        // never leave focus on it
-  } catch {}
+  tickLabel();
   try { if (navigator.vibrate) navigator.vibrate(8); } catch {}  // non-iOS fallback
 }
+function tickLabel() {
+  try { $("hapticLabel").click(); $("hapticTick").blur(); } catch {}
+}
+function tickInput() {
+  try { $("hapticTick").click(); $("hapticTick").blur(); } catch {}
+}
+function tripleTick(fn) { fn(); setTimeout(fn, 160); setTimeout(fn, 320); }
 const hapticSupported = "switch" in document.createElement("input");
 
 /* ---------------- 1-euro filter (handoff formulation) ---------------- */
@@ -1310,19 +1349,14 @@ for (const id of ["axTop", "axBack"]) {
   });
 }
 
-$("hapticSupport").textContent = hapticSupported
-  ? "Switch control: supported by this browser. Also check iOS Settings > Sounds & Haptics > System Haptics."
-  : "Switch control: NOT supported by this browser. Haptics need iOS 17.4+, ideally iOS 18.";
+const iosM = navigator.userAgent.match(/OS (\d+)[._](\d+)/);
+$("hapticSupport").textContent =
+  "switch element: " + (hapticSupported ? "yes" : "NO, needs iOS 17.4 or newer")
+  + "  ·  iOS " + (iosM ? iosM[1] + "." + iosM[2] : "unknown")
+  + "  ·  vibrate: " + (navigator.vibrate ? "yes" : "no");
 
-$("hapticTestBtn").addEventListener("click", () => {
-  // three spaced ticks so a working haptic is unmistakable
-  const was = S.haptics;
-  S.haptics = true;
-  haptic();
-  setTimeout(haptic, 150);
-  setTimeout(haptic, 300);
-  setTimeout(() => { S.haptics = was; }, 400);
-});
+$("hapticTestBtn").addEventListener("click", () => tripleTick(tickLabel));
+$("hapticTestB").addEventListener("click", () => tripleTick(tickInput));
 
 $("resetBtn").addEventListener("click", () => {
   S = { ...DEFAULTS };
