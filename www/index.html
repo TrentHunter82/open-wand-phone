@@ -85,6 +85,16 @@
 
   /* The switch that plays the tick must render, or iOS has nothing to
      play. Keep it in the layout, one pixel wide and invisible. */
+  /* Press feedback the thumb cannot cover. iOS will not play a haptic
+     at press, so the eye gets this instead. */
+  #pressFlash {
+    position: absolute; left: 0; right: 0; top: 0; height: 3px;
+    background: #38d39f; opacity: 0;
+    transition: opacity .25s ease-out;
+    pointer-events: none; z-index: 16;
+  }
+  #pressFlash.on { opacity: 1; transition: none; }
+
   /* ---- warning banner ---- */
   #banner {
     display: none;
@@ -160,8 +170,10 @@
     letter-spacing: .1em;
     text-align: center;
     touch-action: none;
-    transition: background .1s, border-color .1s, color .1s;
+    transition: background .2s ease-out, border-color .2s ease-out,
+                color .2s ease-out;
   }
+  #clutch.engaged, #clutch.scrolling, #clutch.dragging { transition: none; }
   #clutch.engaged {
     background: #0f2018;
     border-style: solid;
@@ -206,7 +218,11 @@
   .padwrap small { font-size: 10px; color: #5d6f84; letter-spacing: .03em; }
   .padwrap .pad { width: var(--pad); height: var(--pad); }
   .padwrap.big .pad { width: var(--padBig); height: var(--padBig); font-size: 24px; }
-  .pad.active { background: #1f4f46; border-color: #38d39f; }
+  .pad { transition: background .2s ease-out, border-color .2s ease-out; }
+  .pad.active {
+    background: #1f4f46; border-color: #38d39f;
+    transition: none;                     /* snap in, decay out */
+  }
 
   #hotRow {
     display: none;
@@ -360,14 +376,6 @@
   }
   .touchpad input[type=checkbox] { width: 51px; height: 31px; flex: 0 0 auto; }
   .hiddenSwitch { opacity: .01; }   /* same hiding the app itself uses */
-  .snapbar { position: relative; justify-content: center; }
-  /* Touchable on purpose: the thumb must land on the switch itself, so
-     WebKit tracks the drag and snaps it before the finger lifts. */
-  input.snapSwitch {
-    position: absolute; left: 50%; top: 50%;
-    width: 51px; height: 31px; margin: -15px 0 0 -25px;
-    opacity: .01;
-  }
 </style>
 </head>
 <body>
@@ -383,6 +391,8 @@
     <span class="chip" id="micState">MIC off</span>
     <button id="gear" aria-label="settings">&#9881;</button>
   </div>
+
+  <div id="pressFlash"></div>
 
   <div id="banner">
     <div id="bannerText"></div>
@@ -470,26 +480,15 @@
     a hidden switch, and your own touch plays the tick.
   </div>
 
-  <div class="row">
-    <label>G &mdash; press the middle and HOLD, do not lift</label>
-    <label class="touchpad snapbar" id="labG">Press and hold here
-      <input type="checkbox" switch id="swG" class="snapSwitch">
-    </label>
-  </div>
-  <div class="row">
-    <label>H &mdash; same, but with the app's own handlers</label>
-    <label class="touchpad snapbar" id="labH">Press and hold here
-      <input type="checkbox" switch id="swH" class="snapSwitch">
-    </label>
+  <div class="toggles">
+    <label><input type="checkbox" id="cClick"> Click sound on press</label>
   </div>
   <div class="hint">
-    These two ask whether a tick can land while your finger is still
-    down. The switch under each bar is touchable, so your thumb rests on
-    it and the smallest movement should snap it.
-    <b>G</b> is a bare bar. <b>H</b> adds the same preventDefault calls
-    the clutch zone uses. Press the middle of each and hold for a second
-    without lifting. Report whether the tick comes while you hold, or
-    only when you lift.
+    iOS gives a page no way to play a haptic at press. The tick needs the
+    switch to travel, and a resting thumb never moves far enough. So
+    press gets a light flash at the top edge and, if you want it, a short
+    click through the speaker. The Taptic tick still lands on release.
+    The ringer switch mutes the click, and Bluetooth audio delays it.
   </div>
   <div class="hint" id="hapticSupport"></div>
 
@@ -604,6 +603,7 @@ const DEFAULTS = {   // owner-tuned daily-driver values
   scrollStrip: true,      // one-finger scroll strip beside the clutch
   twoFinger: false,       // the old two-finger scroll; off, it invites pinches
   dragLock: true,         // tap, then touch and hold, to latch a drag
+  clickSound: false,      // short speaker click at press; see the drawer note
 };
 const D_CUTOFF = 1.0;
 const REF_HZ = 60;          // the curve is shaped at this rate, then scaled by dt,
@@ -657,6 +657,72 @@ let lastR = null;  // last valid wand-right axis, for the straight-up/down case
 const $ = id => document.getElementById(id);
 
 /* ---------------- haptics ---------------- */
+
+let audioCtx = null, clickBuf = null, flashT = 0;
+
+function flashPress() {
+  // The thumb covers the control it presses, so the flash goes to the
+  // top edge where it stays visible.
+  const el = $("pressFlash");
+  el.classList.add("on");
+  clearTimeout(flashT);
+  flashT = setTimeout(() => el.classList.remove("on"), 45);
+}
+
+function initClick() {
+  if (audioCtx) return;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    audioCtx = new AC();
+    // 12 ms of noise with a steep decay reads as a switch click, not a beep.
+    const n = Math.max(1, Math.round(audioCtx.sampleRate * 0.012));
+    clickBuf = audioCtx.createBuffer(1, n, audioCtx.sampleRate);
+    const d = clickBuf.getChannelData(0);
+    for (let i = 0; i < n; i++) {
+      const t = i / n;
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 6);
+    }
+  } catch { audioCtx = null; }
+}
+
+function unlockAudio() {
+  initClick();
+  if (!audioCtx) return;
+  // "ambient" mixes with the user's music and respects the ringer switch.
+  // "playback" would beat the ringer switch but can pause their audio, so
+  // it is not ours to take.
+  try { if (navigator.audioSession) navigator.audioSession.type = "ambient"; } catch {}
+  try { if (audioCtx.state !== "running") audioCtx.resume(); } catch {}
+  try {                                   // prime inside the user gesture
+    const s0 = audioCtx.createBufferSource();
+    s0.buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+    s0.connect(audioCtx.destination);
+    s0.start(0);
+  } catch {}
+}
+
+function clickSound() {
+  if (!S.clickSound || !audioCtx || !clickBuf) return;
+  if (audioCtx.state !== "running") { try { audioCtx.resume(); } catch {} return; }
+  try {
+    const src = audioCtx.createBufferSource();
+    src.buffer = clickBuf;
+    const g = audioCtx.createGain();
+    g.gain.value = 0.4;
+    src.connect(g);
+    g.connect(audioCtx.destination);
+    src.start(0);
+  } catch {}
+}
+
+// Called the moment a finger lands. The Taptic tick cannot come now, so
+// this is what stands in for it.
+function pressFeedback() {
+  flashPress();
+  clickSound();
+  try { if (navigator.vibrate) navigator.vibrate(8); } catch {}
+}
 
 let lastHapticT = 0;
 function haptic(minGapMs = 0) {
@@ -1015,7 +1081,7 @@ function latchDrag() {
   send({ t: "b", btn: "l", s: 1 });
   clutch.classList.add("dragging");
   setClutchLabel("DRAG");
-  haptic();
+  pressFeedback();          // the latch has no lift, so no tick can mark it
 }
 
 function engageClutch(id) {
@@ -1030,7 +1096,7 @@ function engageClutch(id) {
   fPitch.reset();
   clutch.classList.add("engaged");
   setClutchLabel("MOVING");
-  haptic();
+  pressFeedback();
   if (S.dragLock && performance.now() - lastTapEndT < DOUBLE_TAP_MS) {
     dragTimer = setTimeout(latchDrag, DRAG_LATCH_MS);
   }
@@ -1091,7 +1157,7 @@ clutch.addEventListener("pointerdown", e => {
     undoRecent();               // take back the second-finger tap twitch
     clutch.classList.add("scrolling");
     setClutchLabel("SCROLL");
-    haptic();
+    pressFeedback();
   }
 });
 clutch.addEventListener("pointermove", e => {
@@ -1119,7 +1185,7 @@ strip.addEventListener("pointerdown", e => {
   stripDrag.lastY = e.clientY;
   stripDrag.acc = 0;
   strip.classList.add("active");
-  haptic();
+  pressFeedback();
 });
 strip.addEventListener("pointermove", e => {
   if (e.pointerId !== stripId) return;
@@ -1144,7 +1210,7 @@ function holdButton(el, onDown, onUp) {
     if (el.classList.contains("active")) return;
     try { el.setPointerCapture(e.pointerId); } catch {}
     el.classList.add("active");
-    haptic();
+    pressFeedback();
     onDown();
   });
   for (const ev of ["pointerup", "pointercancel"]) {
@@ -1331,6 +1397,7 @@ function refreshUI() {
   $("cStrip").checked = S.scrollStrip;
   $("cTwoFinger").checked = S.twoFinger;
   $("cDragLock").checked = S.dragLock;
+  $("cClick").checked = S.clickSound;
   $("scrollStrip").classList.toggle("show", S.scrollStrip);
   $("surface").classList.toggle("mirror", S.leftHanded);
   $("tHot").value = S.hotkey;
@@ -1354,17 +1421,11 @@ for (const [sid, vid, key, fmt] of SLIDERS) {
 const CHECKS = [
   ["cInvX", "invertX"], ["cInvY", "invertY"], ["cScrollInv", "scrollInvert"],
   ["cTapClick", "tapClick"], ["cDragLock", "dragLock"],
-  ["cTwoFinger", "twoFinger"],
+  ["cTwoFinger", "twoFinger"], ["cClick", "clickSound"],
 ];
 for (const [id, key] of CHECKS) {
   $(id).addEventListener("change", e => { S[key] = e.target.checked; saveSettings(); });
 }
-// Test H mirrors what the clutch zone does, to see if our own
-// preventDefault calls stop the switch from snapping under the finger.
-$("labH").addEventListener("pointerdown", e => e.preventDefault());
-$("labH").addEventListener("pointermove", e => e.preventDefault());
-$("labH").addEventListener("pointerup", e => e.preventDefault());
-
 $("cHaptics").addEventListener("change", e => {
   S.haptics = e.target.checked;
   setTickEnabled(S.haptics);
@@ -1492,6 +1553,7 @@ $("startBtn").addEventListener("click", async () => {
   started = true;
   if (SIM) startSim();
   else window.addEventListener("devicemotion", onMotion);
+  unlockAudio();               // must happen inside this gesture
   await acquireWakeLock();
   connect();
   $("startOverlay").style.display = "none";

@@ -108,10 +108,33 @@ bar that tells you to scan the new QR code.
   3. Nothing may clip it, and no code may call `preventDefault` on
      `touchstart`. `pointerdown` and `pointerup` are safe.
 
-  The tick lands when you lift, not when you press, because that is
-  when iOS decides the switch changed. The second of two rapid taps
-  does not tick, because the double-tap guard suppresses that click on
-  purpose. Scroll detents no longer tick, because a drag has no click.
+  **The tick cannot land at press. This is settled, not assumed.** Two
+  tests on the device proved it. Press a switch and hold: nothing until
+  the lift. Drag a switch slowly: it ticks mid-gesture, before the lift.
+  So the tick follows the switch *travelling*, and a resting thumb never
+  moves far enough to move it. Putting a touchable switch under the
+  thumb, with and without the app's own preventDefault calls, changed
+  nothing. No other haptic route exists either: `navigator.vibrate` is
+  not implemented in Safari, and every other control that plays a haptic
+  needs visible UI.
+
+  The second of two rapid taps does not tick either, because the
+  double-tap guard suppresses that click on purpose. Scroll detents do
+  not tick, because a drag has no click.
+
+  **What stands in for a press tick.** Press and release are fed on
+  different channels, the way a mechanical key does it.
+
+  - **Press:** a green flash along the top edge of the screen. It sits
+    there because your thumb covers whatever it presses. The pressed
+    state also snaps in with no transition and decays out over 200 ms,
+    so the visual never lags the finger.
+  - **Press, optional:** a 12 ms click through the speaker. Turn on
+    **Click sound on press** in the drawer. It is off by default for two
+    honest reasons: the ringer switch mutes it, and Bluetooth audio
+    delays it by enough to read as an echo. The page uses the `ambient`
+    audio session, so it mixes with your music instead of pausing it.
+  - **Release:** the Taptic tick, as before.
 
   The HAPTICS section of the drawer keeps one plain switch as a
   reference, plus a readout of the switch support and the iOS version.
