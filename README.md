@@ -87,11 +87,11 @@ bar that tells you to scan the new QR code.
   presses, MIC stop, and each scroll notch. Needs iOS 17.4 or newer
   and **Settings → Sounds & Haptics → System Haptics** on. Toggle in
   the drawer.
-- **Two-finger scroll:** the older way, still there. While one finger
-  holds the clutch, drag a second finger up or down in the clutch
-  zone. The cursor freezes. The zone turns blue in scroll mode.
-  Direction is natural (drag like on the phone screen); flip it with
-  **Invert scroll** in the drawer.
+- **Two-finger scroll:** the older way. It is **off by default** now.
+  A second finger on the clutch zone is how Safari decides you asked
+  it to zoom the page, and that setting sticks. The scroll strip does
+  the same job with one finger. Turn it back on under SCROLL if you
+  want it. Direction is natural; flip it with **Invert scroll**.
 - **L / R:** press and hold for a mouse button. Hold L and move to drag.
 - **MIC:** hold-to-talk. Hold = F8 held down = CM7 Dictation records
   from the PC microphone. Release = F8 up = CM7 transcribes and pastes
@@ -151,6 +151,9 @@ The defaults are the owner's tuned daily-driver values.
   the bottom edge, under the thumb. Set 100% for the old full-height
   clutch zone.
 - **Scroll strip:** show or hide the one-finger scroll bar. Default on.
+- **Two-finger scroll:** the old two-finger gesture. Default off.
+- **Reset page size / Reload the page:** in the LAYOUT section. Use
+  them if the page changes size.
 - **Tap-hold to drag:** turn the drag latch on or off. Default on. The
   second touch must start within 320 ms of the tap, and you must hold
   it for 170 ms.
@@ -226,9 +229,18 @@ SendInput.
      comes from Safari's own menu, and only Safari can clear it. Tap
      **aA** at the address bar, then set the zoom to 100%.
 
-  The page refuses the second tap of a double tap, and the hotkey field
-  is 16 px, so nothing in the page asks Safari to zoom. The pinch stays
-  available on purpose, because a zoomed page needs a way back.
+  The page now refuses every gesture that makes Safari zoom: the second
+  tap of a double tap, and any two-finger gesture on the control
+  surface. The hotkey field is 16 px, so a tap on it does not zoom
+  either. The drawer stays pinchable, and the LAYOUT section holds
+  **Reset page size** and **Reload the page**, so there is always a way
+  back.
+
+  If the size changed by itself during normal use, that was a second
+  finger on the control surface. The clutch zone plus a pad is two
+  fingers, and so is the old two-finger scroll. Safari read that as a
+  pinch and changed its per-site page zoom, which sticks. Both paths
+  are blocked now, and the two-finger scroll is off by default.
 - **Motion permission denied:** in Safari, tap **aA → Website
   Settings**, allow **Motion & Orientation**, then reload.
 - **Phone slept and does not reconnect:** the page reconnects with

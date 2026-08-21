@@ -431,7 +431,13 @@
   </div>
   <div class="toggles">
     <label><input type="checkbox" id="cStrip"> Scroll strip</label>
+    <label><input type="checkbox" id="cTwoFinger"> Two-finger scroll</label>
     <label><input type="checkbox" id="cScrollInv"> Invert scroll</label>
+  </div>
+  <div class="hint">
+    Two-finger scroll is off by default now. The strip does the same job
+    with one finger, and a second finger on the clutch zone is how
+    Safari decides you asked it to zoom the page.
   </div>
   <div class="hint">
     The strip is the tall bar beside the clutch. Drag it with one finger
@@ -447,6 +453,16 @@
   <div class="hint">
     Lower this to keep the pads clear of Safari's toolbar. At 100 the
     clutch zone takes the whole middle, as it did before.
+  </div>
+  <div class="drawerBtns">
+    <button id="resetSizeBtn">Reset page size</button>
+    <button id="reloadBtn">Reload the page</button>
+  </div>
+  <div class="hint">
+    Use these if the page changes size. Reset page size puts the scale
+    back. If the amber bar reports a <b>page zoom</b> percentage, only
+    Safari can clear that one: tap <b>aA</b> at the address bar and set
+    100%.
   </div>
 
   <div class="sect">GRIP</div>
@@ -517,6 +533,7 @@ const DEFAULTS = {   // owner-tuned daily-driver values
   trace: false,           // live rate plot in the drawer
   clutchPct: 55,          // clutch height, as a share of the free space
   scrollStrip: true,      // one-finger scroll strip beside the clutch
+  twoFinger: false,       // the old two-finger scroll; off, it invites pinches
   dragLock: true,         // tap, then touch and hold, to latch a drag
 };
 const D_CUTOFF = 1.0;
@@ -976,7 +993,7 @@ clutch.addEventListener("pointerdown", e => {
   if (clutchId === null) {
     try { clutch.setPointerCapture(e.pointerId); } catch {}
     engageClutch(e.pointerId);
-  } else if (scrollId === null && e.pointerId !== clutchId) {
+  } else if (S.twoFinger && scrollId === null && e.pointerId !== clutchId) {
     try { clutch.setPointerCapture(e.pointerId); } catch {}
     scrollId = e.pointerId;
     twoFinger.lastY = e.clientY;
@@ -989,8 +1006,8 @@ clutch.addEventListener("pointerdown", e => {
   }
 });
 clutch.addEventListener("pointermove", e => {
+  e.preventDefault();          // every finger, or Safari reads a pinch
   if (e.pointerId !== scrollId) return;
-  e.preventDefault();
   scrollDrag(twoFinger, e.clientY);
 });
 for (const ev of ["pointerup", "pointercancel"]) {
@@ -1078,9 +1095,21 @@ document.addEventListener("contextmenu", e => e.preventDefault());
 
 /* ---------------- keep iOS from zooming the page ---------------- */
 
+// Safari's pinch changes its per-site PAGE ZOOM, and that setting
+// sticks. Two fingers land on this surface all the time: the clutch
+// plus a pad, or the two-finger scroll. Refuse the gesture here. The
+// drawer stays pinchable, and the Fit to screen button is the way back.
+for (const ev of ["gesturestart", "gesturechange", "gestureend"]) {
+  $("app").addEventListener(ev, e => e.preventDefault());
+}
+for (const el of [clutch, strip, $("buttons"), $("hotRow")]) {
+  el.addEventListener("touchmove", e => {
+    if (e.touches.length > 1) e.preventDefault();
+  }, { passive: false });
+}
+
 // The reliable iOS fix: refuse the second tap of a double tap. Safari
-// zooms on double tap even where touch-action says not to. Leave the
-// pinch alone, or a zoomed page has no way back.
+// zooms on double tap even where touch-action says not to.
 let lastTouchEndT = 0;
 $("app").addEventListener("touchend", e => {
   if (e.target.closest("#gear, #fitBtn")) return;   // these need their click
@@ -1104,6 +1133,8 @@ function fitToScreen() {
   }, 500);
 }
 $("fitBtn").addEventListener("click", fitToScreen);
+$("resetSizeBtn").addEventListener("click", fitToScreen);
+$("reloadBtn").addEventListener("click", () => location.reload());
 
 function pageZoomFactor() {
   // Safari's aA menu enlarges the CSS pixel, so innerWidth drops below
@@ -1208,6 +1239,7 @@ function refreshUI() {
   $("cTrace").checked = S.trace;
   applyClutchHeight();
   $("cStrip").checked = S.scrollStrip;
+  $("cTwoFinger").checked = S.twoFinger;
   $("cDragLock").checked = S.dragLock;
   $("scrollStrip").classList.toggle("show", S.scrollStrip);
   $("surface").classList.toggle("mirror", S.leftHanded);
@@ -1232,6 +1264,7 @@ for (const [sid, vid, key, fmt] of SLIDERS) {
 const CHECKS = [
   ["cInvX", "invertX"], ["cInvY", "invertY"], ["cScrollInv", "scrollInvert"],
   ["cTapClick", "tapClick"], ["cDragLock", "dragLock"],
+  ["cTwoFinger", "twoFinger"],
 ];
 for (const [id, key] of CHECKS) {
   $(id).addEventListener("change", e => { S[key] = e.target.checked; saveSettings(); });
@@ -1311,6 +1344,7 @@ $("copyBtn").addEventListener("click", async () => {
     scroll_px_per_notch: S.scrollPx,
     scroll_invert: S.scrollInvert,
     scroll_strip: S.scrollStrip,
+    two_finger_scroll: S.twoFinger,
     clutch_pct: S.clutchPct,
     tap_click: S.tapClick,
     drag_lock: S.dragLock,
