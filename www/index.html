@@ -376,6 +376,14 @@
   }
   .touchpad input[type=checkbox] { width: 51px; height: 31px; flex: 0 0 auto; }
   .hiddenSwitch { opacity: .01; }   /* same hiding the app itself uses */
+  .expbar { position: relative; justify-content: center; }
+  .expbar.tall { min-height: 130px; }
+  input.expSwitch { position: absolute; left: 50%; top: 50%; opacity: .01; }
+  /* On its side, so a vertical drag travels along the switch's own axis. */
+  #swI { width: 51px; height: 31px; margin: -15px 0 0 -25px;
+         transform: rotate(90deg); }
+  /* Narrow, so the travel a thumb must cross is short. */
+  #swJ { width: 36px; height: 31px; margin: -15px 0 0 -18px; }
 </style>
 </head>
 <body>
@@ -490,6 +498,27 @@
     click through the speaker. The Taptic tick still lands on release.
     The ringer switch mutes the click, and Bluetooth audio delays it.
   </div>
+  <div class="row">
+    <label>I &mdash; drag up and down slowly, do not lift</label>
+    <label class="touchpad expbar tall" id="labI">Drag me up and down
+      <input type="checkbox" switch id="swI" class="expSwitch">
+    </label>
+  </div>
+  <div class="row">
+    <label>J &mdash; press the middle and HOLD, do not lift</label>
+    <label class="touchpad expbar" id="labJ">Press and hold here
+      <input type="checkbox" switch id="swJ" class="expSwitch">
+    </label>
+  </div>
+  <div class="hint">
+    The tick needs the switch to travel, so these two put travel where it
+    exists. <b>I</b> turns the switch on its side, so an up and down drag
+    moves it along its own axis. If I ticks while you drag, scrolling can
+    have detents again. <b>J</b> uses a narrow switch, so its travel is
+    short enough that a resting thumb might cross it. If J ticks while
+    you hold, press haptics come back.
+  </div>
+
   <div class="hint" id="hapticSupport"></div>
 
   <div class="sect">SCROLL</div>
