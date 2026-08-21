@@ -360,6 +360,14 @@
   }
   .touchpad input[type=checkbox] { width: 51px; height: 31px; flex: 0 0 auto; }
   .hiddenSwitch { opacity: .01; }   /* same hiding the app itself uses */
+  .snapbar { position: relative; justify-content: center; }
+  /* Touchable on purpose: the thumb must land on the switch itself, so
+     WebKit tracks the drag and snaps it before the finger lifts. */
+  input.snapSwitch {
+    position: absolute; left: 50%; top: 50%;
+    width: 51px; height: 31px; margin: -15px 0 0 -25px;
+    opacity: .01;
+  }
 </style>
 </head>
 <body>
@@ -459,9 +467,29 @@
   <div class="hint">
     iOS plays this tick only for a real touch on a real switch. Code
     cannot fire it. So the clutch zone, the strip and the pads each hold
-    a hidden switch, and your own touch plays the tick. The tick lands
-    when you lift, not when you press, because that is when iOS decides
-    the switch changed.
+    a hidden switch, and your own touch plays the tick.
+  </div>
+
+  <div class="row">
+    <label>G &mdash; press the middle and HOLD, do not lift</label>
+    <label class="touchpad snapbar" id="labG">Press and hold here
+      <input type="checkbox" switch id="swG" class="snapSwitch">
+    </label>
+  </div>
+  <div class="row">
+    <label>H &mdash; same, but with the app's own handlers</label>
+    <label class="touchpad snapbar" id="labH">Press and hold here
+      <input type="checkbox" switch id="swH" class="snapSwitch">
+    </label>
+  </div>
+  <div class="hint">
+    These two ask whether a tick can land while your finger is still
+    down. The switch under each bar is touchable, so your thumb rests on
+    it and the smallest movement should snap it.
+    <b>G</b> is a bare bar. <b>H</b> adds the same preventDefault calls
+    the clutch zone uses. Press the middle of each and hold for a second
+    without lifting. Report whether the tick comes while you hold, or
+    only when you lift.
   </div>
   <div class="hint" id="hapticSupport"></div>
 
@@ -1331,6 +1359,12 @@ const CHECKS = [
 for (const [id, key] of CHECKS) {
   $(id).addEventListener("change", e => { S[key] = e.target.checked; saveSettings(); });
 }
+// Test H mirrors what the clutch zone does, to see if our own
+// preventDefault calls stop the switch from snapping under the finger.
+$("labH").addEventListener("pointerdown", e => e.preventDefault());
+$("labH").addEventListener("pointermove", e => e.preventDefault());
+$("labH").addEventListener("pointerup", e => e.preventDefault());
+
 $("cHaptics").addEventListener("change", e => {
   S.haptics = e.target.checked;
   setTickEnabled(S.haptics);
