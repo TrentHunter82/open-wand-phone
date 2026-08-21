@@ -342,8 +342,23 @@
     font-size: 14px;
   }
   #copyBtn { border-color: #38d39f; color: #38d39f; }
-  #hapticReal { width: 52px; height: 32px; accent-color: #38d39f; }
+  #hapticReal { width: 51px; height: 31px; accent-color: #38d39f; }
   #realRow label { align-items: center; }
+  .hrow { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
+  .hrow input[type=checkbox] { width: 51px; height: 31px; flex: 0 0 auto; }
+  .hrow button {
+    flex: 1; padding: 13px; border-radius: 12px; min-height: 48px;
+    border: 1px solid #232d3a; background: #141a22; color: #dbe4ee;
+    font-size: 14px;
+  }
+  .touchpad {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px; padding: 14px 16px; margin-top: 6px; min-height: 60px;
+    border: 1px solid #38d39f; border-radius: 12px; background: #141a22;
+    color: #a9bccf; font-size: 14px;
+  }
+  .touchpad input[type=checkbox] { width: 51px; height: 31px; flex: 0 0 auto; }
+  .hiddenSwitch { opacity: .01; }   /* same hiding the app itself uses */
 </style>
 </head>
 <body>
@@ -443,19 +458,42 @@
     <label><input type="checkbox" id="cHaptics"> Haptics on</label>
   </div>
   <div class="drawerBtns">
-    <button id="hapticTestBtn">Test A &mdash; label</button>
-    <button id="hapticTestB">Test B &mdash; input</button>
+    <button id="hapticTestBtn">A &mdash; hidden, by code</button>
+    <button id="hapticTestB">B &mdash; hidden input, by code</button>
   </div>
   <div class="row" id="realRow">
-    <label>Test C &mdash; toggle this switch by hand <b></b></label>
+    <label>C &mdash; visible switch, your touch <b>works</b></label>
     <input type="checkbox" switch id="hapticReal">
   </div>
+  <div class="row">
+    <label>D &mdash; visible switch, tapped by code</label>
+    <div class="hrow">
+      <input type="checkbox" switch id="swD">
+      <button id="btnD">Run D</button>
+    </div>
+  </div>
+  <div class="row">
+    <label>E &mdash; hidden switch, your touch on the bar</label>
+    <label class="touchpad" id="labE">Touch this bar
+      <input type="checkbox" switch id="swE" class="hiddenSwitch">
+    </label>
+  </div>
+  <div class="row">
+    <label>F &mdash; visible switch, your touch on the bar</label>
+    <label class="touchpad" id="labF">Touch this bar
+      <input type="checkbox" switch id="swF">
+    </label>
+  </div>
   <div class="hint">
-    Each test plays three ticks. Test C is a plain iOS switch, so it is
-    the control. If C ticks and A or B does not, the trick is at fault.
-    If C gives nothing, the phone plays no haptics at all: turn off Low
-    Power Mode, and check Settings, Sounds &amp; Haptics, System
-    Haptics.
+    C already ticks, so the phone is fine. These four say why A and B do
+    not.
+    <b>D</b> ticks: the switch only has to be visible, and code can fire
+    it.
+    <b>E</b> ticks: a real touch on a label works, even with the switch
+    hidden.
+    <b>F</b> only: it needs a visible switch <i>and</i> a real touch.
+    None of them: iOS no longer lets a page borrow this tick, and I will
+    say so instead of guessing again.
   </div>
   <div class="hint" id="hapticSupport"></div>
 
@@ -1357,6 +1395,10 @@ $("hapticSupport").textContent =
 
 $("hapticTestBtn").addEventListener("click", () => tripleTick(tickLabel));
 $("hapticTestB").addEventListener("click", () => tripleTick(tickInput));
+$("btnD").addEventListener("click", () => tripleTick(() => {
+  $("swD").click();          // a visible switch, fired by code
+  $("swD").blur();
+}));
 
 $("resetBtn").addEventListener("click", () => {
   S = { ...DEFAULTS };
