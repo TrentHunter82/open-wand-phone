@@ -142,10 +142,12 @@
     transition: background .1s, border-color .1s;
   }
   #scrollStrip.show { display: flex; }
+  #scrollStrip { transition: background .2s ease-out, border-color .2s ease-out; }
   #scrollStrip.active {
     background: #0e1826;
     border-style: solid;
     border-color: #58a6ff;
+    transition: none;                     /* snap in, like the pads */
   }
   #stripLabel {
     writing-mode: vertical-rl;
@@ -519,6 +521,22 @@
     you hold, press haptics come back.
   </div>
 
+  <div class="row">
+    <label>K &mdash; press this bar, tick should land at PRESS</label>
+    <div class="touchpad expbar" id="labK">Press here</div>
+  </div>
+  <div class="row">
+    <label>L &mdash; the same, driven from touchstart</label>
+    <div class="touchpad expbar" id="labL">Press here</div>
+  </div>
+  <div class="hint">
+    Test A fired from a click handler, which runs after your finger has
+    already lifted, so it never really tested a press. These two call the
+    same thing from inside a live touch instead: <b>K</b> from
+    pointerdown, <b>L</b> from touchstart. If either ticks the moment
+    your finger lands, press haptics are back.
+  </div>
+
   <div class="hint" id="hapticSupport"></div>
 
   <div class="sect">SCROLL</div>
@@ -737,6 +755,8 @@ function clickSound() {
   try {
     const src = audioCtx.createBufferSource();
     src.buffer = clickBuf;
+    // A hair of pitch scatter, or repeats read as one machine-gun tone.
+    src.playbackRate.value = 1 + (Math.random() * 0.06 - 0.03);
     const g = audioCtx.createGain();
     g.gain.value = 0.4;
     src.connect(g);
@@ -780,6 +800,29 @@ function installTickSwitches() {
     el.appendChild(sw);
   }
 }
+// A parked label, off screen and untouchable. A script click on a LABEL
+// is forwarded to its control as a trusted click, unlike a click on the
+// input itself. Inside a live touch that may pass the haptic gate.
+const parkLabel = document.createElement("label");
+parkLabel.setAttribute("aria-hidden", "true");
+parkLabel.style.cssText = "position:fixed;left:-300px;top:0;width:51px;"
+  + "height:31px;opacity:.01;pointer-events:none;z-index:-1";
+const parkSw = document.createElement("input");
+parkSw.type = "checkbox";
+parkSw.setAttribute("switch", "");
+parkSw.tabIndex = -1;
+parkSw.style.cssText = "width:51px;height:31px;margin:0";
+parkLabel.appendChild(parkSw);
+document.body.appendChild(parkLabel);
+
+let lastParkTickT = 0;
+function parkTick(minGapMs = 0) {
+  const now = performance.now();
+  if (now - lastParkTickT < minGapMs) return;
+  lastParkTickT = now;
+  try { parkLabel.click(); } catch {}
+}
+
 function setTickEnabled(on) {
   // A disabled input is not activated by its label, so this is the off switch.
   for (const sw of document.querySelectorAll(".tickSwitch")) sw.disabled = !on;
@@ -1455,6 +1498,14 @@ const CHECKS = [
 for (const [id, key] of CHECKS) {
   $(id).addEventListener("change", e => { S[key] = e.target.checked; saveSettings(); });
 }
+// K and L, plus the Test haptic button, all fire from a live touch.
+$("labK").addEventListener("pointerdown", e => { e.preventDefault(); parkTick(); });
+$("labL").addEventListener("touchstart", () => parkTick(), { passive: true });
+$("hapticTestBtn").addEventListener("pointerdown", e => {
+  e.preventDefault();
+  parkTick();
+}, { passive: false });
+
 $("cHaptics").addEventListener("change", e => {
   S.haptics = e.target.checked;
   setTickEnabled(S.haptics);
