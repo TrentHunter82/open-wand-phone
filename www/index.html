@@ -85,17 +85,6 @@
 
   /* The switch that plays the tick must render, or iOS has nothing to
      play. Keep it in the layout, one pixel wide and invisible. */
-  #hapticLabel {
-    position: fixed; left: 0; bottom: 0;
-    width: 56px; height: 36px;     /* room for the whole switch, unclipped */
-    opacity: .01;
-    pointer-events: none;
-    z-index: -1;
-  }
-  /* Do not force the switch to checkbox size. At 20x20 Safari can fall
-     back to a plain checkbox, and the tick goes with it. */
-  #hapticTick { width: 51px; height: 31px; margin: 0; }
-
   /* ---- warning banner ---- */
   #banner {
     display: none;
@@ -342,6 +331,18 @@
     font-size: 14px;
   }
   #copyBtn { border-color: #38d39f; color: #38d39f; }
+
+  /* One hidden switch per control. iOS plays its tick when a real touch
+     activates the label, so it must render at its natural size and it
+     must not be clipped. The generic checkbox rule would shrink it to
+     20x20 and cost the tick, so match it with input.tickSwitch. */
+  #clutch, #scrollStrip, .pad { position: relative; }
+  input.tickSwitch {
+    position: absolute; left: 50%; top: 50%;
+    width: 51px; height: 31px; margin: -15px 0 0 -25px;
+    opacity: .01;
+    pointer-events: none;
+  }
   #hapticReal { width: 51px; height: 31px; accent-color: #38d39f; }
   #realRow label { align-items: center; }
   .hrow { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
@@ -382,25 +383,19 @@
 
   <div id="spacer"></div>
   <div id="surface">
-    <div id="clutch"><span id="clutchLabel">TOUCH TO MOVE &middot; TAP TO CLICK</span></div>
-    <div id="scrollStrip"><div id="stripLabel">SCROLL</div></div>
+    <label id="clutch"><span id="clutchLabel">TOUCH TO MOVE &middot; TAP TO CLICK</span></label>
+    <label id="scrollStrip"><div id="stripLabel">SCROLL</div></label>
   </div>
 
-  <!-- iOS haptic hack: activating a label around a switch input plays the
-       system tick (same pattern as the ios-haptics package) -->
-  <label id="hapticLabel" aria-hidden="true">
-    <input type="checkbox" switch id="hapticTick" tabindex="-1">
-  </label>
-
   <div id="hotRow">
-    <button class="pad" id="btnHot">HOTKEY<small>hold</small></button>
+    <label class="pad" id="btnHot" role="button">HOTKEY<small>hold</small></label>
   </div>
 
   <div id="buttons">
-    <div class="padwrap"><button class="pad" id="btnHalf">&frac12;</button><small>precision</small></div>
-    <div class="padwrap"><button class="pad" id="btnMic">MIC</button><small>hold to talk</small></div>
-    <div class="padwrap"><button class="pad" id="btnR">R</button><small>hold</small></div>
-    <div class="padwrap big"><button class="pad" id="btnL">L</button><small>hold / drag</small></div>
+    <div class="padwrap"><label class="pad" id="btnHalf" role="button">&frac12;</label><small>precision</small></div>
+    <div class="padwrap"><label class="pad" id="btnMic" role="button">MIC</label><small>hold to talk</small></div>
+    <div class="padwrap"><label class="pad" id="btnR" role="button">R</label><small>hold</small></div>
+    <div class="padwrap big"><label class="pad" id="btnL" role="button">L</label><small>hold / drag</small></div>
   </div>
 </div>
 
@@ -457,43 +452,16 @@
   <div class="toggles">
     <label><input type="checkbox" id="cHaptics"> Haptics on</label>
   </div>
-  <div class="drawerBtns">
-    <button id="hapticTestBtn">A &mdash; hidden, by code</button>
-    <button id="hapticTestB">B &mdash; hidden input, by code</button>
-  </div>
   <div class="row" id="realRow">
-    <label>C &mdash; visible switch, your touch <b>works</b></label>
+    <label>Reference switch &mdash; toggle it by hand <b></b></label>
     <input type="checkbox" switch id="hapticReal">
   </div>
-  <div class="row">
-    <label>D &mdash; visible switch, tapped by code</label>
-    <div class="hrow">
-      <input type="checkbox" switch id="swD">
-      <button id="btnD">Run D</button>
-    </div>
-  </div>
-  <div class="row">
-    <label>E &mdash; hidden switch, your touch on the bar</label>
-    <label class="touchpad" id="labE">Touch this bar
-      <input type="checkbox" switch id="swE" class="hiddenSwitch">
-    </label>
-  </div>
-  <div class="row">
-    <label>F &mdash; visible switch, your touch on the bar</label>
-    <label class="touchpad" id="labF">Touch this bar
-      <input type="checkbox" switch id="swF">
-    </label>
-  </div>
   <div class="hint">
-    C already ticks, so the phone is fine. These four say why A and B do
-    not.
-    <b>D</b> ticks: the switch only has to be visible, and code can fire
-    it.
-    <b>E</b> ticks: a real touch on a label works, even with the switch
-    hidden.
-    <b>F</b> only: it needs a visible switch <i>and</i> a real touch.
-    None of them: iOS no longer lets a page borrow this tick, and I will
-    say so instead of guessing again.
+    iOS plays this tick only for a real touch on a real switch. Code
+    cannot fire it. So the clutch zone, the strip and the pads each hold
+    a hidden switch, and your own touch plays the tick. The tick lands
+    when you lift, not when you press, because that is when iOS decides
+    the switch changed.
   </div>
   <div class="hint" id="hapticSupport"></div>
 
@@ -668,16 +636,32 @@ function haptic(minGapMs = 0) {
   const now = performance.now();
   if (now - lastHapticT < minGapMs) return;
   lastHapticT = now;
-  tickLabel();
-  try { if (navigator.vibrate) navigator.vibrate(8); } catch {}  // non-iOS fallback
+  // On iOS the tick comes from the user's own touch on the hidden
+  // switches, not from here. This covers everything else.
+  try { if (navigator.vibrate) navigator.vibrate(8); } catch {}
 }
-function tickLabel() {
-  try { $("hapticLabel").click(); $("hapticTick").blur(); } catch {}
+
+// Every control carries its own switch, so a real touch plays the tick.
+const TICK_HOSTS = ["clutch", "scrollStrip", "btnHalf", "btnMic",
+                    "btnR", "btnL", "btnHot"];
+function installTickSwitches() {
+  for (const id of TICK_HOSTS) {
+    const el = $(id);
+    if (!el || el.querySelector(".tickSwitch")) continue;
+    const sw = document.createElement("input");
+    sw.type = "checkbox";
+    sw.setAttribute("switch", "");
+    sw.className = "tickSwitch";
+    sw.tabIndex = -1;
+    sw.setAttribute("aria-hidden", "true");
+    el.appendChild(sw);
+  }
 }
-function tickInput() {
-  try { $("hapticTick").click(); $("hapticTick").blur(); } catch {}
+function setTickEnabled(on) {
+  // A disabled input is not activated by its label, so this is the off switch.
+  for (const sw of document.querySelectorAll(".tickSwitch")) sw.disabled = !on;
 }
-function tripleTick(fn) { fn(); setTimeout(fn, 160); setTimeout(fn, 320); }
+installTickSwitches();
 const hapticSupported = "switch" in document.createElement("input");
 
 /* ---------------- 1-euro filter (handoff formulation) ---------------- */
@@ -1315,6 +1299,7 @@ function refreshUI() {
   $("cShowHot").checked = S.showHotkey;
   $("cTrace").checked = S.trace;
   applyClutchHeight();
+  setTickEnabled(S.haptics);
   $("cStrip").checked = S.scrollStrip;
   $("cTwoFinger").checked = S.twoFinger;
   $("cDragLock").checked = S.dragLock;
@@ -1348,8 +1333,8 @@ for (const [id, key] of CHECKS) {
 }
 $("cHaptics").addEventListener("change", e => {
   S.haptics = e.target.checked;
+  setTickEnabled(S.haptics);
   saveSettings();
-  if (S.haptics) haptic();  // confirm with a tick
 });
 $("cMirror").addEventListener("change", e => {
   S.leftHanded = e.target.checked;
@@ -1393,12 +1378,7 @@ $("hapticSupport").textContent =
   + "  ·  iOS " + (iosM ? iosM[1] + "." + iosM[2] : "unknown")
   + "  ·  vibrate: " + (navigator.vibrate ? "yes" : "no");
 
-$("hapticTestBtn").addEventListener("click", () => tripleTick(tickLabel));
-$("hapticTestB").addEventListener("click", () => tripleTick(tickInput));
-$("btnD").addEventListener("click", () => tripleTick(() => {
-  $("swD").click();          // a visible switch, fired by code
-  $("swD").blur();
-}));
+
 
 $("resetBtn").addEventListener("click", () => {
   S = { ...DEFAULTS };

@@ -88,17 +88,33 @@ bar that tells you to scan the new QR code.
   and **Settings → Sounds & Haptics → System Haptics** on. Toggle in
   the drawer.
 
-  The tick comes from a hidden `<input type="checkbox" switch>`. iOS
-  plays it as the switch renders its change, so that element must stay
-  in the layout at its natural size. Do not give it `display: none`,
-  and do not force it to checkbox size. Either one kills the tick.
+  **How it works, and why it took four tries.** The tick comes from
+  `<input type="checkbox" switch>`. iOS plays it only when a **real
+  touch** activates the switch. A JavaScript `click()` never plays it,
+  whether the switch is hidden or visible. Tests on an iPhone 12 mini
+  settled this: a touch on a visible switch ticked, a touch on a label
+  wrapping a hidden switch ticked, and every code-driven click was
+  silent.
 
-  The HAPTICS section of the drawer holds three tests. A fires the
-  hidden switch through its label. B clicks the input. C is a plain
-  switch you toggle by hand, so it is the control. If C ticks and A or
-  B does not, the trick is at fault. If C gives nothing, the phone is
-  playing no haptics: check Low Power Mode. The section also reports
-  whether the browser has the switch element, and the iOS version.
+  So each control is a `<label>` that holds its own hidden switch. Your
+  own touch on the clutch zone, the strip or a pad activates that
+  switch and plays the tick. Keep these rules in any change:
+
+  1. The control must be a `<label>`, not a `<button>`. A button inside
+     a label swallows the activation.
+  2. The switch must render at its natural 51x31. The generic checkbox
+     rule shrinks it to 20x20, and Safari then draws a plain checkbox
+     with no tick.
+  3. Nothing may clip it, and no code may call `preventDefault` on
+     `touchstart`. `pointerdown` and `pointerup` are safe.
+
+  The tick lands when you lift, not when you press, because that is
+  when iOS decides the switch changed. The second of two rapid taps
+  does not tick, because the double-tap guard suppresses that click on
+  purpose. Scroll detents no longer tick, because a drag has no click.
+
+  The HAPTICS section of the drawer keeps one plain switch as a
+  reference, plus a readout of the switch support and the iOS version.
 - **Two-finger scroll:** the older way. It is **off by default** now.
   A second finger on the clutch zone is how Safari decides you asked
   it to zoom the page, and that setting sticks. The scroll strip does
