@@ -146,6 +146,10 @@ The defaults are the owner's tuned daily-driver values.
 - **Scroll:** pixels of drag for one wheel notch. This sets the speed
   of the scroll strip and of the two-finger drag. Lower = faster.
   Default 30.
+- **Clutch height:** the share of the free space the clutch zone takes.
+  Default 55%. The rest of the space sits above it, so the pads stay on
+  the bottom edge, under the thumb. Set 100% for the old full-height
+  clutch zone.
 - **Scroll strip:** show or hide the one-finger scroll bar. Default on.
 - **Tap-hold to drag:** turn the drag latch on or off. Default on. The
   second touch must start within 320 ms of the tap, and you must hold
@@ -210,13 +214,21 @@ SendInput.
   administrator, or click a normal window first.
 - **Amber bar, "This link is out of date":** the token changed. Scan
   the new QR code on the PC.
-- **The page got too big for the screen:** Safari zoomed in. An amber
-  bar appears with a **Fit to screen** button. Tap it. The button
-  resets the page scale, and it reloads the page if that fails. You
-  can also pinch out with two fingers. The page refuses the second tap
-  of a double tap, and the hotkey field is 16 px, so Safari has no
-  reason to zoom. The pinch stays available on purpose, because a
-  zoomed page needs a way back.
+- **The pads are hidden behind Safari's toolbar:** the page now sizes
+  itself to the visible box, so the toolbar cannot cover it. If the
+  pads still feel tight, lower **Clutch height** in the drawer.
+- **The page got too big for the screen:** Safari has two kinds of
+  zoom, and the amber bar names which one.
+  1. **Pinch zoom.** The bar reports the scale and shows a **Fit to
+     screen** button. Tap it. It resets the scale, and it reloads the
+     page if that fails. A two-finger pinch out also works.
+  2. **Page zoom.** The bar reports a percentage above 100%. This one
+     comes from Safari's own menu, and only Safari can clear it. Tap
+     **aA** at the address bar, then set the zoom to 100%.
+
+  The page refuses the second tap of a double tap, and the hotkey field
+  is 16 px, so nothing in the page asks Safari to zoom. The pinch stays
+  available on purpose, because a zoomed page needs a way back.
 - **Motion permission denied:** in Safari, tap **aA → Website
   Settings**, allow **Motion & Orientation**, then reload.
 - **Phone slept and does not reconnect:** the page reconnects with

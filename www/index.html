@@ -30,7 +30,9 @@
 
   #app {
     position: fixed;
-    inset: 0;
+    left: 0; right: 0; top: 0;
+    height: 100%;      /* fallback */
+    height: 100dvh;    /* the visible box: Safari's toolbar cannot cover it */
     display: flex;
     flex-direction: column;
     padding: env(safe-area-inset-top) env(safe-area-inset-right)
@@ -107,12 +109,13 @@
   #banner.zoom #fitBtn { display: block; }
 
   /* ---- surface: the clutch, plus the one-finger scroll strip ---- */
+  #spacer { flex: 45 1 0; min-height: 0; }   /* grow set from the slider */
   #surface {
-    flex: 1 1 auto;
+    flex: 55 1 0;
     display: flex;
     gap: 8px;
     margin: 2px 12px 8px;
-    min-height: 0;
+    min-height: 96px;
   }
   #surface.mirror { flex-direction: row-reverse; }   /* strip to the left hand */
 
@@ -347,6 +350,7 @@
     <button id="fitBtn">Fit to screen</button>
   </div>
 
+  <div id="spacer"></div>
   <div id="surface">
     <div id="clutch"><span id="clutchLabel">TOUCH TO MOVE &middot; TAP TO CLICK</span></div>
     <div id="scrollStrip"><div id="stripLabel">SCROLL</div></div>
@@ -435,6 +439,16 @@
     fingers in the clutch zone still scroll as well.
   </div>
 
+  <div class="sect">LAYOUT</div>
+  <div class="row">
+    <label>Clutch height &mdash; share of the free space <b id="vClutch"></b></label>
+    <input type="range" id="sClutch" min="25" max="100" step="5">
+  </div>
+  <div class="hint">
+    Lower this to keep the pads clear of Safari's toolbar. At 100 the
+    clutch zone takes the whole middle, as it did before.
+  </div>
+
   <div class="sect">GRIP</div>
   <div class="toggles">
     <label><input type="radio" name="pAxis" id="axTop" value="top"> Point with top edge</label>
@@ -501,6 +515,7 @@ const DEFAULTS = {   // owner-tuned daily-driver values
   hotkey: "ctrl+alt+f8",  // the assignable fifth pad
   showHotkey: false,      // that pad is hidden until it is wanted
   trace: false,           // live rate plot in the drawer
+  clutchPct: 55,          // clutch height, as a share of the free space
   scrollStrip: true,      // one-finger scroll strip beside the clutch
   dragLock: true,         // tap, then touch and hold, to latch a drag
 };
@@ -1090,12 +1105,24 @@ function fitToScreen() {
 }
 $("fitBtn").addEventListener("click", fitToScreen);
 
+function pageZoomFactor() {
+  // Safari's aA menu enlarges the CSS pixel, so innerWidth drops below
+  // the device width. visualViewport.scale stays 1, so it cannot see it.
+  if (window.innerHeight < window.innerWidth) return 1;      // portrait only
+  const dev = window.screen && screen.width;
+  if (!dev || !window.innerWidth) return 1;
+  return dev / window.innerWidth;
+}
+
 function checkZoom() {
   const vv = window.visualViewport;
-  if (!vv) return;
-  if (vv.scale > 1.02) {
-    showBanner("The page is zoomed to " + vv.scale.toFixed(1)
+  const pz = pageZoomFactor();
+  if (vv && vv.scale > 1.02) {
+    showBanner("The page is pinched to " + vv.scale.toFixed(1)
              + "x. Tap Fit to screen, or pinch out with two fingers.", "zoom");
+  } else if (pz > 1.05) {
+    showBanner("Safari page zoom is at " + Math.round(pz * 100)
+             + "%. Tap aA at the address bar, then set it to 100%.", "zoom");
   } else {
     hideBanner("zoom");
   }
@@ -1104,6 +1131,8 @@ if (window.visualViewport) {
   window.visualViewport.addEventListener("resize", checkZoom);
   window.visualViewport.addEventListener("scroll", checkZoom);
 }
+window.addEventListener("resize", checkZoom);
+window.addEventListener("orientationchange", () => setTimeout(checkZoom, 300));
 
 /* ---------------- hotkey names (mirrors the agent) ---------------- */
 
@@ -1149,7 +1178,13 @@ const SLIDERS = [
   ["sDeadzone", "vDeadzone", "deadzone", v => v.toFixed(1) + "°/s"],
   ["sGuard", "vGuard", "guard", v => v.toFixed(0) + " ms"],
   ["sScrollPx", "vScrollPx", "scrollPx", v => v.toFixed(0) + " px"],
+  ["sClutch", "vClutch", "clutchPct", v => v.toFixed(0) + "%"],
 ];
+
+function applyClutchHeight() {
+  $("spacer").style.flexGrow = String(100 - S.clutchPct);
+  $("surface").style.flexGrow = String(S.clutchPct);
+}
 
 function updateAbout() {
   $("about").textContent = ws && ws.readyState === 1
@@ -1171,6 +1206,7 @@ function refreshUI() {
   $("cHaptics").checked = S.haptics;
   $("cShowHot").checked = S.showHotkey;
   $("cTrace").checked = S.trace;
+  applyClutchHeight();
   $("cStrip").checked = S.scrollStrip;
   $("cDragLock").checked = S.dragLock;
   $("scrollStrip").classList.toggle("show", S.scrollStrip);
@@ -1189,6 +1225,7 @@ for (const [sid, vid, key, fmt] of SLIDERS) {
   $(sid).addEventListener("input", e => {
     S[key] = parseFloat(e.target.value);
     $(vid).textContent = fmt(S[key]);
+    if (key === "clutchPct") applyClutchHeight();
     saveSettings();
   });
 }
@@ -1274,6 +1311,7 @@ $("copyBtn").addEventListener("click", async () => {
     scroll_px_per_notch: S.scrollPx,
     scroll_invert: S.scrollInvert,
     scroll_strip: S.scrollStrip,
+    clutch_pct: S.clutchPct,
     tap_click: S.tapClick,
     drag_lock: S.dragLock,
     double_tap_ms: DOUBLE_TAP_MS,
