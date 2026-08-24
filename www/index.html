@@ -383,14 +383,7 @@
   }
   .touchpad input[type=checkbox] { width: 51px; height: 31px; flex: 0 0 auto; }
   .hiddenSwitch { opacity: .01; }   /* same hiding the app itself uses */
-  .expbar { position: relative; justify-content: center; }
-  .expbar.tall { min-height: 130px; }
-  input.expSwitch { position: absolute; left: 50%; top: 50%; opacity: .01; }
-  /* On its side, so a vertical drag travels along the switch's own axis. */
-  #swI { width: 51px; height: 31px; margin: -15px 0 0 -25px;
-         transform: rotate(90deg); }
-  /* Narrow, so the travel a thumb must cross is short. */
-  #swJ { width: 36px; height: 31px; margin: -15px 0 0 -18px; }
+
 </style>
 </head>
 <body>
@@ -486,13 +479,16 @@
     <label><input type="checkbox" id="cHaptics"> Haptics on</label>
   </div>
   <div class="row" id="realRow">
-    <label>Reference switch &mdash; toggle it by hand <b></b></label>
+    <label>Reference switch &mdash; feel the tick <b></b></label>
     <input type="checkbox" switch id="hapticReal">
   </div>
   <div class="hint">
-    iOS plays this tick only for a real touch on a real switch. Code
-    cannot fire it. So the clutch zone, the strip and the pads each hold
-    a hidden switch, and your own touch plays the tick.
+    Toggle the switch above and you feel the tick iOS gives a page. That
+    is the only way to get one: a real touch on a real switch. Code
+    cannot fire it, and nothing can fire it at press. So every control
+    holds a hidden switch, your own touch plays the tick, and the tick
+    lands when you lift. Press is fed by the top-edge flash and, if you
+    want it, the click below.
   </div>
 
   <div class="toggles">
@@ -505,43 +501,6 @@
     click through the speaker. The Taptic tick still lands on release.
     The ringer switch mutes the click, and Bluetooth audio delays it.
   </div>
-  <div class="row">
-    <label>I &mdash; drag up and down slowly, do not lift</label>
-    <label class="touchpad expbar tall" id="labI">Drag me up and down
-      <input type="checkbox" switch id="swI" class="expSwitch">
-    </label>
-  </div>
-  <div class="row">
-    <label>J &mdash; press the middle and HOLD, do not lift</label>
-    <label class="touchpad expbar" id="labJ">Press and hold here
-      <input type="checkbox" switch id="swJ" class="expSwitch">
-    </label>
-  </div>
-  <div class="hint">
-    The tick needs the switch to travel, so these two put travel where it
-    exists. <b>I</b> turns the switch on its side, so an up and down drag
-    moves it along its own axis. If I ticks while you drag, scrolling can
-    have detents again. <b>J</b> uses a narrow switch, so its travel is
-    short enough that a resting thumb might cross it. If J ticks while
-    you hold, press haptics come back.
-  </div>
-
-  <div class="row">
-    <label>K &mdash; press this bar, tick should land at PRESS</label>
-    <div class="touchpad expbar" id="labK">Press here</div>
-  </div>
-  <div class="row">
-    <label>L &mdash; the same, driven from touchstart</label>
-    <div class="touchpad expbar" id="labL">Press here</div>
-  </div>
-  <div class="hint">
-    Test A fired from a click handler, which runs after your finger has
-    already lifted, so it never really tested a press. These two call the
-    same thing from inside a live touch instead: <b>K</b> from
-    pointerdown, <b>L</b> from touchstart. If either ticks the moment
-    your finger lands, press haptics are back.
-  </div>
-
   <div class="hint" id="hapticSupport"></div>
 
   <div class="sect">SCROLL</div>
@@ -628,7 +587,6 @@
   <div class="hint" id="about">not connected</div>
 
   <div class="drawerBtns">
-    <button id="hapticTestBtn">Test haptic</button>
     <button id="resetBtn">Defaults</button>
     <button id="copyBtn">Copy constants</button>
     <button id="closeBtn">Close</button>
@@ -830,29 +788,6 @@ function installTickSwitches() {
     el.appendChild(sw);
   }
 }
-// A parked label, off screen and untouchable. A script click on a LABEL
-// is forwarded to its control as a trusted click, unlike a click on the
-// input itself. Inside a live touch that may pass the haptic gate.
-const parkLabel = document.createElement("label");
-parkLabel.setAttribute("aria-hidden", "true");
-parkLabel.style.cssText = "position:fixed;left:-300px;top:0;width:51px;"
-  + "height:31px;opacity:.01;pointer-events:none;z-index:-1";
-const parkSw = document.createElement("input");
-parkSw.type = "checkbox";
-parkSw.setAttribute("switch", "");
-parkSw.tabIndex = -1;
-parkSw.style.cssText = "width:51px;height:31px;margin:0";
-parkLabel.appendChild(parkSw);
-document.body.appendChild(parkLabel);
-
-let lastParkTickT = 0;
-function parkTick(minGapMs = 0) {
-  const now = performance.now();
-  if (now - lastParkTickT < minGapMs) return;
-  lastParkTickT = now;
-  try { parkLabel.click(); } catch {}
-}
-
 function setTickEnabled(on) {
   // A disabled input is not activated by its label, so this is the off switch.
   for (const sw of document.querySelectorAll(".tickSwitch")) sw.disabled = !on;
@@ -1548,14 +1483,6 @@ const CHECKS = [
 for (const [id, key] of CHECKS) {
   $(id).addEventListener("change", e => { S[key] = e.target.checked; saveSettings(); });
 }
-// K and L, plus the Test haptic button, all fire from a live touch.
-$("labK").addEventListener("pointerdown", e => { e.preventDefault(); parkTick(); });
-$("labL").addEventListener("touchstart", () => parkTick(), { passive: true });
-$("hapticTestBtn").addEventListener("pointerdown", e => {
-  e.preventDefault();
-  parkTick();
-}, { passive: false });
-
 $("cHaptics").addEventListener("change", e => {
   S.haptics = e.target.checked;
   setTickEnabled(S.haptics);

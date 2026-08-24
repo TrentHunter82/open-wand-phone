@@ -108,15 +108,31 @@ bar that tells you to scan the new QR code.
   3. Nothing may clip it, and no code may call `preventDefault` on
      `touchstart`. `pointerdown` and `pointerup` are safe.
 
-  **The tick cannot land at press. This is settled, not assumed.** Two
-  tests on the device proved it. Press a switch and hold: nothing until
-  the lift. Drag a switch slowly: it ticks mid-gesture, before the lift.
-  So the tick follows the switch *travelling*, and a resting thumb never
-  moves far enough to move it. Putting a touchable switch under the
-  thumb, with and without the app's own preventDefault calls, changed
-  nothing. No other haptic route exists either: `navigator.vibrate` is
-  not implemented in Safari, and every other control that plays a haptic
-  needs visible UI.
+  **The tick cannot land at press. Settled by measurement. Do not
+  retry it.** Six experiments ran on an iPhone 12 mini, iOS 18, in
+  Safari:
+
+  | Test | Result |
+  |---|---|
+  | Touch a visible switch | ticks, on lift |
+  | Touch a label over a hidden switch | ticks, on lift |
+  | `input.click()` from script | silent |
+  | `label.click()` from a click handler | silent |
+  | `label.click()` from `pointerdown`, live touch | **silent** |
+  | `label.click()` from `touchstart`, live touch | **silent** |
+  | Press and hold a touchable switch under the thumb | silent until lift |
+  | The same, with the clutch zone's own `preventDefault` calls | silent until lift |
+  | Drag a switch slowly across its travel | **ticks mid-gesture** |
+
+  Two facts come out of that. The tick follows the switch *travelling*,
+  and a resting thumb never moves it far enough. And a script click
+  cannot fire it at all, on this build. WebKit forwarded a script click
+  on a label as a trusted click until a fix dated 2026-05-20 closed it;
+  this phone has that fix.
+
+  No other haptic route exists either: `navigator.vibrate` is not
+  implemented in Safari, and every other control that plays a haptic
+  needs visible UI on screen.
 
   The second of two rapid taps does not tick either, because the
   double-tap guard suppresses that click on purpose. Scroll detents do
