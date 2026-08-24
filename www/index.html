@@ -228,15 +228,20 @@
 
   #hotRow {
     display: none;
+    gap: 8px;
     padding: 0 12px 8px;
     flex: 0 0 auto;
   }
-  #hotRow.show { display: block; }
-  #btnHot {
-    width: 100%; height: 62px;
-    font-size: 16px; letter-spacing: .06em;
+  #hotRow.show { display: flex; }
+  .hotpad {
+    flex: 1 1 0; min-width: 0;
+    display: block; height: 58px; line-height: 58px;
+    border-radius: 16px;                 /* a pill, not a circle */
+    padding: 0 8px;
+    font-size: 15px; letter-spacing: .04em; text-align: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  #btnHot.active { background: #2b3a52; border-color: #58a6ff; }
+  .hotpad.active { background: #2b3a52; border-color: #58a6ff; }
 
   #buttons {
     display: flex;
@@ -260,8 +265,8 @@
     #buttons { padding: 0 10px calc(6px + env(safe-area-inset-bottom)); }
     .pad { font-size: 18px; }
     .padwrap small { display: none; }
-    #hotRow { padding: 0 10px 6px; }
-    #btnHot { height: 44px; font-size: 14px; }
+    #hotRow { padding: 0 10px 6px; gap: 6px; }
+    .hotpad { height: 44px; line-height: 44px; font-size: 13px; }
   }
 
   /* ---- start overlay ---- */
@@ -416,7 +421,7 @@
   </div>
 
   <div id="hotRow">
-    <label class="pad" id="btnHot" role="button">HOTKEY<small>hold</small></label>
+    <!-- filled from S.hotkeys -->
   </div>
 
   <div id="buttons">
@@ -593,15 +598,29 @@
 
   <div class="sect">HOTKEY PAD</div>
   <div class="toggles">
-    <label><input type="checkbox" id="cShowHot"> Show the hotkey pad</label>
+    <label><input type="checkbox" id="cShowHot"> Show the hotkey pads</label>
   </div>
   <div class="row">
-    <input type="text" id="tHot" spellcheck="false" autocapitalize="off"
-           autocomplete="off" placeholder="ctrl+alt+f8">
+    <label>Pad 1 <b></b></label>
+    <input type="text" id="tHot1" spellcheck="false" autocapitalize="off"
+           autocomplete="off" placeholder="enter">
+  </div>
+  <div class="row">
+    <label>Pad 2 <b></b></label>
+    <input type="text" id="tHot2" spellcheck="false" autocapitalize="off"
+           autocomplete="off" placeholder="esc">
+  </div>
+  <div class="row">
+    <label>Pad 3 <b></b></label>
+    <input type="text" id="tHot3" spellcheck="false" autocapitalize="off"
+           autocomplete="off" placeholder="space">
     <div class="hint">
-      Up to four keys, joined by +. Names: ctrl, alt, shift, win, f1&ndash;f24,
-      a&ndash;z, 0&ndash;9, esc, tab, space, enter, backspace, delete, insert,
-      home, end, pageup, pagedown, up, down, left, right.
+      Three pads, side by side above the main row. Leave a field empty to
+      drop that pad. Each holds up to four keys joined by +. Names: ctrl,
+      alt, shift, win, f1&ndash;f24, a&ndash;z, 0&ndash;9, esc, tab, space,
+      enter, backspace, delete, insert, home, end, pageup, pagedown, up,
+      down, left, right, and the punctuation names. A red field is not
+      saved.
     </div>
   </div>
 
@@ -643,8 +662,8 @@ const DEFAULTS = {   // owner-tuned daily-driver values
   invertX: false,
   invertY: false,
   pointAxis: "top",  // "top" = top edge points at the screen; "back" = back of the phone
-  hotkey: "ctrl+alt+f8",  // the assignable fifth pad
-  showHotkey: false,      // that pad is hidden until it is wanted
+  hotkeys: ["enter"],     // up to three assignable pads
+  showHotkey: true,       // Enter is useful enough to show by default
   trace: false,           // live rate plot in the drawer
   clutchPct: 55,          // clutch height, as a share of the free space
   scrollStrip: true,      // one-finger scroll strip beside the clutch
@@ -662,7 +681,17 @@ let S = loadSettings();
 function loadSettings() {
   try {
     const raw = JSON.parse(localStorage.getItem(LS_KEY) || "{}");
-    return { ...DEFAULTS, ...raw };
+    const cur = { ...DEFAULTS, ...raw };
+    if (!Array.isArray(raw.hotkeys)) {          // test what was STORED, not the merge
+      // One combo became a list. Keep whatever was configured, and add
+      // Enter, which is the reason the list exists.
+      const old = typeof raw.hotkey === "string" ? raw.hotkey.trim().toLowerCase() : "";
+      cur.hotkeys = old && old !== "enter" ? ["enter", old] : ["enter"];
+      cur.showHotkey = true;
+    }
+    cur.hotkeys = cur.hotkeys.slice(0, 3);
+    delete cur.hotkey;
+    return cur;
   } catch { return { ...DEFAULTS }; }
 }
 function saveSettings() {
@@ -786,10 +815,11 @@ function haptic(minGapMs = 0) {
 
 // Every control carries its own switch, so a real touch plays the tick.
 const TICK_HOSTS = ["clutch", "scrollStrip", "btnHalf", "btnMic",
-                    "btnR", "btnL", "btnHot"];
+                    "btnR", "btnL"];
 function installTickSwitches() {
-  for (const id of TICK_HOSTS) {
-    const el = $(id);
+  const els = TICK_HOSTS.map(id => $(id))
+    .concat(Array.from(document.querySelectorAll(".hotpad")));
+  for (const el of els) {
     if (!el || el.querySelector(".tickSwitch")) continue;
     const sw = document.createElement("input");
     sw.type = "checkbox";
@@ -1312,11 +1342,30 @@ holdButton($("btnMic"),
   () => { send({ t: "k", key: "f8", s: 1 }); setMicUI(true); },   // hold = record
   () => { send({ t: "k", key: "f8", s: 0 }); setMicUI(false); haptic(); }); // release = paste
 
-// The fifth pad sends whatever combo the drawer holds.
-let hotSent = null;   // the combo that is down now, so the release always matches
-holdButton($("btnHot"),
-  () => { hotSent = S.hotkey; send({ t: "k", key: hotSent, s: 1 }); },
-  () => { if (hotSent) send({ t: "k", key: hotSent, s: 0 }); hotSent = null; haptic(); });
+// The assignable pads are built from the settings, so the row can change
+// without touching the markup.
+function buildHotkeyRow() {
+  const row = $("hotRow");
+  row.textContent = "";
+  const combos = (S.hotkeys || [])
+    .map(c => String(c || "").trim().toLowerCase())
+    .filter(c => c && validCombo(c))
+    .slice(0, 3);
+  for (const combo of combos) {
+    const el = document.createElement("label");
+    el.className = "pad hotpad";
+    el.setAttribute("role", "button");
+    el.textContent = combo.toUpperCase();
+    el.dataset.combo = combo;
+    row.appendChild(el);
+    let sent = null;          // remember what went down, so the release matches
+    holdButton(el,
+      () => { sent = el.dataset.combo; send({ t: "k", key: sent, s: 1 }); },
+      () => { if (sent) send({ t: "k", key: sent, s: 0 }); sent = null; });
+  }
+  row.classList.toggle("show", !!S.showHotkey && combos.length > 0);
+  installTickSwitches();      // the new pads need their own tick switch
+}
 
 document.addEventListener("contextmenu", e => e.preventDefault());
 
@@ -1409,10 +1458,7 @@ function validCombo(spec) {
   const parts = String(spec).toLowerCase().split("+").map(p => p.trim()).filter(Boolean);
   return parts.length >= 1 && parts.length <= 4 && parts.every(p => KEY_NAMES.has(p));
 }
-function applyHotkey() {
-  $("btnHot").firstChild.nodeValue = S.hotkey.toUpperCase();
-  $("hotRow").classList.toggle("show", S.showHotkey);
-}
+
 
 /* ---------------- settings UI ---------------- */
 
@@ -1472,12 +1518,16 @@ function refreshUI() {
   $("cClick").checked = S.clickSound;
   $("scrollStrip").classList.toggle("show", S.scrollStrip);
   $("surface").classList.toggle("mirror", S.leftHanded);
-  $("tHot").value = S.hotkey;
-  $("tHot").classList.toggle("bad", !validCombo(S.hotkey));
+  for (let i = 0; i < 3; i++) {
+    const f = $("tHot" + (i + 1));
+    const v = S.hotkeys[i] || "";
+    f.value = v;
+    f.classList.toggle("bad", !!v && !validCombo(v));
+  }
   $("buttons").classList.toggle("mirror", S.leftHanded);
   $("axTop").checked = S.pointAxis !== "back";
   $("axBack").checked = S.pointAxis === "back";
-  applyHotkey();
+  buildHotkeyRow();
   setTrace(S.trace);
   updateAbout();
 }
@@ -1525,22 +1575,27 @@ $("cStrip").addEventListener("change", e => {
 $("cShowHot").addEventListener("change", e => {
   S.showHotkey = e.target.checked;
   saveSettings();
-  applyHotkey();
+  buildHotkeyRow();
 });
 $("cTrace").addEventListener("change", e => {
   S.trace = e.target.checked;
   saveSettings();
   setTrace(S.trace);
 });
-$("tHot").addEventListener("input", e => {
-  const v = e.target.value.trim().toLowerCase();
-  const ok = validCombo(v);
-  e.target.classList.toggle("bad", !ok);
-  if (!ok) return;
-  S.hotkey = v;
-  saveSettings();
-  applyHotkey();
-});
+for (let i = 0; i < 3; i++) {
+  $("tHot" + (i + 1)).addEventListener("input", e => {
+    const v = e.target.value.trim().toLowerCase();
+    const ok = !v || validCombo(v);        // empty simply drops that pad
+    e.target.classList.toggle("bad", !ok);
+    if (!ok) return;
+    const list = [$("tHot1").value, $("tHot2").value, $("tHot3").value]
+      .map(x => x.trim().toLowerCase())
+      .filter(x => x && validCombo(x));
+    S.hotkeys = list.slice(0, 3);
+    saveSettings();
+    buildHotkeyRow();
+  });
+}
 for (const id of ["axTop", "axBack"]) {
   $(id).addEventListener("change", e => {
     if (e.target.checked) { S.pointAxis = e.target.value; lastR = null; saveSettings(); }
@@ -1585,7 +1640,7 @@ $("copyBtn").addEventListener("click", async () => {
     point_axis: S.pointAxis,
     invert_x: S.invertX,
     invert_y: S.invertY,
-    hotkey: S.hotkey,
+    hotkeys: S.hotkeys,
   }, null, 2);
   try {
     await navigator.clipboard.writeText(blob);

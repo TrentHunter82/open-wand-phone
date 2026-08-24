@@ -149,9 +149,10 @@ bar that tells you to scan the new QR code.
   at the cursor. The agent releases F8 on any disconnect, so CM7 can
   not get stuck in record mode.
 - **½:** hold for half-speed precision movement.
-- **Hotkey pad:** a fifth, assignable pad. It is hidden until you
-  check **Show the hotkey pad** in the drawer. Hold it to hold the
-  combo; release it to release the combo. Default `ctrl+alt+f8`.
+- **Hotkey pads:** up to three assignable pads, side by side above the
+  main row. **Enter** is there by default. Hold one to hold its combo;
+  release it to release the combo. Set them in the drawer, and hide the
+  row with **Show the hotkey pads**.
 - **Gear icon:** open the tuning drawer.
 
 ## Status strip
@@ -212,7 +213,9 @@ The defaults are the owner's tuned daily-driver values.
   a remote (default). **Back** = hold the phone upright, screen toward
   you, and aim the back camera at the screen.
 - **Invert X / Y:** flip an axis to taste.
-- **Hotkey pad:** up to four key names, joined by `+`. Names: ctrl,
+- **Hotkey pads:** three fields, one per pad. Leave a field empty to
+  drop that pad. Each takes up to four key names, joined by `+`. Names:
+  ctrl,
   alt, shift, win, f1-f24, a-z, 0-9, esc, tab, space, enter,
   backspace, delete, insert, home, end, pageup, pagedown, up, down,
   left, right, and the punctuation names (minus, equals, comma,
