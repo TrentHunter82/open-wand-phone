@@ -179,6 +179,39 @@ bar that tells you to scan the new QR code.
 - **BLOCKED:** Windows refused the injected input. See Troubleshooting.
 - **pps:** motion frames sent per second. About 60 while you move.
 
+## Calibration
+
+**Calibrate the wand** in the drawer measures four things and sets them
+for you. It takes about forty seconds. The PC must be connected, because
+the routine parks the cursor at the desktop edges for you to aim at.
+
+1. **Hold still, four seconds.** Measures your hand tremor, and the gyro
+   bias with it. Sets **deadzone** to the 99th percentile of the wobble.
+2. **Sweep across, three times.** The cursor parks at the far left of the
+   desktop, you aim and tap, it jumps to the far right, you aim and tap.
+   The gyro integrates the angle you swept, and that angle is the
+   **reach**. The sign gives **invert X**. It takes the median of three.
+3. **Up and down, once.** The same, vertically. Gives **invert Y**.
+4. **Six taps.** Measures how long your own tap keeps the wand moving,
+   and sets the **touch guard** from it.
+
+Parking the cursor is what makes this work on more than one monitor. You
+aim at the real corners of the whole desktop, so the reach spans the
+desktop and not one screen.
+
+Nothing changes until you say so. The result screen lists every value,
+old beside new, with a tick per row. Untick anything you would rather
+keep. **Undo calibration** puts back whatever the last run changed.
+
+Two honest limits:
+
+- **Reach is only correct in `--absolute` mode.** In relative mode
+  Windows pointer acceleration multiplies the result by a factor that
+  changes with speed, so a measured reach will feel wrong. Calibrate in
+  absolute mode, or expect to adjust reach by hand afterwards.
+- **Curve and scroll speed are not measured.** They are preference, not
+  physics, and no measurement can tell the app what you like.
+
 ## Tuning
 
 All sliders apply immediately and persist on the phone.
@@ -197,8 +230,20 @@ The defaults are the owner's tuned daily-driver values.
   so the feel stays the same if the sensor rate changes.
 - **min_cutoff:** LOWER = steadier at rest, but laggier slow moves.
   Default 4.0 (light smoothing; the deadzone handles the tremor).
-- **beta:** higher = the filter opens sooner on fast moves. Default
-  0.025.
+- **beta:** Hz added to the filter cutoff for every 100 deg/s of hand
+  speed. Higher = the filter opens sooner on fast moves.
+
+  **This was broken until 2026-08-21.** The code fed the speed term in
+  rad/s while the slider range was chosen for deg/s, so it was 57 times
+  too small. Across the whole old slider, a 400 deg/s flick moved the
+  cutoff from 4.000 Hz to 4.349 Hz, and the time to reach 90 percent of
+  a flick did not change at all. The filter was a fixed 4 Hz lowpass and
+  the deadzone was doing all the work.
+
+  Stored values convert to the same behaviour, so nothing changed on the
+  day of the fix. That lands near zero. Try 3 to 6 for what the setting
+  was always meant to do. The export key is now
+  `beta_hz_per_100dps`, with `beta_formula` beside it.
 - **Deadzone:** filtered rates below this speed (deg/s) do nothing.
   Raise it until a resting hand holds the cursor dead-still. Default
   2.5.
