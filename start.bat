@@ -6,7 +6,7 @@ cd /d "%~dp0"
 rem ---- Agent options. Add --absolute for an exact 1:1 pointer that
 rem ---- skips the Windows "Enhance pointer precision" setting.
 rem ---- Example:  set "WAND_ARGS=--absolute --verbose"
-set "WAND_ARGS="
+set "WAND_ARGS=--absolute"
 
 rem ---- Toggle: if the agent already runs, stop it and exit. ----
 set "FOUND="

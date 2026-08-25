@@ -706,6 +706,7 @@ const DEFAULTS = {   // owner-tuned daily-driver values
   dragLock: true,         // tap, then touch and hold, to latch a drag
   clickSound: false,      // short speaker click at press; see the drawer note
   betaUnit: "hz100",      // marks the converted beta unit
+  calWidth: 0,            // desktop width the last calibration measured
 };
 const D_CUTOFF = 1.0;
 const REF_HZ = 60;          // the curve is shaped at this rate, then scaled by dt,
@@ -1130,6 +1131,7 @@ function connect() {
       const f = JSON.parse(ev.data);
       if (f.t === "hello") {
         screenW = f.w; screenH = f.h;
+        checkCalWidth();
         agentVer = f.ver || "1.0";
         agentAbs = !!f.abs;
         $("modeBadge").style.display = agentAbs ? "inline" : "none";
@@ -1649,6 +1651,7 @@ $("copyBtn").addEventListener("click", async () => {
     scroll_px_per_notch: S.scrollPx,
     scroll_invert: S.scrollInvert,
     scroll_strip: S.scrollStrip,
+    calibrated_desktop_px: S.calWidth,
     two_finger_scroll: S.twoFinger,
     clutch_pct: S.clutchPct,
     tap_click: S.tapClick,
@@ -1925,12 +1928,28 @@ function calResults() {
       S[cb.dataset.key] = CAL.out[cb.dataset.key];
     }
     if (Object.keys(before).length) {
+      before.calWidth = S.calWidth;
       try { localStorage.setItem(LS_UNDO, JSON.stringify(before)); } catch {}
     }
+    S.calWidth = screenW;          // remember what it was measured against
     saveSettings();
     refreshUI();
     calEnd();
   };
+}
+
+// Reach is degrees per DESKTOP width, so a monitor going on or off makes
+// the calibrated number wrong by exactly that ratio.
+function checkCalWidth() {
+  const w = S.calWidth;
+  if (!w || !screenW) return;
+  const ratio = screenW / w;
+  if (ratio > 1.1 || ratio < 0.9) {
+    showBanner("The desktop is " + screenW + " px wide now, but the wand was "
+             + "calibrated at " + w + " px. The cursor will travel about "
+             + ratio.toFixed(1) + " times too far. Calibrate again, or set "
+             + "reach to " + Math.round(S.reach * ratio) + ".", "msg");
+  }
 }
 
 function calEnd() {

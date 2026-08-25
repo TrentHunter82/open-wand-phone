@@ -203,6 +203,10 @@ Nothing changes until you say so. The result screen lists every value,
 old beside new, with a tick per row. Untick anything you would rather
 keep. **Undo calibration** puts back whatever the last run changed.
 
+The routine records the desktop width it measured against. If a monitor
+goes on or off later, the reach is wrong by exactly that ratio, and the
+page says so and offers the corrected number.
+
 Two honest limits:
 
 - **Reach is only correct in `--absolute` mode.** In relative mode
