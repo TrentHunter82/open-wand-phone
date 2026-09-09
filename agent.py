@@ -26,7 +26,7 @@ from pathlib import Path
 
 from aiohttp import WSMsgType, web
 
-VERSION = "1.1"
+VERSION = "1.2"
 
 HERE = Path(__file__).resolve().parent
 WWW = HERE / "www"
@@ -136,6 +136,33 @@ def cursor_pos():
     p = POINT()
     user32.GetCursorPos(ctypes.byref(p))
     return p.x, p.y
+
+
+def monitor_rects():
+    """Enumerate real display bounds, including negative desktop coordinates."""
+    monitors = []
+    callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HANDLE,
+                                      wintypes.HDC, ctypes.POINTER(wintypes.RECT),
+                                      wintypes.LPARAM)
+
+    @callback_type
+    def collect(handle, hdc, rect, data):
+        r = rect.contents
+        monitors.append({"x": r.left, "y": r.top,
+                         "w": r.right - r.left, "h": r.bottom - r.top})
+        return True
+
+    if not user32.EnumDisplayMonitors(None, None, collect, 0):
+        raise ctypes.WinError(ctypes.get_last_error())
+    return sorted(monitors, key=lambda r: (r["x"], r["y"]))
+
+
+def cursor_report():
+    x, y = cursor_pos()
+    vx, vy, w, h = virtual_rect()
+    return {"t": "cursor", "x": x, "y": y,
+            "desktop": {"x": vx, "y": vy, "w": w, "h": h},
+            "monitors": monitor_rects()}
 
 
 def _send(inp):
@@ -507,7 +534,8 @@ def make_app(token, injector, stats, verbose):
         print("[ws] client connected: %s" % peer)
         _, _, w, h = virtual_rect()
         await ws.send_json({"t": "hello", "w": w, "h": h,
-                            "abs": bool(injector.absolute), "ver": VERSION})
+                            "abs": bool(injector.absolute), "ver": VERSION,
+                            "cursor_feedback": True})
 
         try:
             async for msg in ws:
@@ -532,6 +560,9 @@ def make_app(token, injector, stats, verbose):
                         injector.wheel(f.get("v"))
                     elif t == "p":
                         pass
+                    elif t == "cursor":
+                        # Read-only and requested only during calibration.
+                        await ws.send_json(cursor_report())
                     else:
                         if verbose:
                             print("[ws] unknown frame type: %r" % t)

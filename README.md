@@ -171,6 +171,34 @@ bar that tells you to scan the new QR code.
   row with **Show the hotkey pads**.
 - **Gear icon:** open the tuning drawer.
 
+### Undo, Redo, and macros
+
+Tap **More** beside the three hotkey pads to open **Undo**, **Redo**, and
+up to three named macros. The panel has a **Back to pointer** button;
+the main clutch and scroll area retain their existing height.
+Your saved Enter, Backspace, Space, and other pad assignments are preserved.
+
+In **Settings → More actions**, choose the Redo shortcut your PC app uses:
+Ctrl+Y (default) or Ctrl+Shift+Z. Undo sends Ctrl+Z.
+Give each macro a name and a comma-separated sequence of shortcuts, for
+example **Copy all** with `ctrl+a, ctrl+c`. Leave its steps blank to hide it.
+Settings save when you leave a field; invalid sequences are marked red and
+are not saved. Macros support up to 12 shortcuts using the same key names
+as the hotkey pads. Each shortcut is held for 80 ms, released, then followed
+by a 120 ms pause. They target the focused PC app and do not wait for dialogs
+or windows to load. They do not support arbitrary text or scripts.
+
+Only one action runs at a time. Leaving the panel, hiding the page, or
+disconnecting cancels the remaining steps; actions never resume on reconnect.
+Already-sent steps are not undone. “Sent” reports transmission, not confirmation
+that the PC app performed the action. F8 hold-to-talk works as before.
+
+Developer checks: `node --test tests/*.test.cjs` validates shortcut migration,
+macro execution, calibration measurements, edge detection, and cancellation.
+On Windows with requirements installed, `python -m unittest discover -s tests
+-p "test_*.py" -v` checks authenticated cursor reporting and monitor enumeration
+without injecting mouse or keyboard input.
+
 ## Status strip
 
 - **Green dot + "connected":** the phone drives the PC.
@@ -181,40 +209,44 @@ bar that tells you to scan the new QR code.
 
 ## Calibration
 
-**Calibrate the wand** in the drawer measures four things and sets them
-for you. It takes about forty seconds. The PC must be connected, because
-the routine parks the cursor at the desktop edges for you to aim at.
+**Calibrate reach** in Settings learns your comfortable wrist range. It
+never moves the cursor automatically. Restart the PC agent after updating
+and reload your existing Safari tab to enable cursor feedback.
 
-1. **Hold still, four seconds.** Measures your hand tremor, and the gyro
-   bias with it. Sets **deadzone** to the 99th percentile of the wobble.
-2. **Sweep across, three times.** The cursor parks at the far left of the
-   desktop, you aim and tap, it jumps to the far right, you aim and tap.
-   The gyro integrates the angle you swept, and that angle is the
-   **reach**. The sign gives **invert X**. It takes the median of three.
-3. **Up and down, once.** The same, vertically. Gives **invert Y**.
-4. **Six taps.** Measures how long your own tap keeps the wand moving,
-   and sets the **touch guard** from it.
+1. **Choose the display.** Pick the projected screen by its resolution and
+   desktop coordinates. The display currently containing the cursor is selected
+   initially. Displays to the left or above the primary can have negative coordinates.
+2. **Hold still for two seconds.** Measures sensor drift for the range measurement.
+3. **Mark your comfortable left aim, then right aim.** Aim with a comfortable
+   wrist position, mark left, sweep right, hold steady, and mark right. The
+   cursor stays where it is. Repeat once; inconsistent sweeps must be repeated.
+4. **Try it with the normal clutch and scroll strip.** The proposed reach is
+   temporary. Move the cursor yourself to the selected display's left edge,
+   lift to re-aim, then sweep right. The phone reports the actual cursor reaching
+   or crossing each edge, including boundaries shared with another display.
+   Repeat once. Click and drag gestures are paused during this trial.
+5. **Adjust and apply.** Slower/Faster lets you refine the trial speed and resets
+   the edge checks. After two successful passes, tap **Apply reach** if it feels
+   comfortable, or Cancel to keep the old settings.
 
-Parking the cursor is what makes this work on more than one monitor. You
-aim at the real corners of the whole desktop, so the reach spans the
-desktop and not one screen.
+The agent reports cursor position at the phone's request, about ten times per
+second during calibration. Stale feedback, a disconnect, a display-layout
+change, leaving Safari, or Cancel stops the trial without saving. No canceled
+measurement or cursor command resumes later. The cursor remains wherever you
+moved it during the trial.
 
-Nothing changes until you say so. The result screen lists every value,
-old beside new, with a tick per row. Untick anything you would rather
-keep. **Undo calibration** puts back whatever the last run changed.
+Reach is stored in degrees per full desktop width, so the comfortable angle
+is scaled by desktop width divided by the selected display width. The slider
+supports up to 1080 degrees to accommodate wide multi-monitor desktops.
+This calibrates sensitivity for the chosen display; it does not confine the
+cursor to that display. All existing filter, deadzone, touch-guard, scroll,
+vertical direction, and F8 settings remain unchanged. **Undo calibration**
+restores the previous reach, horizontal direction, and calibration width.
 
-The routine records the desktop width it measured against. If a monitor
-goes on or off later, the reach is wrong by exactly that ratio, and the
-page says so and offers the corrected number.
-
-Two honest limits:
-
-- **Reach is only correct in `--absolute` mode.** In relative mode
-  Windows pointer acceleration multiplies the result by a factor that
-  changes with speed, so a measured reach will feel wrong. Calibrate in
-  absolute mode, or expect to adjust reach by hand afterwards.
-- **Curve and scroll speed are not measured.** They are preference, not
-  physics, and no measurement can tell the app what you like.
+Absolute pointer mode gives the most predictable result (already enabled in
+start.bat). Relative-mode Windows acceleration and your existing curve,
+filtering, and deadzone can affect feel, which is why the live trial is required.
+Synthetic demo mode cannot calibrate a real wrist range.
 
 ## Tuning
 

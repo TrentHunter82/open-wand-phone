@@ -238,10 +238,24 @@
     display: block; height: 58px; line-height: 58px;
     border-radius: 16px;                 /* a pill, not a circle */
     padding: 0 8px;
-    font-size: 15px; letter-spacing: .04em; text-align: center;
+    font-size: 14px; letter-spacing: 0; text-align: center;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .hotpad.active { background: #2b3a52; border-color: #58a6ff; }
+  #moreActions { flex: 0 0 54px; padding: 0 3px; font-size: 12px; }
+  #actionsPanel {
+    position: fixed; inset: 0; z-index: 45; background: #0a0d12;
+    overflow-y: auto; padding: max(20px, env(safe-area-inset-top)) 16px
+      max(20px, env(safe-area-inset-bottom)); touch-action: pan-y;
+  }
+  #actionsPanel[hidden] { display: none; }
+  #actionsPanel h2 { margin-bottom: 16px; }
+  #actionGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  #actionGrid button, #actionsClose { min-height: 58px; padding: 12px;
+    border: 1px solid #34445a; border-radius: 14px; background: #182332;
+    color: #dbe4ee; font-size: 17px; touch-action: manipulation; }
+  #actionsClose { width: 100%; margin-top: 20px; }
+  #actionStatus { min-height: 40px; margin-top: 16px; color: #a9bccf; }
 
   #buttons {
     display: flex;
@@ -274,12 +288,18 @@
     position: fixed; inset: 0; z-index: 50;
     background: #0a0d12;
     display: none;
-    flex-direction: column; align-items: center; justify-content: center;
+    flex-direction: column; align-items: center; justify-content: flex-start;
     padding: 24px 20px calc(24px + env(safe-area-inset-bottom));
     overflow-y: auto;
   }
   #calib.open { display: flex; }
-  #calBox { width: 100%; max-width: 420px; text-align: center; }
+  #calib #surface { height: 160px; flex: none; margin: 16px 0; }
+  #calib select { width: 100%; min-height: 48px; font-size: 16px;
+    color: #dbe4ee; background: #141a22; margin: 12px 0; }
+  #calEdge { min-height: 48px; color: #38d39f; margin-top: 12px; }
+  #calib .calOptions button { min-height: 44px; padding: 8px; margin: 4px;
+    color: #dbe4ee; background: #182332; border: 1px solid #34445a; border-radius: 8px; }
+  #calBox { width: 100%; max-width: 420px; text-align: center; margin: auto 0; flex-shrink: 0; }
   #calStep { font-size: 11px; letter-spacing: .18em; color: #55677a; }
   #calTitle { font-size: 22px; margin: 10px 0 12px; color: #dbe4ee; }
   #calText { font-size: 15px; line-height: 1.5; color: #a9bccf; min-height: 96px; }
@@ -311,6 +331,7 @@
     touch-action: manipulation;
   }
   #calBtn { border-color: #38d39f; color: #38d39f; }
+  #calBtn:disabled { opacity: .4; }
 
   /* ---- start overlay ---- */
   #startOverlay {
@@ -374,7 +395,7 @@
   }
   .toggles label { display: flex; gap: 8px; align-items: center; color: #8fa2b8; }
   input[type=checkbox], input[type=radio] { width: 20px; height: 20px; accent-color: #38d39f; }
-  input[type=text] {
+  input[type=text], #redoCombo {
     width: 100%; padding: 11px 12px; border-radius: 12px;
     border: 1px solid #232d3a; background: #0d1219; color: #dbe4ee;
     font-size: 16px;   /* under 16 px, iOS zooms the page on focus */
@@ -475,21 +496,21 @@
 
   <div class="sect">CALIBRATION</div>
   <div class="drawerBtns">
-    <button id="calStartBtn">Calibrate the wand</button>
+    <button id="calStartBtn">Calibrate reach</button>
     <button id="calUndoBtn">Undo calibration</button>
   </div>
   <div class="hint">
-    About forty seconds. It measures your hand tremor, the angle you sweep
-    across the desktop, and the twitch your own tap makes, then sets the
-    deadzone, the reach, the invert switches and the touch guard from
-    those. It shows every number before it changes anything, and you can
-    keep any of the old ones.
+    Choose your projected display, mark your comfortable left and right
+    aim twice, then test the proposed reach with your normal clutch.
+    The phone reports when the cursor reaches each edge. Nothing saves
+    until you tap Apply. Your steadiness, touch guard, and vertical direction
+    settings stay as they are. Undo calibration restores your previous reach.
   </div>
 
   <div class="sect">FEEL</div>
   <div class="row">
     <label>Reach &mdash; higher = slower cursor <b id="vReach"></b></label>
-    <input type="range" id="sReach" min="10" max="150" step="1">
+    <input type="range" id="sReach" min="10" max="1080" step="1">
   </div>
   <div class="row">
     <label>Curve &mdash; higher = calm slow, wild flicks <b id="vCurve"></b></label>
@@ -646,6 +667,19 @@
     </div>
   </div>
 
+  <div class="sect">MORE ACTIONS</div>
+  <div class="row">
+    <label for="redoCombo">Redo shortcut</label>
+    <select id="redoCombo"><option value="ctrl+y">Ctrl+Y</option>
+      <option value="ctrl+shift+z">Ctrl+Shift+Z</option></select>
+  </div>
+  <div id="macroEditor"></div>
+  <div class="hint">Up to three named macros. Separate shortcuts with commas:
+    ctrl+a, ctrl+c. Each shortcut is pressed and released before the next.
+    Maximum 12 steps, with a short pause between steps. These run in the
+    focused PC app; they do not wait for windows to load. Blank steps hide a macro.
+    Changes save when you leave a field. Red fields are not saved.</div>
+
   <div class="sect">ABOUT</div>
   <div class="hint" id="about">not connected</div>
 
@@ -657,6 +691,13 @@
 
 </div>
 
+<section id="actionsPanel" hidden aria-label="More actions">
+  <h2>More actions</h2>
+  <div id="actionGrid"></div>
+  <div id="actionStatus" role="status" aria-live="polite"></div>
+  <button id="actionsClose">Back to pointer</button>
+</section>
+
 <div id="calib">
   <div id="calBox">
     <div id="calStep"></div>
@@ -664,6 +705,7 @@
     <div id="calText"></div>
     <div id="calPad">TAP HERE</div>
     <div id="calRows"></div>
+    <div id="calEdge" role="status" aria-live="polite"></div>
     <div id="calBtns">
       <button id="calBtn">Start</button>
       <button id="calCancel">Cancel</button>
@@ -698,6 +740,8 @@ const DEFAULTS = {   // owner-tuned daily-driver values
   invertY: false,
   pointAxis: "top",  // "top" = top edge points at the screen; "back" = back of the phone
   hotkeys: ["enter"],     // up to three assignable pads
+  redoCombo: "ctrl+y",
+  macros: [],
   showHotkey: true,       // Enter is useful enough to show by default
   trace: false,           // live rate plot in the drawer
   clutchPct: 55,          // clutch height, as a share of the free space
@@ -728,6 +772,8 @@ function loadSettings() {
       cur.showHotkey = true;
     }
     cur.hotkeys = cur.hotkeys.slice(0, 3);
+    cur.redoCombo = raw.redoCombo === "ctrl+shift+z" ? raw.redoCombo : "ctrl+y";
+    cur.macros = Array.isArray(raw.macros) ? raw.macros.slice(0, 3) : [];
     delete cur.hotkey;
     if (raw.beta !== undefined && raw.betaUnit !== "hz100") {
       // Convert the old rad/s coefficient so day one feels identical.
@@ -753,6 +799,7 @@ let backoff = 400;
 let failStreak = 0;      // sockets that closed before they ever opened
 let probing = false;
 let screenW = 1920, screenH = 1080;
+let cursorFeedback = false;
 let agentVer = "?", agentAbs = false;
 let clutched = false, clutchId = null;
 let scrollId = null;                   // second finger in the clutch zone = scroll
@@ -861,7 +908,7 @@ const TICK_HOSTS = ["clutch", "scrollStrip", "btnHalf", "btnMic",
                     "btnR", "btnL"];
 function installTickSwitches() {
   const els = TICK_HOSTS.map(id => $(id))
-    .concat(Array.from(document.querySelectorAll(".hotpad")));
+    .concat(Array.from(document.querySelectorAll("label.hotpad")));
   for (const el of els) {
     if (!el || el.querySelector(".tickSwitch")) continue;
     const sw = document.createElement("input");
@@ -958,7 +1005,7 @@ function onMotion(e) {
   const rightRate = dot(tip, r), upRate = dot(tip, q);
   if (CAL.on) {                                   // calibration takes the raw rates
     if (CAL.rec) CAL.buf.push([now / 1000, rightRate, upRate]);
-    return;                                       // and the cursor stays put
+    if (!CAL.preview) return;
   }
   processRates(rightRate, upRate, dt);            // rightward rate, upward rate
 }
@@ -973,6 +1020,7 @@ function deadzone(rate) {
 }
 
 function processRates(rightRate, upRate, dt) {
+  if (CAL.on && !CAL.preview) return;
   if (scrollId !== null) return;                     // scroll mode freezes the cursor
   const live = clutched && ws && ws.readyState === 1;
   if (!live && !traceOn) return;                     // the trace watches the filter too
@@ -982,12 +1030,13 @@ function processRates(rightRate, upRate, dt) {
   traceAdd(rightRate, xf);
   if (!live) return;
   if (now - engageT < S.guard) return;               // touch-down settle window
-  const k = screenW / (S.reach * Math.PI / 180);     // px per rad
+  const tuning = CAL.on && CAL.preview ? CAL.out : S;
+  const k = screenW / (tuning.reach * Math.PI / 180);     // px per rad
   const p = precision ? 0.5 : 1.0;
   // Shape the rate at the reference frame time, then scale by the real dt.
   // Cursor speed then depends on hand speed only, not on the sensor rate.
   const scale = dt / REF_DT;
-  const dx = shape(xf * k * REF_DT) * scale * (S.invertX ? -1 : 1) * p;
+  const dx = shape(xf * k * REF_DT) * scale * (tuning.invertX ? -1 : 1) * p;
   const dy = shape(-yf * k * REF_DT) * scale * (S.invertY ? -1 : 1) * p;  // screen y grows downward
   send({ t: "m", dx: +dx.toFixed(2), dy: +dy.toFixed(2) });
   sentCount++;
@@ -1130,12 +1179,15 @@ function connect() {
     try {
       const f = JSON.parse(ev.data);
       if (f.t === "hello") {
+        cursorFeedback = f.cursor_feedback === true;
         screenW = f.w; screenH = f.h;
         checkCalWidth();
         agentVer = f.ver || "1.0";
         agentAbs = !!f.abs;
         $("modeBadge").style.display = agentAbs ? "inline" : "none";
         updateAbout();
+      } else if (f.t === "cursor") {
+        calCursor(f);
       } else if (f.t === "stat") {
         $("blockedChip").style.display = f.blocked ? "inline" : "none";
         if (f.blocked) {
@@ -1149,6 +1201,9 @@ function connect() {
   };
   sock.onclose = () => {
     if (ws !== sock) return;           // a newer socket already took over
+    if (CAL.on) calEnd("Calibration canceled because the PC disconnected.");
+    cursorFeedback = false;
+    cancelAction("Disconnected. Action stopped.");
     setStatus("", "offline");
     $("blockedChip").style.display = "none";
     if (!opened && ++failStreak >= 2) probeAuth();
@@ -1174,6 +1229,8 @@ async function acquireWakeLock() {
   } catch {}
 }
 document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" && CAL.on) calEnd("Calibration canceled while the phone was away.");
+  if (document.visibilityState !== "visible") cancelAction("Action stopped while the phone was away.");
   if (document.visibilityState === "visible" && started) {
     acquireWakeLock();
     if (!ws || ws.readyState > 1) { backoff = 400; connect(); }
@@ -1227,7 +1284,7 @@ function engageClutch(id) {
   clutch.classList.add("engaged");
   setClutchLabel("MOVING");
   pressFeedback();
-  if (S.dragLock && performance.now() - lastTapEndT < DOUBLE_TAP_MS) {
+  if (!CAL.on && S.dragLock && performance.now() - lastTapEndT < DOUBLE_TAP_MS) {
     dragTimer = setTimeout(latchDrag, DRAG_LATCH_MS);
   }
 }
@@ -1252,6 +1309,7 @@ function releaseClutch() {
     send({ t: "b", btn: "l", s: 0 });
     return;
   }
+  if (CAL.on && CAL.preview) { sentLog = []; return; }
   const held = performance.now() - clutchDownT;
   if (!didScroll && held < 200 && movedAcc < 6) {    // a quick, still tap
     lastTapEndT = performance.now();                 // this arms the drag latch
@@ -1383,7 +1441,8 @@ function buildHotkeyRow() {
     const el = document.createElement("label");
     el.className = "pad hotpad";
     el.setAttribute("role", "button");
-    el.textContent = combo.toUpperCase();
+    el.textContent = ({ enter: "Enter", backspace: "Backspace", space: "Space" })[combo] || combo.toUpperCase();
+    el.setAttribute("aria-label", combo);
     el.dataset.combo = combo;
     row.appendChild(el);
     let sent = null;          // remember what went down, so the release matches
@@ -1391,7 +1450,14 @@ function buildHotkeyRow() {
       () => { sent = el.dataset.combo; send({ t: "k", key: sent, s: 1 }); },
       () => { if (sent) send({ t: "k", key: sent, s: 0 }); sent = null; });
   }
-  row.classList.toggle("show", !!S.showHotkey && combos.length > 0);
+  const more = document.createElement("button");
+  more.id = "moreActions";
+  more.className = "pad hotpad";
+  more.textContent = "More";
+  more.setAttribute("aria-label", "More actions: Undo, Redo and macros");
+  more.addEventListener("click", openActions);
+  row.appendChild(more);
+  row.classList.toggle("show", !!S.showHotkey);
   installTickSwitches();      // the new pads need their own tick switch
 }
 
@@ -1416,7 +1482,7 @@ for (const el of [clutch, strip, $("buttons"), $("hotRow")]) {
 // zooms on double tap even where touch-action says not to.
 let lastTouchEndT = 0;
 $("app").addEventListener("touchend", e => {
-  if (e.target.closest("#gear, #fitBtn")) return;   // these need their click
+  if (e.target.closest("#gear, #fitBtn, #moreActions")) return;   // these need their click
   const now = Date.now();
   if (now - lastTouchEndT <= 350) e.preventDefault();
   lastTouchEndT = now;
@@ -1487,6 +1553,129 @@ function validCombo(spec) {
   return parts.length >= 1 && parts.length <= 4 && parts.every(p => KEY_NAMES.has(p));
 }
 
+/* More actions use explicit key releases on the original connection. A
+   sequence never resumes after hiding the page, closing the panel or reconnecting. */
+let actionRun = null;
+function macroSteps(value) {
+  if (typeof value !== "string" || value.length > 500) return null;
+  const steps = value.toLowerCase().split(",").map(s => s.trim());
+  return steps.length <= 12 && steps.every(s => s.length <= 40 && validCombo(s))
+    ? steps : null;
+}
+function releaseActionKey(run) {
+  if (run.key && run.socket.readyState === 1) {
+    run.socket.send(JSON.stringify({ t: "k", key: run.key, s: 0 }));
+  }
+  run.key = null;
+}
+function cancelAction(message) {
+  if (!actionRun) return;
+  const run = actionRun;
+  actionRun = null;
+  releaseActionKey(run);
+  $("actionStatus").textContent = message;
+}
+async function runAction(name, steps) {
+  if (actionRun) return;
+  if (!ws || ws.readyState !== 1) {
+    $("actionStatus").textContent = "Connect to the PC first.";
+    return;
+  }
+  const run = { socket: ws, key: null };
+  actionRun = run;
+  $("actionStatus").textContent = "Sending " + name + "…";
+  try {
+    for (const step of steps) {
+      if (actionRun !== run || ws !== run.socket || run.socket.readyState !== 1) break;
+      run.key = step;
+      run.socket.send(JSON.stringify({ t: "k", key: step, s: 1 }));
+      await new Promise(resolve => setTimeout(resolve, 80));
+      releaseActionKey(run);
+      await new Promise(resolve => setTimeout(resolve, 120));
+    }
+    if (actionRun === run) $("actionStatus").textContent = name + " sent.";
+  } catch {
+    $("actionStatus").textContent = "Could not send the action. Check the connection.";
+  } finally {
+    releaseActionKey(run);
+    if (actionRun === run) actionRun = null;
+  }
+}
+function openActions() {
+  if (clutched || stripId !== null || document.querySelector(".pad.active")) return;
+  const grid = $("actionGrid");
+  grid.textContent = "";
+  const actions = [
+    { name: "Undo", steps: ["ctrl+z"] },
+    { name: "Redo", steps: [S.redoCombo] },
+  ];
+  for (const macro of S.macros) {
+    const steps = macroSteps(macro && macro.steps);
+    if (steps) actions.push({ name: String(macro.name || "Macro"), steps });
+  }
+  for (const action of actions) {
+    const button = document.createElement("button");
+    button.textContent = action.name;
+    button.addEventListener("click", () => runAction(action.name, action.steps));
+    grid.appendChild(button);
+  }
+  $("actionStatus").textContent = "Shortcuts go to the focused PC app. Add macros in Settings.";
+  $("actionsPanel").hidden = false;
+  grid.querySelector("button").focus();
+}
+$("actionsClose").addEventListener("click", () => {
+  cancelAction("Action stopped.");
+  $("actionsPanel").hidden = true;
+  $("moreActions").focus();
+});
+window.addEventListener("pagehide", () => cancelAction("Action stopped."));
+
+function refreshMacroEditor() {
+  $("redoCombo").value = S.redoCombo;
+  const editor = $("macroEditor");
+  editor.textContent = "";
+  for (let i = 0; i < 3; i++) {
+    const macro = S.macros[i] || {};
+    const row = document.createElement("div");
+    row.className = "row";
+    const label = document.createElement("label");
+    label.textContent = "Macro " + (i + 1);
+    row.appendChild(label);
+    const name = document.createElement("input");
+    name.type = "text";
+    name.maxLength = 24;
+    name.placeholder = "Name, e.g. Copy all";
+    name.setAttribute("aria-label", label.textContent + " name");
+    name.value = String(macro.name || "");
+    const steps = document.createElement("input");
+    steps.type = "text";
+    steps.maxLength = 500;
+    steps.placeholder = "ctrl+a, ctrl+c";
+    steps.setAttribute("aria-label", label.textContent + " shortcuts");
+    steps.autocapitalize = "off";
+    steps.autocomplete = "off";
+    steps.spellcheck = false;
+    steps.value = String(macro.steps || "");
+    const save = () => {
+      const value = steps.value.trim();
+      const ok = !value || !!macroSteps(value);
+      steps.classList.toggle("bad", !ok);
+      steps.setAttribute("aria-invalid", String(!ok));
+      if (!ok) return;
+      S.macros[i] = { name: name.value.trim().slice(0, 24), steps: value };
+      saveSettings();
+    };
+    name.addEventListener("change", save);
+    steps.addEventListener("change", save);
+    row.append(name, steps);
+    editor.appendChild(row);
+  }
+}
+$("redoCombo").addEventListener("change", e => {
+  S.redoCombo = e.target.value;
+  saveSettings();
+});
+
 
 /* ---------------- settings UI ---------------- */
 
@@ -1556,6 +1745,7 @@ function refreshUI() {
   $("axTop").checked = S.pointAxis !== "back";
   $("axBack").checked = S.pointAxis === "back";
   buildHotkeyRow();
+  refreshMacroEditor();
   setTrace(S.trace);
   updateAbout();
 }
@@ -1663,6 +1853,8 @@ $("copyBtn").addEventListener("click", async () => {
     invert_x: S.invertX,
     invert_y: S.invertY,
     hotkeys: S.hotkeys,
+    redo_shortcut: S.redoCombo,
+    macros: S.macros,
   }, null, 2);
   try {
     await navigator.clipboard.writeText(blob);
@@ -1675,334 +1867,244 @@ $("copyBtn").addEventListener("click", async () => {
 
 refreshUI();
 
-/* ---------------- auto-calibration ---------------- */
+/* ---------------- comfortable-range calibration ---------------- */
 
-/* Everything here is measurement, not taste. It records the raw rates from
-   the pointer model, before the filter and the deadzone, so what it fits is
-   the hand and the room rather than this phone's frame rate. */
+const CAL = { on: false, rec: false, preview: false, buf: [], out: {},
+  timer: null, poll: null, monitor: null, layout: null, report: null,
+  lastReportAt: 0, bias: 0, angles: [], passes: 0, target: "left", home: null };
 
-const CAL = { on: false, rec: false, buf: [], taps: [], out: {},
-              bias: [0, 0], rate: 0, spread: 0 };
-const DEG = 180 / Math.PI;
-const CAL_STEPS = 4;
-
-function pctl(a, p) {
-  if (!a.length) return 0;
-  const v = a.slice().sort((x, y) => x - y);
-  return v[Math.min(v.length - 1, Math.round(p * (v.length - 1)))];
+function validRect(r) {
+  return r && [r.x, r.y, r.w, r.h].every(Number.isFinite) && r.w > 1 && r.h > 1;
 }
-function median(a) {
-  if (!a.length) return 0;
-  const v = a.slice().sort((x, y) => x - y), m = v.length >> 1;
-  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+function edgeReached(previous, current, r, side) {
+  if (!validRect(r) || !current || current.y < r.y || current.y >= r.y + r.h) return false;
+  const edge = side === "left" ? r.x : r.x + r.w - 1;
+  if (Math.abs(current.x - edge) <= 8) return true;
+  if (!previous || previous.y < r.y || previous.y >= r.y + r.h) return false;
+  return side === "left" ? previous.x > edge && current.x <= edge
+    : previous.x < edge && current.x >= edge;
 }
-
-function calUI(step, title, html) {
-  $("calStep").textContent = "STEP " + step + " OF " + CAL_STEPS;
+function measuredAngle(samples, bias) {
+  if (samples.length < 20) throw Error("Too few motion readings. Try the sweep again.");
+  const first = samples[0][0], last = samples[samples.length - 1][0];
+  if (last - first < 0.5 || last - first > 20) throw Error("Sweep steadily in about one to five seconds.");
+  let angle = 0;
+  for (let i = 1; i < samples.length; i++) {
+    const a = samples[i - 1], b = samples[i], dt = b[0] - a[0];
+    if (dt <= 0 || dt > 0.15) throw Error("Motion readings paused. Please repeat the sweep.");
+    if (a[0] < first + 0.15 || b[0] > last - 0.15) continue;
+    angle += ((a[1] + b[1]) / 2 - bias) * dt;
+  }
+  angle *= 180 / Math.PI;
+  if (!Number.isFinite(angle) || Math.abs(angle) < 5 || Math.abs(angle) > 180)
+    throw Error("That range was too small or too large. Aim comfortably left, then right.");
+  return angle;
+}
+function reachForDisplay(angles, desktopWidth, displayWidth) {
+  if (angles.length !== 2 || angles.some(a => !Number.isFinite(a)) || angles[0] * angles[1] <= 0)
+    throw Error("The sweeps went in different directions. Repeat both from left to right.");
+  const mean = (Math.abs(angles[0]) + Math.abs(angles[1])) / 2;
+  if (Math.abs(Math.abs(angles[0]) - Math.abs(angles[1])) > mean * 0.25)
+    throw Error("The two ranges differed by more than 25%. Repeat with the same comfortable endpoints.");
+  const reach = Math.round(mean * desktopWidth / displayWidth);
+  if (!Number.isFinite(reach) || reach < 10 || reach > 1080)
+    throw Error("This range is outside the supported reach. Try a wider comfortable range or another display.");
+  return { reach, invertX: angles[0] < 0 };
+}
+function calScreen(title, text, button, action) {
   $("calTitle").textContent = title;
-  $("calText").innerHTML = html;
+  $("calText").textContent = text;
   $("calRows").textContent = "";
-  $("calPad").classList.remove("show");
-}
-function calBusy(text) {
-  $("calText").innerHTML = text;
-  $("calBtn").style.display = "none";
-}
-function calWait(label) {
-  return new Promise(res => {
-    const b = $("calBtn");
-    b.style.display = "block";
-    b.textContent = label;
-    b.onclick = () => { b.onclick = null; b.style.display = "none"; res(); };
-  });
-}
-function calRecord(ms) {
-  CAL.buf = [];
-  CAL.rec = true;
-  return new Promise(res => setTimeout(() => {
-    CAL.rec = false;
-    res(CAL.buf.slice());
-  }, ms));
-}
-
-// Slam the cursor to a desktop edge, so the user has a real thing to aim at.
-// This is what stops a two-monitor desktop being measured as one monitor.
-// The agent clamps every frame, so it takes a few of them.
-function parkCursor(dx, dy) {
-  for (let i = 0; i < 4; i++) send({ t: "m", dx: dx, dy: dy });
-}
-
-// Integrate one axis across a recording, with the resting bias removed.
-// Trim both ends, because the tap that marked each end moved the phone.
-function sweptDeg(samples, axis, bias, trimS) {
-  if (samples.length < 8) return null;
-  const t0 = samples[0][0] + trimS;
-  const t1 = samples[samples.length - 1][0] - trimS;
-  if (t1 <= t0) return null;
-  let sum = 0, prev = null;
-  for (const smp of samples) {
-    if (smp[0] < t0 || smp[0] > t1) { prev = smp; continue; }
-    if (prev) {
-      const dt = Math.min(0.05, Math.max(0, smp[0] - prev[0]));
-      sum += (smp[axis] - bias) * dt;
-    }
-    prev = smp;
-  }
-  return sum * DEG;
-}
-
-/* ---- step 1: the hand at rest ---- */
-async function calRest() {
-  calUI(1, "Hold still",
-    "Hold the wand the way you normally do, aimed at the screen.<br><br>"
-    + "Tap <b>Start</b>, then keep as still as you can for four seconds.");
-  await calWait("Start");
-  calBusy("Measuring your hand&hellip;");
-  const s = await calRecord(4000);
-  if (s.length < 60) {
-    throw new Error("Too few motion readings arrived. Reload the page and allow motion access.");
-  }
-  const bx = s.reduce((a, v) => a + v[1], 0) / s.length;
-  const by = s.reduce((a, v) => a + v[2], 0) / s.length;
-  CAL.bias = [bx, by];
-  const mag = s.map(v => Math.hypot(v[1] - bx, v[2] - by) * DEG);
-  CAL.out.deadzone = Math.min(5, Math.max(0.3, Math.ceil(pctl(mag, 0.99) * 10) / 10));
-  CAL.rate = Math.round(s.length / 4);
-}
-
-/* ---- step 2: how far you swing for one desktop width ---- */
-async function calSweeps() {
-  const angles = [];
-  for (let i = 1; i <= 3; i++) {
-    parkCursor(-4000, 0);
-    calUI(2, "Sweep across, " + i + " of 3",
-      "The cursor is parked at the <b>far left</b> of your desktop.<br><br>"
-      + "Aim at it, hold steady, then tap <b>Mark</b>.");
-    await calWait("Mark");
-    CAL.buf = [];
-    CAL.rec = true;
-    parkCursor(4000, 0);
-    calUI(2, "Sweep across, " + i + " of 3",
-      "The cursor jumped to the <b>far right</b>.<br><br>"
-      + "Swing round, aim at it, then tap <b>Mark</b>.");
-    await calWait("Mark");
-    CAL.rec = false;
-    const deg = sweptDeg(CAL.buf, 1, CAL.bias[0], 0.15);
-    if (deg !== null && Math.abs(deg) >= 5 && Math.abs(deg) <= 200) angles.push(deg);
-  }
-  if (angles.length < 2) {
-    throw new Error("Those sweeps did not read as a sweep. Try again, and move a little slower.");
-  }
-  const m = median(angles);
-  const abs = angles.map(a => Math.abs(a));
-  CAL.out.reach = Math.round(Math.min(150, Math.max(10, Math.abs(m))));
-  CAL.out.invertX = m < 0;
-  CAL.spread = Math.round(Math.max.apply(null, abs) - Math.min.apply(null, abs));
-}
-
-/* ---- step 3: which way is up ---- */
-async function calVertical() {
-  parkCursor(0, -4000);
-  calUI(3, "Now up and down",
-    "The cursor is at the <b>top</b> of your desktop.<br><br>"
-    + "Aim at it and tap <b>Mark</b>.");
-  await calWait("Mark");
-  CAL.buf = [];
-  CAL.rec = true;
-  parkCursor(0, 4000);
-  calUI(3, "Now up and down",
-    "It jumped to the <b>bottom</b>.<br><br>Aim at it and tap <b>Mark</b>.");
-  await calWait("Mark");
-  CAL.rec = false;
-  const deg = sweptDeg(CAL.buf, 2, CAL.bias[1], 0.15);
-  // Aiming downward moves the tip down, so upRate integrates negative.
-  // A positive result means this axis runs the wrong way.
-  if (deg !== null && Math.abs(deg) >= 3) CAL.out.invertY = deg > 0;
-}
-
-/* ---- step 4: the twitch your own tap makes ---- */
-async function calTaps() {
-  calUI(4, "Tap six times",
-    "Tap the pad below the way you tap to click. Six times, at your own pace.");
-  const pad = $("calPad");
-  pad.classList.add("show");
-  pad.textContent = "TAP HERE  0 / 6";
-  CAL.taps = [];
-  CAL.buf = [];
-  CAL.rec = true;
-  await new Promise(res => {
-    const onDown = e => {
-      e.preventDefault();
-      CAL.taps.push(performance.now() / 1000);
-      pad.classList.add("hit");
-      setTimeout(() => pad.classList.remove("hit"), 90);
-      pad.textContent = "TAP HERE  " + CAL.taps.length + " / 6";
-      if (CAL.taps.length >= 6) {
-        pad.removeEventListener("pointerdown", onDown);
-        setTimeout(res, 400);
-      }
-    };
-    pad.addEventListener("pointerdown", onDown);
-  });
-  CAL.rec = false;
-  const floor = (CAL.out.deadzone || 2.5) * 1.5;
-  const settles = [];
-  for (const t of CAL.taps) {
-    let quietFrom = null, settle = null;
-    for (const smp of CAL.buf) {
-      if (smp[0] < t) continue;
-      if (smp[0] - t > 0.5) break;
-      const mag = Math.hypot(smp[1] - CAL.bias[0], smp[2] - CAL.bias[1]) * DEG;
-      if (mag > floor) { quietFrom = null; continue; }
-      if (quietFrom === null) quietFrom = smp[0];
-      if (smp[0] - quietFrom >= 0.05) { settle = quietFrom - t; break; }
-    }
-    if (settle !== null) settles.push(settle);
-  }
-  if (settles.length >= 3) {
-    CAL.out.guard = Math.min(250, Math.max(0,
-      Math.round(pctl(settles, 0.9) * 1000 / 10) * 10));
-  }
-}
-
-/* ---- the result, one row at a time ---- */
-const CAL_LABELS = {
-  deadzone: ["Deadzone", v => v.toFixed(1) + " deg/s"],
-  reach: ["Reach", v => v.toFixed(0) + " deg"],
-  guard: ["Touch guard", v => v.toFixed(0) + " ms"],
-  invertX: ["Invert X", v => (v ? "on" : "off")],
-  invertY: ["Invert Y", v => (v ? "on" : "off")],
-};
-
-function calResults() {
-  const keys = Object.keys(CAL_LABELS).filter(k => CAL.out[k] !== undefined);
-  const changed = keys.filter(k => CAL.out[k] !== S[k]);
-  $("calStep").textContent = "RESULT";
-  $("calTitle").textContent = changed.length
-    ? "Here is what it measured" : "Nothing needed changing";
-  $("calText").innerHTML = changed.length
-    ? "Untick anything you would rather keep as it was."
-      + "<br><br><span style='color:#55677a'>Sampled at about " + CAL.rate
-      + " Hz. The three sweeps agreed to within " + CAL.spread + " deg.</span>"
-    : "Your settings already match what the wand measured.";
-  const rows = $("calRows");
-  rows.textContent = "";
-  for (const k of keys) {
-    const name = CAL_LABELS[k][0], fmt = CAL_LABELS[k][1];
-    const same = CAL.out[k] === S[k];
-    const row = document.createElement("label");
-    row.className = "calRow";
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.checked = !same;
-    cb.disabled = same;
-    cb.dataset.key = k;
-    const nm = document.createElement("span");
-    nm.className = "nm";
-    nm.textContent = name;
-    const vv = document.createElement("span");
-    vv.className = "vv";
-    if (same) {
-      vv.textContent = "unchanged";
-    } else {
-      const old = document.createElement("s");
-      old.textContent = fmt(S[k]);
-      vv.appendChild(old);
-      vv.appendChild(document.createTextNode(fmt(CAL.out[k])));
-    }
-    row.appendChild(cb);
-    row.appendChild(nm);
-    row.appendChild(vv);
-    rows.appendChild(row);
-  }
-  $("calPad").classList.remove("show");
+  $("calEdge").textContent = "";
   const b = $("calBtn");
-  b.style.display = "block";
-  b.textContent = changed.length ? "Apply the ticked ones" : "Done";
-  b.onclick = () => {
-    b.onclick = null;
-    const before = {};
-    for (const cb of rows.querySelectorAll("input")) {
-      if (!cb.checked || cb.disabled) continue;
-      before[cb.dataset.key] = S[cb.dataset.key];
-      S[cb.dataset.key] = CAL.out[cb.dataset.key];
-    }
-    if (Object.keys(before).length) {
-      before.calWidth = S.calWidth;
-      try { localStorage.setItem(LS_UNDO, JSON.stringify(before)); } catch {}
-    }
-    S.calWidth = screenW;          // remember what it was measured against
-    saveSettings();
-    refreshUI();
-    calEnd();
-  };
+  b.textContent = button || "Continue";
+  b.style.display = button ? "block" : "none";
+  b.disabled = false;
+  b.onclick = action || null;
 }
-
-// Reach is degrees per DESKTOP width, so a monitor going on or off makes
-// the calibrated number wrong by exactly that ratio.
-function checkCalWidth() {
-  const w = S.calWidth;
-  if (!w || !screenW) return;
-  const ratio = screenW / w;
-  if (ratio > 1.1 || ratio < 0.9) {
-    showBanner("The desktop is " + screenW + " px wide now, but the wand was "
-             + "calibrated at " + w + " px. The cursor will travel about "
-             + ratio.toFixed(1) + " times too far. Calibrate again, or set "
-             + "reach to " + Math.round(S.reach * ratio) + ".", "msg");
-  }
-}
-
-function calEnd() {
-  CAL.on = false;
-  CAL.rec = false;
-  $("calib").classList.remove("open");
-  $("calBtn").onclick = null;
-}
-
-async function runCalibration() {
-  if (!ws || ws.readyState !== 1) {
-    showBanner("Calibration needs the PC connected, because it parks the "
-             + "cursor for you to aim at.", "msg");
+function calCursor(f) {
+  if (!CAL.on || !validRect(f.desktop) || !Array.isArray(f.monitors)
+      || !f.monitors.length || !f.monitors.every(validRect)
+      || !Number.isFinite(f.x) || !Number.isFinite(f.y)) return;
+  const layout = JSON.stringify([f.desktop, f.monitors]);
+  if (CAL.layout && CAL.layout !== layout) {
+    calEnd("Calibration canceled because the display layout changed. Start again.");
     return;
   }
-  CAL.on = true;
-  CAL.out = {};
-  CAL.rate = 0;
-  CAL.spread = 0;
-  $("calib").classList.add("open");
-  try {
-    await calRest();
-    await calSweeps();
-    await calVertical();
-    await calTaps();
-    calResults();
-  } catch (e) {
-    $("calStep").textContent = "STOPPED";
-    $("calTitle").textContent = "That did not work";
-    $("calText").textContent = String((e && e.message) || e);
-    $("calRows").textContent = "";
-    $("calPad").classList.remove("show");
-    const b = $("calBtn");
-    b.style.display = "block";
-    b.textContent = "Close";
-    b.onclick = () => { b.onclick = null; calEnd(); };
+  const previous = CAL.report;
+  CAL.report = f;
+  CAL.lastReportAt = performance.now();
+  if (!CAL.layout) {
+    CAL.layout = layout;
+    screenW = f.desktop.w; screenH = f.desktop.h;
+    calChooseDisplay(f);
+    return;
+  }
+  if (!CAL.preview) return;
+  if (CAL.target !== "done" && clutched && edgeReached(previous, f, CAL.monitor, CAL.target)) {
+    if (CAL.target === "left") {
+      CAL.target = "right";
+      $("calEdge").textContent = "Left edge reached. Lift to re-aim comfortably, then hold and move right.";
+    } else {
+      CAL.passes++;
+      CAL.target = CAL.passes >= 2 ? "done" : "left";
+      $("calEdge").textContent = CAL.passes >= 2
+        ? "Both sweeps reached the right edge. Apply if this feels comfortable."
+        : "Right edge reached. Move left to try one more sweep.";
+      $("calBtn").disabled = CAL.passes < 2;
+    }
+    pressFeedback();
   }
 }
-
-$("calStartBtn").addEventListener("click", () => {
-  openDrawer(false);
-  runCalibration();
-});
-$("calCancel").addEventListener("click", calEnd);
-$("calUndoBtn").addEventListener("click", () => {
-  let prev = null;
-  try { prev = JSON.parse(localStorage.getItem(LS_UNDO) || "null"); } catch {}
-  if (!prev) { showBanner("There is nothing to undo.", "msg"); return; }
-  Object.assign(S, prev);
-  try { localStorage.removeItem(LS_UNDO); } catch {}
+function calChooseDisplay(f) {
+  $("calStep").textContent = "CHOOSE A DISPLAY";
+  calScreen("Which screen are you pointing at?",
+    "Choose your projected display. We will measure your comfortable wrist range, then you will move the cursor yourself to test it.",
+    "Measure my range", () => {
+      CAL.monitor = f.monitors[Number(select.value)];
+      calRest();
+    });
+  const select = document.createElement("select");
+  select.setAttribute("aria-label", "Calibration display");
+  f.monitors.forEach((r, i) => {
+    const option = document.createElement("option");
+    option.value = i;
+    option.textContent = "Display " + (i + 1) + " — " + r.w + " × " + r.h + " at " + r.x + ", " + r.y;
+    option.selected = f.x >= r.x && f.x < r.x + r.w && f.y >= r.y && f.y < r.y + r.h;
+    select.appendChild(option);
+  });
+  $("calRows").appendChild(select);
+}
+function calRest() {
+  $("calStep").textContent = "MEASURE YOUR RANGE";
+  calScreen("Hold still for two seconds", "Hold the phone the way you normally point it. Measuring sensor drift…");
+  CAL.buf = []; CAL.rec = true;
+  CAL.timer = setTimeout(() => {
+    CAL.rec = false;
+    if (CAL.buf.length < 40) { calError("Too few motion readings. Allow motion access and try again."); return; }
+    CAL.bias = CAL.buf.reduce((sum, s) => sum + s[1], 0) / CAL.buf.length;
+    CAL.angles = [];
+    calMarkLeft();
+  }, 2000);
+}
+function calMarkLeft() {
+  calScreen("Comfortable left aim — " + (CAL.angles.length + 1) + " of 2",
+    "Point toward the LEFT edge using a comfortable wrist position. The cursor stays where it is. Hold steady and mark this aim.",
+    "Mark left aim", () => {
+      CAL.buf = []; CAL.rec = true;
+      calScreen("Now aim comfortably right",
+        "Swing toward the RIGHT edge at a steady pace. Hold still at your comfortable endpoint, then mark it. No need to chase the cursor.",
+        "Mark right aim", () => {
+          CAL.rec = false;
+          clearTimeout(CAL.timer);
+          try {
+            CAL.angles.push(measuredAngle(CAL.buf, CAL.bias));
+            if (CAL.angles.length < 2) calMarkLeft();
+            else { CAL.out = reachForDisplay(CAL.angles, screenW, CAL.monitor.w); calPreview(); }
+          } catch (e) { calError(e.message); }
+        });
+      CAL.timer = setTimeout(() => calError("The sweep timed out. Please try again."), 20000);
+    });
+}
+function calError(message) {
+  CAL.rec = false;
+  clearTimeout(CAL.timer);
+  calScreen("Let's try that again", message, "Measure again", calRest);
+}
+function calStopTouch() {
+  if (dragTimer) clearTimeout(dragTimer);
+  dragTimer = 0;
+  if (dragLatched) send({ t: "b", btn: "l", s: 0 });
+  dragLatched = false; clutched = false; clutchId = null; scrollId = null; stripId = null;
+  sentLog = []; lastTapEndT = -1e9;
+  clutch.classList.remove("engaged", "dragging", "scrolling");
+  strip.classList.remove("active");
+  setClutchLabel(CAL.on && CAL.preview ? "HOLD TO MOVE · LIFT TO PAUSE" : IDLE_LABEL);
+  fYaw.reset(); fPitch.reset();
+}
+function calPreview() {
+  CAL.preview = true; CAL.passes = 0; CAL.target = "left";
+  $("calStep").textContent = "TRY IT BEFORE SAVING";
+  calScreen("Move the cursor yourself",
+    "Use your usual clutch below. Move to the left edge of the selected display, lift to re-aim, then sweep right. Repeat once. "
+      + (agentAbs ? "" : "Windows acceleration is active in relative mode, so judge the feel as you test. ")
+      + "Clicking and dragging are paused during this test.",
+    "Apply reach", calApply);
+  $("calBtn").disabled = true;
+  $("calEdge").textContent = "Hold to move to the selected display's left edge.";
+  CAL.home = document.createComment("calibration surface home");
+  const surface = $("surface");
+  surface.before(CAL.home);
+  $("calBox").insertBefore(surface, $("calEdge"));
+  setClutchLabel("HOLD TO MOVE · LIFT TO PAUSE");
+  const options = document.createElement("div");
+  options.className = "calOptions";
+  for (const [label, factor] of [["Slower", 1.1], ["Faster", 1 / 1.1]]) {
+    const b = document.createElement("button"); b.textContent = label;
+    b.onclick = () => {
+      calStopTouch();
+      setClutchLabel("HOLD TO MOVE · LIFT TO PAUSE");
+      CAL.out.reach = Math.max(10, Math.min(1080, Math.round(CAL.out.reach * factor)));
+      CAL.passes = 0; CAL.target = "left"; $("calBtn").disabled = true;
+      $("calEdge").textContent = "Trial reach: " + CAL.out.reach + "°. Move left and test again.";
+    };
+    options.appendChild(b);
+  }
+  $("calRows").appendChild(options);
+}
+function calApply() {
+  if (!CAL.on || !CAL.preview || CAL.passes < 2 || performance.now() - CAL.lastReportAt > 1500) return;
+  const previous = { reach: S.reach, invertX: S.invertX, calWidth: S.calWidth };
+  try { localStorage.setItem(LS_UNDO, JSON.stringify(previous)); } catch {}
+  Object.assign(S, CAL.out, { calWidth: screenW });
   saveSettings();
+  calEnd();
   refreshUI();
-  openDrawer(false);
+  showBanner("Your comfortable reach was saved. Undo calibration in Settings restores the previous reach.", "msg");
+}
+function calEnd(message) {
+  calStopTouch();
+  CAL.on = false; CAL.rec = false; CAL.preview = false;
+  clearTimeout(CAL.timer); clearInterval(CAL.poll);
+  if (CAL.home) { CAL.home.replaceWith($("surface")); CAL.home = null; }
+  $("calib").classList.remove("open");
+  $("calBtn").onclick = null;
+  if (typeof message === "string") showBanner(message, "msg");
+}
+function runCalibration() {
+  if (CAL.on) return;
+  if (!ws || ws.readyState !== 1 || !cursorFeedback) {
+    showBanner("Calibration needs the updated PC agent connected. Restart the agent, then try again.", "msg");
+    return;
+  }
+  if (SIM) { showBanner("Use your iPhone for calibration; synthetic motion cannot measure your wrist range.", "msg"); return; }
+  calStopTouch();
+  CAL.on = true; CAL.layout = null; CAL.report = null; CAL.monitor = null;
+  CAL.out = {}; CAL.lastReportAt = performance.now();
+  $("calib").classList.add("open");
+  calScreen("Connecting to your displays", "Reading the PC cursor position…");
+  send({ t: "cursor" });
+  CAL.poll = setInterval(() => {
+    if (performance.now() - CAL.lastReportAt > 2000) {
+      calEnd("Calibration canceled because cursor feedback stopped. Reconnect and try again."); return;
+    }
+    send({ t: "cursor" });
+  }, 100);
+}
+function checkCalWidth() {
+  if (S.calWidth && screenW && Math.abs(screenW / S.calWidth - 1) > 0.1)
+    showBanner("Your desktop size changed. Calibrate reach again for the selected display.", "msg");
+}
+$("calStartBtn").addEventListener("click", () => { openDrawer(false); runCalibration(); });
+$("calCancel").addEventListener("click", () => calEnd());
+window.addEventListener("pagehide", () => { if (CAL.on) calEnd(); });
+$("calUndoBtn").addEventListener("click", () => {
+  let previous = null;
+  try { previous = JSON.parse(localStorage.getItem(LS_UNDO) || "null"); } catch {}
+  if (!previous) { showBanner("There is nothing to undo.", "msg"); return; }
+  Object.assign(S, previous);
+  try { localStorage.removeItem(LS_UNDO); } catch {}
+  saveSettings(); refreshUI(); openDrawer(false);
   showBanner("The calibration was undone.", "msg");
 });
 
