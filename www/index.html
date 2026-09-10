@@ -449,6 +449,85 @@
   .hiddenSwitch { opacity: .01; }   /* same hiding the app itself uses */
 
 </style>
+<style>
+  /* Escaillon's molded graphite material, adapted to a one-handed remote. */
+  :root {
+    --surface: #202226; --ground: #1a1b1e; --cast: #0c0d0f; --lit: #2b2e34;
+    --ink: #e6e6ea; --muted: #a0a1a8; --engaged: #ff4545;
+    --raised: 5px 5px 12px var(--cast), -5px -5px 12px var(--lit);
+    --sunken: inset 5px 5px 11px var(--cast), inset -4px -4px 10px var(--lit);
+  }
+  html, body { background: var(--ground); color: var(--ink); }
+  body, button, input, select { font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; }
+  #app { background: radial-gradient(ellipse at 30% 0%, #292b30, var(--surface) 55%); }
+  #status { min-height: 60px; gap: 8px; padding: 10px 16px; color: var(--muted); }
+  #stateText { color: var(--ink); font-size: 12px; }
+  #pps { display: none; }
+  #dot { background: #666970; box-shadow: inset 1px 1px 3px #000; width: 8px; height: 8px; }
+  #dot.connected { background: var(--ink); box-shadow: 0 0 6px #e6e6ea66; }
+  #dot.connecting { background: #a0a1a8; }
+  .chip, #modeBadge, #simBadge, #micState, #blockedChip {
+    background: #090a0c; color: var(--muted); border-radius: 7px;
+    padding: 5px 6px; letter-spacing: .04em;
+  }
+  #micState.on { color: var(--engaged); background: #090a0c; }
+  #gear, #layoutEdit { min-width: 42px; height: 40px; border: 0; border-radius: 14px;
+    background: var(--surface); box-shadow: var(--raised); color: var(--ink); }
+  #layoutEdit { margin-left: auto; font-size: 11px; font-weight: 600; }
+  #gear { font-size: 20px; }
+  #clutch, #scrollStrip { border: 0; background: var(--surface); box-shadow: var(--sunken); border-radius: 28px; }
+  #clutch { color: var(--muted); font-size: 12px; letter-spacing: .08em; padding: 18px; }
+  #clutchLabel { max-width: 220px; line-height: 1.8; }
+  #stripLabel { color: var(--muted); letter-spacing: .2em; }
+  #clutch.engaged, #clutch.scrolling, #clutch.dragging, #scrollStrip.active {
+    background: var(--surface); color: var(--engaged); box-shadow: var(--sunken), inset 0 0 0 1px #ff454550;
+  }
+  #scrollStrip.active #stripLabel { color: var(--engaged); }
+  .pad, #moreActions { border: 0; background: var(--surface); box-shadow: var(--raised); color: var(--ink); }
+  .padwrap .pad { border-radius: 30%; }
+  .padwrap.big .pad { border-radius: 34%; }
+  .padwrap small { color: var(--muted); font-size: 11px; margin-top: 5px; }
+  .pad.active, .hotpad.active, #btnMic.active, #btnMic.on, #btnHalf.active {
+    background: var(--surface); color: var(--engaged); box-shadow: var(--sunken);
+  }
+  .hotpad { border-radius: 18px; }
+  #buttons { padding-left: 16px; padding-right: 16px; }
+  #hotRow { gap: 10px; padding-bottom: 14px; }
+  #pressFlash { background: var(--engaged); }
+  #drawer, #calib, #actionsPanel, #startOverlay { background: var(--surface); color: var(--ink); }
+  #drawer { border-radius: 32px 32px 0 0; box-shadow: 0 -8px 35px #0007; }
+  .sect, .hint, #calText, #calStep, #actionStatus, .row label, .toggles label { color: var(--muted); }
+  .sect { letter-spacing: .13em; }
+  #calTitle, #actionsPanel h2 { color: var(--ink); }
+  #calEdge { color: var(--ink); }
+  #drawer button, #calBtns button, #calib .calOptions button, #actionGrid button,
+  #actionsClose, #startBtn, #fitBtn {
+    background: var(--surface); color: var(--ink); border: 0; box-shadow: var(--raised); border-radius: 18px;
+  }
+  #drawer button:active, #calBtns button:active, #actionGrid button:active,
+  #actionsClose:active, #layoutEdit:active, #gear:active { box-shadow: var(--sunken); color: var(--engaged); }
+  #drawer input[type=text], #drawer select, #calib select {
+    background: var(--surface); color: var(--ink); border: 0; box-shadow: var(--sunken); border-radius: 14px;
+  }
+  input[type=range], input[type=checkbox], input[type=radio] { accent-color: #a0a1a8; }
+  #banner { background: #090a0c; border: 1px solid #62656d; color: var(--ink); }
+  #startOverlay h1 { font-size: 23px; font-weight: 500; letter-spacing: .2em; color: var(--ink); }
+  #startNote { color: var(--muted); }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+  #layoutToolbar { position: fixed; inset: 0 0 auto; z-index: 60; min-height: 60px;
+    padding: max(10px, env(safe-area-inset-top)) 12px 10px; background: var(--surface);
+    display: flex; align-items: center; gap: 10px; }
+  #layoutToolbar[hidden], #layoutHint[hidden] { display: none; }
+  #layoutToolbar button { min-height: 40px; padding: 8px 14px; border: 0; border-radius: 14px;
+    background: var(--surface); color: var(--ink); box-shadow: var(--raised); font-size: 14px; }
+  #layoutDone { margin-left: auto; font-weight: 700; }
+  #layoutHint { position: fixed; top: calc(74px + env(safe-area-inset-top)); left: 20px; right: 20px;
+    color: var(--ink); font-size: 12px; text-align: center; pointer-events: none; z-index: 55; }
+  body.arranging [data-layout-key] { outline: 1px dashed #aaaeb8; outline-offset: 4px; cursor: grab; }
+  body.arranging [data-layout-key].layout-dragging { outline: 2px solid var(--ink); z-index: 30; cursor: grabbing; }
+  [data-layout-key] { position: relative; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+</style>
 </head>
 <body>
 
@@ -461,6 +540,7 @@
     <span class="chip" id="blockedChip">BLOCKED</span>
     <span id="pps">0 pps</span>
     <span class="chip" id="micState">MIC off</span>
+    <button id="layoutEdit" aria-label="Arrange controls">Layout</button>
     <button id="gear" aria-label="settings">&#9881;</button>
   </div>
 
@@ -490,6 +570,10 @@
 </div>
 
 <div id="scrim"></div>
+<div id="layoutToolbar" hidden aria-label="Layout editor">
+  <button id="layoutCancel">Cancel</button><button id="layoutReset">Reset</button><button id="layoutDone">Done</button>
+</div>
+<div id="layoutHint" hidden role="status">Drag any control to where your hand feels comfortable.</div>
 
 <div id="drawer">
   <div id="grip"></div>
@@ -785,6 +869,7 @@ function loadSettings() {
 }
 function saveSettings() {
   try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch {}
+  queueLayout();
 }
 
 /* ---------------- state ---------------- */
@@ -1122,6 +1207,7 @@ window.addEventListener("resize", () => { if (traceOn) sizeTrace(); });
 /* ---------------- websocket ---------------- */
 
 function send(obj) {
+  if (LAYOUT.editing && ["m", "b", "k", "w"].includes(obj.t)) return;
   if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj));
 }
 
@@ -1459,6 +1545,7 @@ function buildHotkeyRow() {
   row.appendChild(more);
   row.classList.toggle("show", !!S.showHotkey);
   installTickSwitches();      // the new pads need their own tick switch
+  queueLayout();
 }
 
 document.addEventListener("contextmenu", e => e.preventDefault());
@@ -1482,7 +1569,7 @@ for (const el of [clutch, strip, $("buttons"), $("hotRow")]) {
 // zooms on double tap even where touch-action says not to.
 let lastTouchEndT = 0;
 $("app").addEventListener("touchend", e => {
-  if (e.target.closest("#gear, #fitBtn, #moreActions")) return;   // these need their click
+  if (e.target.closest("#gear, #fitBtn, #moreActions, #layoutEdit")) return;   // these need their click
   const now = Date.now();
   if (now - lastTouchEndT <= 350) e.preventDefault();
   lastTouchEndT = now;
@@ -1865,6 +1952,167 @@ $("copyBtn").addEventListener("click", async () => {
   setTimeout(() => { $("copyBtn").textContent = "Copy constants"; }, 1200);
 });
 
+/* ---------------- movable controls ---------------- */
+const LS_LAYOUT = "wand.layout.v1";
+const LAYOUT = { editing: false, saved: {}, draft: {}, drag: null, frame: 0, orientation: "" };
+try {
+  const value = JSON.parse(localStorage.getItem(LS_LAYOUT) || "{}");
+  LAYOUT.saved = normalizeLayouts(value);
+} catch {}
+function layoutOrientation() { return innerWidth > innerHeight ? "landscape" : "portrait"; }
+function normalizeLayouts(value) {
+  const result = {};
+  for (const orientation of ["portrait", "landscape"]) {
+    const map = value && value[orientation];
+    if (!map || typeof map !== "object" || Array.isArray(map)) continue;
+    result[orientation] = Object.fromEntries(Object.entries(map).filter(([,p]) =>
+      p && Number.isFinite(p.x) && Number.isFinite(p.y)));
+  }
+  return result;
+}
+function layoutPosition(value, bounds, size) {
+  if (!value || !Number.isFinite(value.x) || !Number.isFinite(value.y)) return null;
+  return {
+    x: bounds.x + Math.max(0, Math.min(1, value.x)) * Math.max(0, bounds.w - size.w),
+    y: bounds.y + Math.max(0, Math.min(1, value.y)) * Math.max(0, bounds.h - size.h),
+  };
+}
+function layoutOverlap(a, b) {
+  return Math.min(a.right, b.right) - Math.max(a.left, b.left) > 3
+    && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 3;
+}
+function layoutBounds() {
+  const app = $("app").getBoundingClientRect(), status = $("status").getBoundingClientRect();
+  return { x: app.left + 12, y: status.bottom + 12,
+    w: Math.max(0, app.width - 24), h: Math.max(0, app.bottom - status.bottom - 30) };
+}
+function layoutTargets() {
+  const items = [["clutch", clutch], ["scroll", strip]];
+  for (const id of ["btnHalf", "btnMic", "btnR", "btnL"]) items.push([id, $(id).parentElement]);
+  Array.from($("hotRow").children).forEach((el, i) => items.push([el.id === "moreActions" ? "more" : "hot" + i, el]));
+  for (const [key, el] of items) el.dataset.layoutKey = key;
+  return items;
+}
+function clearLayoutTransforms() {
+  for (const [,el] of layoutTargets()) el.style.transform = "";
+}
+function queueLayout() {
+  if (LAYOUT.frame) return;
+  LAYOUT.frame = requestAnimationFrame(() => { LAYOUT.frame = 0; applyLayout(); });
+}
+function applyLayout() {
+  const orientation = layoutOrientation();
+  if (LAYOUT.editing && LAYOUT.orientation !== orientation) finishLayout(false);
+  if (LAYOUT.drag) return;
+  const items = layoutTargets();
+  for (const [,el] of items) el.style.transform = "";
+  if (CAL.on) return;
+  const map = (LAYOUT.editing ? LAYOUT.draft : LAYOUT.saved[orientation]) || {};
+  const bounds = layoutBounds();
+  for (const [key,el] of items) {
+    if (!el.getClientRects().length) continue;
+    const r = el.getBoundingClientRect();
+    const p = layoutPosition(map[key], bounds, {w:r.width,h:r.height});
+    if (p) el.style.transform = "translate(" + (p.x-r.left) + "px," + (p.y-r.top) + "px)";
+  }
+}
+function beginLayout() {
+  if (CAL.on || LAYOUT.editing) return;
+  // Release live input before suppressing editor gestures.
+  calStopTouch();
+  cancelAction("Action stopped for layout editing.");
+  for (const btn of ["l", "r"]) send({t:"b",btn,s:0});
+  for (const key of ["f8", ...(S.hotkeys || [])]) send({t:"k",key,s:0});
+  precision = false; setMicUI(false);
+  document.querySelectorAll(".pad.active").forEach(el => el.classList.remove("active"));
+  openDrawer(false);
+  LAYOUT.orientation = layoutOrientation();
+  LAYOUT.draft = JSON.parse(JSON.stringify(LAYOUT.saved[LAYOUT.orientation] || {}));
+  LAYOUT.editing = true;
+  document.body.classList.add("arranging");
+  $("layoutToolbar").hidden = false; $("layoutHint").hidden = false;
+  $("layoutHint").textContent = "Drag any control. Keep controls from overlapping. Done saves this " + LAYOUT.orientation + " layout.";
+  setTickEnabled(false);
+  applyLayout();
+}
+function finishLayout(save) {
+  if (!LAYOUT.editing) return;
+  if (LAYOUT.drag) {
+    const d = LAYOUT.drag;
+    if (d.old) LAYOUT.draft[d.el.dataset.layoutKey] = d.old;
+    else delete LAYOUT.draft[d.el.dataset.layoutKey];
+    d.el.classList.remove("layout-dragging");
+    LAYOUT.drag = null;
+  }
+  if (save) {
+    LAYOUT.saved[LAYOUT.orientation] = LAYOUT.draft;
+    try { localStorage.setItem(LS_LAYOUT, JSON.stringify(LAYOUT.saved)); }
+    catch { showBanner("Layout works for this session, but Safari could not save it.", "msg"); }
+  }
+  LAYOUT.editing = false;
+  document.body.classList.remove("arranging");
+  $("layoutToolbar").hidden = true; $("layoutHint").hidden = true;
+  setTickEnabled(S.haptics);
+  queueLayout();
+}
+$("layoutEdit").addEventListener("click", beginLayout);
+$("layoutDone").addEventListener("click", () => finishLayout(true));
+$("layoutCancel").addEventListener("click", () => finishLayout(false));
+$("layoutReset").addEventListener("click", () => {
+  if (LAYOUT.drag) LAYOUT.drag.el.classList.remove("layout-dragging");
+  LAYOUT.draft = {}; LAYOUT.drag = null; applyLayout();
+});
+$("app").addEventListener("pointerdown", e => {
+  if (!LAYOUT.editing) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  const el = e.target.closest("[data-layout-key]");
+  if (!el || LAYOUT.drag) return;
+  const r = el.getBoundingClientRect();
+  LAYOUT.drag = { el, id: e.pointerId, x: e.clientX, y: e.clientY, rect: r,
+    transform: el.style.transform, old: LAYOUT.draft[el.dataset.layoutKey] };
+  el.classList.add("layout-dragging");
+  try { el.setPointerCapture(e.pointerId); } catch {}
+}, true);
+$("app").addEventListener("pointermove", e => {
+  if (!LAYOUT.editing) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  const d = LAYOUT.drag;
+  if (!d || d.id !== e.pointerId) return;
+  const bounds = layoutBounds();
+  const x = Math.max(bounds.x, Math.min(bounds.x + Math.max(0,bounds.w-d.rect.width), d.rect.left+e.clientX-d.x));
+  const y = Math.max(bounds.y, Math.min(bounds.y + Math.max(0,bounds.h-d.rect.height), d.rect.top+e.clientY-d.y));
+  d.el.style.transform = d.transform + " translate(" + (x-d.rect.left) + "px," + (y-d.rect.top) + "px)";
+  LAYOUT.draft[d.el.dataset.layoutKey] = { x:(x-bounds.x)/Math.max(1,bounds.w-d.rect.width),
+    y:(y-bounds.y)/Math.max(1,bounds.h-d.rect.height) };
+}, true);
+for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) {
+  $("app").addEventListener(event, e => {
+    if (!LAYOUT.editing) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    const d = LAYOUT.drag;
+    if (!d || d.id !== e.pointerId) return;
+    const overlap = layoutTargets().some(([,el]) => el !== d.el && el.getClientRects().length
+      && layoutOverlap(d.el.getBoundingClientRect(), el.getBoundingClientRect()));
+    if (event !== "pointerup" || overlap) {
+      if (d.old) LAYOUT.draft[d.el.dataset.layoutKey] = d.old;
+      else delete LAYOUT.draft[d.el.dataset.layoutKey];
+      if (overlap) $("layoutHint").textContent = "That overlaps another control. Try a free space.";
+    }
+    d.el.classList.remove("layout-dragging"); LAYOUT.drag = null;
+    applyLayout();
+  }, true);
+}
+$("app").addEventListener("click", e => {
+  if (LAYOUT.editing) { e.preventDefault(); e.stopImmediatePropagation(); }
+}, true);
+window.addEventListener("resize", queueLayout);
+if (window.visualViewport) window.visualViewport.addEventListener("resize", queueLayout);
+document.addEventListener("visibilitychange", () => { if (document.hidden) finishLayout(false); });
+if (typeof ResizeObserver !== "undefined") {
+  const observer = new ResizeObserver(queueLayout);
+  for (const id of ["app", "surface", "hotRow", "buttons"]) observer.observe($(id));
+}
+
 refreshUI();
 
 /* ---------------- comfortable-range calibration ---------------- */
@@ -2023,6 +2271,7 @@ function calStopTouch() {
   fYaw.reset(); fPitch.reset();
 }
 function calPreview() {
+  clearLayoutTransforms();
   CAL.preview = true; CAL.passes = 0; CAL.target = "left";
   $("calStep").textContent = "TRY IT BEFORE SAVING";
   calScreen("Move the cursor yourself",
@@ -2069,6 +2318,7 @@ function calEnd(message) {
   if (CAL.home) { CAL.home.replaceWith($("surface")); CAL.home = null; }
   $("calib").classList.remove("open");
   $("calBtn").onclick = null;
+  queueLayout();
   if (typeof message === "string") showBanner(message, "msg");
 }
 function runCalibration() {

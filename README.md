@@ -63,6 +63,27 @@ bar that tells you to scan the new QR code.
 
 ## Use
 
+### Arrange controls and appearance
+
+The remote now uses an Escaíllón-inspired graphite surface: raised soft keys,
+recessed clutch and scroll controls, and a red legend while a control is held.
+Connection status uses a neutral light and text.
+
+Tap **Layout** at the top of the remote to arrange it. Drag the clutch, scroll
+strip, each mouse/dictation/precision button, and each shortcut independently.
+Mouse and keyboard input is paused while editing; dragging a control never
+clicks the PC or starts F8 dictation. A drop over another control returns to its
+previous position so every control remains reachable.
+
+**Done** saves on this phone; **Cancel** discards the current edits. **Reset**
+previews the default arrangement, then Done saves it (Cancel keeps your old
+arrangement). Portrait and landscape save independently. Rotating or leaving
+Safari while editing discards unfinished edits. Saved locations scale with the
+visible area and stay within its bounds. Calibration temporarily uses its own
+clutch layout and restores your arrangement afterward. Button assignments and
+motion tuning remain separate from layout; the existing clutch-height setting
+still controls its size.
+
 - **Grip:** hold the phone like a TV remote, in portrait, with the top
   edge toward the screen. The cursor follows where the top edge points,
   like a laser pointer. Roll of the grip does not matter.

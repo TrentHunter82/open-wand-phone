@@ -1,0 +1,44 @@
+const {test} = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const script = fs.readFileSync(require('node:path').join(__dirname, '../www/index.html'), 'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
+function harness() {
+  const context = vm.createContext({innerWidth:375, innerHeight:667});
+  vm.runInContext(script.slice(script.indexOf('function layoutOrientation()'), script.indexOf('function layoutBounds()')), context);
+  return code => vm.runInContext(code, context);
+}
+test('saved locations scale with available phone space and clamp to its edges', () => {
+  const run=harness();
+  run('var bounds={x:12,y:72,w:351,h:577}; var size={w:90,h:110}');
+  assert.equal(run('layoutPosition({x:1,y:1},bounds,size).x'),273);
+  assert.equal(run('layoutPosition({x:1,y:1},bounds,size).y'),539);
+  assert.equal(run('layoutPosition({x:-20,y:90},bounds,size).x'),12);
+  assert.equal(run('layoutPosition({x:-20,y:90},bounds,size).y'),539);
+  assert.equal(run('layoutPosition({x:NaN,y:0},bounds,size)'),null);
+  assert.equal(run('layoutPosition({x:1,y:1},bounds,{w:1000,h:1000}).x'),12);
+});
+test('portrait and landscape use separate layouts', () => {
+  const run=harness();
+  assert.equal(run('layoutOrientation()'),'portrait');
+  assert.equal(run('innerWidth=844;innerHeight=390;layoutOrientation()'),'landscape');
+});
+test('invalid stored layouts cannot break the editor', () => {
+  const run=harness();
+  assert.equal(run('JSON.stringify(normalizeLayouts({portrait:3,landscape:[]}))'),'{}');
+  assert.equal(run('JSON.stringify(normalizeLayouts({portrait:{btnMic:{x:0.2,y:0.4},clutch:null,scroll:{x:"bad",y:0}}}))'),
+    '{"portrait":{"btnMic":{"x":0.2,"y":0.4}}}');
+});
+test('overlapping drops are rejected while touching edges are allowed', () => {
+  const run=harness();
+  run('var a={left:0,top:0,right:100,bottom:100}');
+  assert.equal(run('layoutOverlap(a,{left:50,top:50,right:150,bottom:150})'),true);
+  assert.equal(run('layoutOverlap(a,{left:100,top:0,right:200,bottom:100})'),false);
+});
+test('editor blocks mouse, wheel and keyboard frames but permits heartbeats', () => {
+  const frames=[];
+  const context=vm.createContext({LAYOUT:{editing:true},ws:{readyState:1,send:f=>frames.push(JSON.parse(f))}});
+  vm.runInContext(script.slice(script.indexOf('function send(obj)'),script.indexOf('function setStatus')),context);
+  vm.runInContext('["m","b","k","w","p"].forEach(t=>send({t}))',context);
+  assert.deepEqual(frames,[{t:'p'}]);
+});

@@ -23,7 +23,7 @@ function harness() {
     showBanner() {}, send() { throw Error('Calibration must not send cursor movement'); },
     S: { reach: 135, invertX: false, calWidth: 0 }, LS_UNDO: 'undo',
     localStorage: { setItem(key, value) { nodes.set(key, value); } },
-    saveSettings() {}, refreshUI() {},
+    saveSettings() {}, refreshUI() {}, queueLayout() {},
   });
   const section = script.slice(script.indexOf('const CAL ='), script.indexOf('$("calStartBtn").addEventListener'));
   vm.runInContext(section, context);
