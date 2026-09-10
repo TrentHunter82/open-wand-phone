@@ -42,3 +42,18 @@ test('editor blocks mouse, wheel and keyboard frames but permits heartbeats', ()
   vm.runInContext('["m","b","k","w","p"].forEach(t=>send({t}))',context);
   assert.deepEqual(frames,[{t:'p'}]);
 });
+test('resizing keeps usable targets, fits the viewport, and preserves button proportions', () => {
+  const run=harness();
+  run('var b={x:0,y:0,w:350,h:500}; var n={w:80,h:100}');
+  assert.equal(run('layoutSize("clutch",{w:1,h:1},n,b).w'),140);
+  assert.equal(run('layoutSize("scroll",{w:500,h:900},n,b).h'),500);
+  assert.equal(run('layoutSize("btnMic",{w:160,h:110},n,b).h'),200);
+});
+test('smart placement snaps spacing and finds nearby unoccupied space', () => {
+  const run=harness();
+  run('var b={x:0,y:0,w:350,h:500}; var size={w:80,h:80}; var obstacles=[{left:100,top:100,right:180,bottom:180}]');
+  assert.equal(run('smartPosition({x:196,y:100},size,b,obstacles).x'),190);
+  run('var p=smartPosition({x:110,y:110},size,b,obstacles,true)');
+  assert.equal(run('layoutOverlap({left:p.x,top:p.y,right:p.x+80,bottom:p.y+80},obstacles[0])'),false);
+  assert.equal(run('smartPosition({x:0,y:0},size,b,[{left:0,top:0,right:350,bottom:500}],true)'),null);
+});

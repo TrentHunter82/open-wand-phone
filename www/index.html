@@ -526,6 +526,13 @@
   body.arranging [data-layout-key] { outline: 1px dashed #aaaeb8; outline-offset: 4px; cursor: grab; }
   body.arranging [data-layout-key].layout-dragging { outline: 2px solid var(--ink); z-index: 30; cursor: grabbing; }
   [data-layout-key] { position: relative; }
+  .resize-grip { display:none; }
+  body.arranging .resize-grip { display:flex; position:absolute; right:0; bottom:0; width:38px; height:38px;
+    align-items:center; justify-content:center; border-radius:12px; background:#e6e6ea; color:#202226;
+    font-size:23px; z-index:40; transform-origin:bottom right; transform:scale(var(--layout-ix,1),var(--layout-iy,1)); }
+  body.arranging .hotpad { overflow:visible; }
+  #clutchLabel, #stripLabel { transform:scale(var(--layout-ix,1),var(--layout-iy,1)); }
+  #clutchLabel { pointer-events:none; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
 </style>
 </head>
@@ -1977,6 +1984,48 @@ function layoutPosition(value, bounds, size) {
     y: bounds.y + Math.max(0, Math.min(1, value.y)) * Math.max(0, bounds.h - size.h),
   };
 }
+function layoutSize(key, value, natural, bounds) {
+  const min = key === "clutch" ? [140,96] : key === "scroll" ? [44,96] : key.startsWith("btn") ? [64,80] : [68,44];
+  const w = Number.isFinite(value?.w) ? value.w : natural.w;
+  const h = Number.isFinite(value?.h) ? value.h : natural.h;
+  if (key.startsWith("btn")) {
+    const scale = Math.min(bounds.w/natural.w,bounds.h/natural.h,
+      Math.max(min[0]/natural.w,min[1]/natural.h,w/natural.w,h/natural.h));
+    return {w:natural.w*scale,h:natural.h*scale};
+  }
+  return {w:Math.min(bounds.w,Math.max(min[0],w)),h:Math.min(bounds.h,Math.max(min[1],h))};
+}
+function smartPosition(point, size, bounds, obstacles, free = false) {
+  const clampX = x => Math.max(bounds.x,Math.min(bounds.x+bounds.w-size.w,x));
+  const clampY = y => Math.max(bounds.y,Math.min(bounds.y+bounds.h-size.h,y));
+  const xs=[bounds.x,bounds.x+bounds.w-size.w,bounds.x+(bounds.w-size.w)/2];
+  const ys=[bounds.y,bounds.y+bounds.h-size.h];
+  for(const r of obstacles) {
+    xs.push(r.left,r.right-size.w,r.left-size.w-10,r.right+10,(r.left+r.right-size.w)/2);
+    ys.push(r.top,r.bottom-size.h,r.top-size.h-10,r.bottom+10,(r.top+r.bottom-size.h)/2);
+  }
+  let x=clampX(point.x),y=clampY(point.y);
+  const nearX=xs.filter(v=>Math.abs(v-x)<=10).sort((a,b)=>Math.abs(a-x)-Math.abs(b-x))[0];
+  const nearY=ys.filter(v=>Math.abs(v-y)<=10).sort((a,b)=>Math.abs(a-y)-Math.abs(b-y))[0];
+  if(nearX!==undefined)x=clampX(nearX);
+  if(nearY!==undefined)y=clampY(nearY);
+  if(!free)return {x,y};
+  const candidates=[];
+  for(const cx of [x,...xs.map(clampX)])for(const cy of [y,...ys.map(clampY)]) {
+    const r={left:cx,top:cy,right:cx+size.w,bottom:cy+size.h};
+    if(!obstacles.some(o=>layoutOverlap(r,o)))candidates.push({x:cx,y:cy});
+  }
+  candidates.sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y));
+  return candidates[0] || null;
+}
+function paintLayout(el, base, point, size) {
+  const sx=size.w/base.width,sy=size.h/base.height;
+  el.style.transformOrigin="top left";
+  el.style.transform="translate("+(point.x-base.left)+"px,"+(point.y-base.top)+"px) scale("+sx+","+sy+")";
+  el.style.setProperty("--layout-ix",1/sx);
+  el.style.setProperty("--layout-iy",1/sy);
+  if (el.id === "clutch") $("clutchLabel").style.maxWidth = Math.max(60,size.w-36)+"px";
+}
 function layoutOverlap(a, b) {
   return Math.min(a.right, b.right) - Math.max(a.left, b.left) > 3
     && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 3;
@@ -1990,11 +2039,18 @@ function layoutTargets() {
   const items = [["clutch", clutch], ["scroll", strip]];
   for (const id of ["btnHalf", "btnMic", "btnR", "btnL"]) items.push([id, $(id).parentElement]);
   Array.from($("hotRow").children).forEach((el, i) => items.push([el.id === "moreActions" ? "more" : "hot" + i, el]));
-  for (const [key, el] of items) el.dataset.layoutKey = key;
+  for (const [key, el] of items) {
+    el.dataset.layoutKey = key;
+    if(!el.querySelector('.resize-grip')) {
+      const grip=document.createElement('span'); grip.className='resize-grip';
+      grip.textContent='↘'; grip.setAttribute('aria-hidden','true'); el.appendChild(grip);
+    }
+  }
   return items;
 }
 function clearLayoutTransforms() {
-  for (const [,el] of layoutTargets()) el.style.transform = "";
+  for (const [,el] of layoutTargets()) { el.style.transform = ""; el.style.removeProperty("--layout-ix"); el.style.removeProperty("--layout-iy"); }
+  $("clutchLabel").style.maxWidth = "";
 }
 function queueLayout() {
   if (LAYOUT.frame) return;
@@ -2005,15 +2061,16 @@ function applyLayout() {
   if (LAYOUT.editing && LAYOUT.orientation !== orientation) finishLayout(false);
   if (LAYOUT.drag) return;
   const items = layoutTargets();
-  for (const [,el] of items) el.style.transform = "";
+  clearLayoutTransforms();
   if (CAL.on) return;
   const map = (LAYOUT.editing ? LAYOUT.draft : LAYOUT.saved[orientation]) || {};
   const bounds = layoutBounds();
   for (const [key,el] of items) {
     if (!el.getClientRects().length) continue;
     const r = el.getBoundingClientRect();
-    const p = layoutPosition(map[key], bounds, {w:r.width,h:r.height});
-    if (p) el.style.transform = "translate(" + (p.x-r.left) + "px," + (p.y-r.top) + "px)";
+    const size=layoutSize(key,map[key],{w:r.width,h:r.height},bounds);
+    const p = layoutPosition(map[key], bounds, size);
+    if (p) paintLayout(el,r,p,size);
   }
 }
 function beginLayout() {
@@ -2031,7 +2088,7 @@ function beginLayout() {
   LAYOUT.editing = true;
   document.body.classList.add("arranging");
   $("layoutToolbar").hidden = false; $("layoutHint").hidden = false;
-  $("layoutHint").textContent = "Drag any control. Keep controls from overlapping. Done saves this " + LAYOUT.orientation + " layout.";
+  $("layoutHint").textContent = "Drag to align; pull a corner to resize. Done saves this " + LAYOUT.orientation + " layout.";
   setTickEnabled(false);
   applyLayout();
 }
@@ -2068,7 +2125,10 @@ $("app").addEventListener("pointerdown", e => {
   const el = e.target.closest("[data-layout-key]");
   if (!el || LAYOUT.drag) return;
   const r = el.getBoundingClientRect();
-  LAYOUT.drag = { el, id: e.pointerId, x: e.clientX, y: e.clientY, rect: r,
+  const transform=el.style.transform;
+  el.style.transform="";
+  const base=el.getBoundingClientRect(); el.style.transform=transform;
+  LAYOUT.drag = { el, base, resize: !!e.target.closest('.resize-grip'), id: e.pointerId, x: e.clientX, y: e.clientY, rect: r,
     transform: el.style.transform, old: LAYOUT.draft[el.dataset.layoutKey] };
   el.classList.add("layout-dragging");
   try { el.setPointerCapture(e.pointerId); } catch {}
@@ -2079,11 +2139,14 @@ $("app").addEventListener("pointermove", e => {
   const d = LAYOUT.drag;
   if (!d || d.id !== e.pointerId) return;
   const bounds = layoutBounds();
-  const x = Math.max(bounds.x, Math.min(bounds.x + Math.max(0,bounds.w-d.rect.width), d.rect.left+e.clientX-d.x));
-  const y = Math.max(bounds.y, Math.min(bounds.y + Math.max(0,bounds.h-d.rect.height), d.rect.top+e.clientY-d.y));
-  d.el.style.transform = d.transform + " translate(" + (x-d.rect.left) + "px," + (y-d.rect.top) + "px)";
-  LAYOUT.draft[d.el.dataset.layoutKey] = { x:(x-bounds.x)/Math.max(1,bounds.w-d.rect.width),
-    y:(y-bounds.y)/Math.max(1,bounds.h-d.rect.height) };
+  const key=d.el.dataset.layoutKey;
+  const obstacles=layoutTargets().filter(([,el])=>el!==d.el && el.getClientRects().length).map(([,el])=>el.getBoundingClientRect());
+  const size=layoutSize(key,d.resize ? {w:d.rect.width+e.clientX-d.x,h:d.rect.height+e.clientY-d.y} : {w:d.rect.width,h:d.rect.height},
+    {w:d.base.width,h:d.base.height},bounds);
+  const point=smartPosition(d.resize ? {x:d.rect.left,y:d.rect.top} : {x:d.rect.left+e.clientX-d.x,y:d.rect.top+e.clientY-d.y},size,bounds,obstacles);
+  paintLayout(d.el,d.base,point,size);
+  LAYOUT.draft[key]={x:(point.x-bounds.x)/Math.max(1,bounds.w-size.w),y:(point.y-bounds.y)/Math.max(1,bounds.h-size.h),w:size.w,h:size.h};
+  $("layoutHint").textContent=d.resize ? Math.round(size.w)+" × "+Math.round(size.h)+" · Release to fit into free space" : "Snaps to edges, centers, and 10 px gaps. Release to find free space.";
 }, true);
 for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) {
   $("app").addEventListener(event, e => {
@@ -2091,12 +2154,16 @@ for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) {
     e.preventDefault(); e.stopImmediatePropagation();
     const d = LAYOUT.drag;
     if (!d || d.id !== e.pointerId) return;
-    const overlap = layoutTargets().some(([,el]) => el !== d.el && el.getClientRects().length
-      && layoutOverlap(d.el.getBoundingClientRect(), el.getBoundingClientRect()));
-    if (event !== "pointerup" || overlap) {
+    const bounds=layoutBounds(),r=d.el.getBoundingClientRect(),size={w:r.width,h:r.height};
+    const obstacles=layoutTargets().filter(([,el])=>el!==d.el && el.getClientRects().length).map(([,el])=>el.getBoundingClientRect());
+    const position=event === "pointerup" ? smartPosition({x:r.left,y:r.top},size,bounds,obstacles,true) : null;
+    if (!position) {
       if (d.old) LAYOUT.draft[d.el.dataset.layoutKey] = d.old;
       else delete LAYOUT.draft[d.el.dataset.layoutKey];
-      if (overlap) $("layoutHint").textContent = "That overlaps another control. Try a free space.";
+      $("layoutHint").textContent = "No space for that size here. Try a smaller control or move another first.";
+    } else {
+      LAYOUT.draft[d.el.dataset.layoutKey]={x:(position.x-bounds.x)/Math.max(1,bounds.w-size.w),y:(position.y-bounds.y)/Math.max(1,bounds.h-size.h),w:size.w,h:size.h};
+      $("layoutHint").textContent="Placed in free space. Drag to align or pull a corner to resize.";
     }
     d.el.classList.remove("layout-dragging"); LAYOUT.drag = null;
     applyLayout();

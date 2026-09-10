@@ -71,9 +71,13 @@ Connection status uses a neutral light and text.
 
 Tap **Layout** at the top of the remote to arrange it. Drag the clutch, scroll
 strip, each mouse/dictation/precision button, and each shortcut independently.
-Mouse and keyboard input is paused while editing; dragging a control never
-clicks the PC or starts F8 dictation. A drop over another control returns to its
-previous position so every control remains reachable.
+Pull the bright lower-right corner handle to resize a control. The clutch and
+scroll strip resize in both directions; main buttons keep their proportions.
+Minimum sizes keep targets usable. Movement snaps to screen edges, control
+edges and centers, and 10 px spacing. On release, overlapping controls move
+to the nearest available position. If no position fits, that change is reverted.
+Mouse and keyboard input is paused while editing; dragging or resizing a control
+never clicks the PC or starts F8 dictation. Position and size both save with Done.
 
 **Done** saves on this phone; **Cancel** discards the current edits. **Reset**
 previews the default arrangement, then Done saves it (Cancel keeps your old
