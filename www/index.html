@@ -1575,7 +1575,7 @@ function buildHotkeyRow() {
   more.id = "moreActions";
   more.className = "pad hotpad";
   more.textContent = "More";
-  more.setAttribute("aria-label", "More actions: Undo, Redo and macros");
+  more.setAttribute("aria-label", "More actions: Copy, Paste, Undo, Redo and macros");
   more.addEventListener("click", openActions);
   row.appendChild(more);
   row.classList.toggle("show", !!S.showHotkey);
@@ -1728,6 +1728,8 @@ function openActions() {
   const grid = $("actionGrid");
   grid.textContent = "";
   const actions = [
+    { name: "Copy", steps: ["ctrl+c"] },
+    { name: "Paste", steps: ["ctrl+v"] },
     { name: "Undo", steps: ["ctrl+z"] },
     { name: "Redo", steps: [S.redoCombo] },
   ];

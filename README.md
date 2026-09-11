@@ -200,10 +200,11 @@ still controls its size.
   row with **Show the hotkey pads**.
 - **Gear icon:** open the tuning drawer.
 
-### Undo, Redo, and macros
+### Copy, Paste, Undo, Redo, and macros
 
-Tap **More** beside the three hotkey pads to open **Undo**, **Redo**, and
-up to three named macros. The panel has a **Back to pointer** button;
+Tap **More** beside the three hotkey pads to open **Copy**, **Paste**, **Undo**, **Redo**, and
+up to three named macros. Copy sends Ctrl+C and Paste sends Ctrl+V to the
+focused PC app, using the PC clipboard. The panel has a **Back to pointer** button;
 the main clutch and scroll area retain their existing height.
 Your saved Enter, Backspace, Space, and other pad assignments are preserved.
 
