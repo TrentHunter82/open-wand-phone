@@ -74,8 +74,12 @@ strip, each mouse/dictation/precision button, and each shortcut independently.
 Pull the bright lower-right corner handle to resize a control. The clutch and
 scroll strip resize in both directions; main buttons keep their proportions.
 Minimum sizes keep targets usable. Movement snaps to screen edges, control
-edges and centers, and 10 px spacing. On release, overlapping controls move
-to the nearest available position. If no position fits, that change is reverted.
+edges and centers, and 10 px spacing. As you drag or resize, the control under
+your finger stays anchored and surrounding controls reorganize live to make room.
+The editor favors arrangements that move other controls the least, keeping their
+sizes. If it cannot find a complete arrangement, it keeps the last valid preview
+and asks you to try a different position or size. Canceling a gesture restores
+all affected controls; Cancel restores the whole editing session.
 Mouse and keyboard input is paused while editing; dragging or resizing a control
 never clicks the PC or starts F8 dictation. Position and size both save with Done.
 

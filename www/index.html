@@ -2015,7 +2015,8 @@ function layoutPosition(value, bounds, size) {
   };
 }
 function layoutSize(key, value, natural, bounds) {
-  const min = key === "clutch" ? [140,96] : key === "scroll" ? [44,96] : key.startsWith("btn") ? [64,80] : [68,44];
+  // Compact default buttons must keep their size when a neighbor moves them.
+  const min = key === "clutch" ? [140,96] : key === "scroll" ? [44,96] : key.startsWith("btn") ? [Math.min(64,natural.w),Math.min(80,natural.h)] : key === "more" ? [44,44] : [68,44];
   const w = Number.isFinite(value?.w) ? value.w : natural.w;
   const h = Number.isFinite(value?.h) ? value.h : natural.h;
   if (key.startsWith("btn")) {
@@ -2047,6 +2048,38 @@ function smartPosition(point, size, bounds, obstacles, free = false) {
   }
   candidates.sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y));
   return candidates[0] || null;
+}
+// Plan from the gesture's starting layout so neighbors do not drift on each frame.
+// The control under the finger stays fixed; try several deterministic packing
+// orders and select the complete solution that moves its neighbors least.
+function reflowLayout(items, activeKey, target, bounds) {
+  const rect = p => ({left:p.x,top:p.y,right:p.x+p.w,bottom:p.y+p.h});
+  const inside = p => p.w <= bounds.w && p.h <= bounds.h && p.x >= bounds.x-0.01
+    && p.y >= bounds.y-0.01 && p.x+p.w <= bounds.x+bounds.w+0.01 && p.y+p.h <= bounds.y+bounds.h+0.01;
+  if (!inside(target)) return null;
+  const others=items.filter(i=>i.key!==activeKey);
+  const area=(a,b)=>b.w*b.h-a.w*a.h;
+  const orders=[
+    [...others].sort((a,b)=>Number(layoutOverlap(rect(a),rect(target)))-Number(layoutOverlap(rect(b),rect(target))) || area(a,b)),
+    [...others].sort(area),
+    [...others].sort((a,b)=>a.y-b.y || a.x-b.x),
+  ];
+  let best=null,bestScore=Infinity;
+  for(const order of orders) {
+    const result={[activeKey]:{...target}},placed=[rect(target)];
+    let score=0,failed=false;
+    for(const item of order) {
+      let point={x:item.x,y:item.y};
+      if(!inside(item) || placed.some(r=>layoutOverlap(rect(item),r)))
+        point=smartPosition(point,{w:item.w,h:item.h},bounds,placed,true);
+      if(!point || !inside({...item,...point})) { failed=true; break; }
+      const next={...point,w:item.w,h:item.h};
+      result[item.key]=next;placed.push(rect(next));
+      score+=Math.hypot(point.x-item.x,point.y-item.y);
+    }
+    if(!failed && score<bestScore) { best=result;bestScore=score; }
+  }
+  return best;
 }
 function paintLayout(el, base, point, size) {
   const sx=size.w/base.width,sy=size.h/base.height;
@@ -2118,7 +2151,7 @@ function beginLayout() {
   LAYOUT.editing = true;
   document.body.classList.add("arranging");
   $("layoutToolbar").hidden = false; $("layoutHint").hidden = false;
-  $("layoutHint").textContent = "Drag to align; pull a corner to resize. Done saves this " + LAYOUT.orientation + " layout.";
+  $("layoutHint").textContent = "Drag or resize; nearby controls make room. Done saves this " + LAYOUT.orientation + " layout.";
   setTickEnabled(false);
   applyLayout();
 }
@@ -2126,8 +2159,7 @@ function finishLayout(save) {
   if (!LAYOUT.editing) return;
   if (LAYOUT.drag) {
     const d = LAYOUT.drag;
-    if (d.old) LAYOUT.draft[d.el.dataset.layoutKey] = d.old;
-    else delete LAYOUT.draft[d.el.dataset.layoutKey];
+    LAYOUT.draft = d.before;
     d.el.classList.remove("layout-dragging");
     LAYOUT.drag = null;
   }
@@ -2158,7 +2190,12 @@ $("app").addEventListener("pointerdown", e => {
   const transform=el.style.transform;
   el.style.transform="";
   const base=el.getBoundingClientRect(); el.style.transform=transform;
-  LAYOUT.drag = { el, base, resize: !!e.target.closest('.resize-grip'), id: e.pointerId, x: e.clientX, y: e.clientY, rect: r,
+  const items=layoutTargets().filter(([,node])=>node.getClientRects().length).map(([key,node])=>{
+    const current=node.getBoundingClientRect(),oldTransform=node.style.transform;
+    node.style.transform="";const natural=node.getBoundingClientRect();node.style.transform=oldTransform;
+    return {key,el:node,base:natural,x:current.left,y:current.top,w:current.width,h:current.height};
+  });
+  LAYOUT.drag = { items, before:JSON.parse(JSON.stringify(LAYOUT.draft)), el, base, resize: !!e.target.closest('.resize-grip'), id: e.pointerId, x: e.clientX, y: e.clientY, rect: r,
     transform: el.style.transform, old: LAYOUT.draft[el.dataset.layoutKey] };
   el.classList.add("layout-dragging");
   try { el.setPointerCapture(e.pointerId); } catch {}
@@ -2170,13 +2207,21 @@ $("app").addEventListener("pointermove", e => {
   if (!d || d.id !== e.pointerId) return;
   const bounds = layoutBounds();
   const key=d.el.dataset.layoutKey;
-  const obstacles=layoutTargets().filter(([,el])=>el!==d.el && el.getClientRects().length).map(([,el])=>el.getBoundingClientRect());
+  const obstacles=d.items.filter(i=>i.el!==d.el).map(i=>({left:i.x,top:i.y,right:i.x+i.w,bottom:i.y+i.h}));
   const size=layoutSize(key,d.resize ? {w:d.rect.width+e.clientX-d.x,h:d.rect.height+e.clientY-d.y} : {w:d.rect.width,h:d.rect.height},
     {w:d.base.width,h:d.base.height},bounds);
   const point=smartPosition(d.resize ? {x:d.rect.left,y:d.rect.top} : {x:d.rect.left+e.clientX-d.x,y:d.rect.top+e.clientY-d.y},size,bounds,obstacles);
-  paintLayout(d.el,d.base,point,size);
-  LAYOUT.draft[key]={x:(point.x-bounds.x)/Math.max(1,bounds.w-size.w),y:(point.y-bounds.y)/Math.max(1,bounds.h-size.h),w:size.w,h:size.h};
-  $("layoutHint").textContent=d.resize ? Math.round(size.w)+" × "+Math.round(size.h)+" · Release to fit into free space" : "Snaps to edges, centers, and 10 px gaps. Release to find free space.";
+  const plan=reflowLayout(d.items,key,{...point,...size},bounds);
+  if(!plan) {
+    $("layoutHint").textContent="No room at that size or position. Keeping the last arrangement; try a smaller size.";
+    return;
+  }
+  for(const item of d.items) {
+    const p=plan[item.key];
+    paintLayout(item.el,item.base,p,p);
+    LAYOUT.draft[item.key]={x:(p.x-bounds.x)/Math.max(1,bounds.w-p.w),y:(p.y-bounds.y)/Math.max(1,bounds.h-p.h),w:p.w,h:p.h};
+  }
+  $("layoutHint").textContent="Controls move out of your way. Release to keep this arrangement; Cancel restores everything.";
 }, true);
 for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) {
   $("app").addEventListener(event, e => {
@@ -2184,17 +2229,10 @@ for (const event of ["pointerup", "pointercancel", "lostpointercapture"]) {
     e.preventDefault(); e.stopImmediatePropagation();
     const d = LAYOUT.drag;
     if (!d || d.id !== e.pointerId) return;
-    const bounds=layoutBounds(),r=d.el.getBoundingClientRect(),size={w:r.width,h:r.height};
-    const obstacles=layoutTargets().filter(([,el])=>el!==d.el && el.getClientRects().length).map(([,el])=>el.getBoundingClientRect());
-    const position=event === "pointerup" ? smartPosition({x:r.left,y:r.top},size,bounds,obstacles,true) : null;
-    if (!position) {
-      if (d.old) LAYOUT.draft[d.el.dataset.layoutKey] = d.old;
-      else delete LAYOUT.draft[d.el.dataset.layoutKey];
-      $("layoutHint").textContent = "No space for that size here. Try a smaller control or move another first.";
-    } else {
-      LAYOUT.draft[d.el.dataset.layoutKey]={x:(position.x-bounds.x)/Math.max(1,bounds.w-size.w),y:(position.y-bounds.y)/Math.max(1,bounds.h-size.h),w:size.w,h:size.h};
-      $("layoutHint").textContent="Placed in free space. Drag to align or pull a corner to resize.";
-    }
+    if(event !== "pointerup") LAYOUT.draft=d.before;
+    $("layoutHint").textContent=event === "pointerup"
+      ? "Arrangement ready. Keep adjusting, or tap Done to save."
+      : "Gesture canceled. All controls returned to their previous positions.";
     d.el.classList.remove("layout-dragging"); LAYOUT.drag = null;
     applyLayout();
   }, true);

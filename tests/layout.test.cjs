@@ -57,3 +57,32 @@ test('smart placement snaps spacing and finds nearby unoccupied space', () => {
   assert.equal(run('layoutOverlap({left:p.x,top:p.y,right:p.x+80,bottom:p.y+80},obstacles[0])'),false);
   assert.equal(run('smartPosition({x:0,y:0},size,b,[{left:0,top:0,right:350,bottom:500}],true)'),null);
 });
+
+test('reflowed compact controls retain their sizes when the saved layout is applied', () => {
+  const run=harness();
+  run('var b={x:0,y:0,w:600,h:350}');
+  assert.equal(run('layoutSize("more",{w:54,h:58},{w:54,h:58},b).w'),54);
+  assert.equal(run('layoutSize("btnMic",{w:56,h:56},{w:56,h:56},b).h'),56);
+});
+test('live reflow anchors the dragged control and relocates neighbors without overlap', () => {
+  const run=harness();
+  run('var b={x:0,y:0,w:350,h:500}; var items=[{key:"a",x:0,y:0,w:80,h:80},{key:"b",x:90,y:0,w:80,h:80},{key:"c",x:180,y:0,w:80,h:80}]; var target={x:90,y:0,w:100,h:100}; var before=JSON.stringify(items); var plan=reflowLayout(items,"a",target,b)');
+  assert.equal(run('plan.a.x'),90);
+  assert.equal(run('plan.a.w'),100);
+  assert.equal(run('plan.b.w'),80);
+  assert.equal(run('JSON.stringify(items)===before'),true);
+  assert.equal(run('Object.values(plan).every((p,i,all)=>all.slice(i+1).every(q=>!layoutOverlap({left:p.x,top:p.y,right:p.x+p.w,bottom:p.y+p.h},{left:q.x,top:q.y,right:q.x+q.w,bottom:q.y+q.h})))'),true);
+  assert.equal(run('JSON.stringify(reflowLayout(items,"a",target,b))===JSON.stringify(plan)'),true);
+});
+test('impossible reflow fails without mutating the starting layout', () => {
+  const run=harness();
+  run('var items=[{key:"a",x:0,y:0,w:80,h:80},{key:"b",x:90,y:0,w:80,h:80}]; var before=JSON.stringify(items)');
+  assert.equal(run('reflowLayout(items,"a",{x:0,y:0,w:170,h:80},{x:0,y:0,w:170,h:80})'),null);
+  assert.equal(run('JSON.stringify(items)===before'),true);
+});
+test('moving into empty space leaves other controls where they were', () => {
+  const run=harness();
+  run('var items=[{key:"a",x:0,y:0,w:80,h:80},{key:"b",x:100,y:0,w:80,h:80}]; var plan=reflowLayout(items,"a",{x:0,y:200,w:80,h:80},{x:0,y:0,w:350,h:500})');
+  assert.equal(run('plan.b.x'),100);
+  assert.equal(run('plan.b.y'),0);
+});
