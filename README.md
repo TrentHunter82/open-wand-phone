@@ -184,7 +184,11 @@ still controls its size.
   it to zoom the page, and that setting sticks. The scroll strip does
   the same job with one finger. Turn it back on under SCROLL if you
   want it. Direction is natural; flip it with **Invert scroll**.
-- **L / R:** press and hold for a mouse button. Hold L and move to drag.
+- **L:** hold to grab and move the phone to drag, without touching the clutch.
+  Release L to drop. A quick press still clicks. The usual precision button
+  works during the drag. Canceling the touch, leaving Safari, or disconnecting
+  releases the drag; reconnecting does not restart it.
+- **R:** press and hold the right mouse button.
 - **MIC:** hold-to-talk. Hold = F8 held down = CM7 Dictation records
   from the PC microphone. Release = F8 up = CM7 transcribes and pastes
   at the cursor. The agent releases F8 on any disconnect, so CM7 can

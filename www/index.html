@@ -894,6 +894,7 @@ let screenW = 1920, screenH = 1080;
 let cursorFeedback = false;
 let agentVer = "?", agentAbs = false;
 let clutched = false, clutchId = null;
+let leftHeld = false;
 let scrollId = null;                   // second finger in the clutch zone = scroll
 const twoFinger = { lastY: 0, acc: 0 };
 let stripId = null;                    // one finger on the scroll strip
@@ -1114,7 +1115,7 @@ function deadzone(rate) {
 function processRates(rightRate, upRate, dt) {
   if (CAL.on && !CAL.preview) return;
   if (scrollId !== null) return;                     // scroll mode freezes the cursor
-  const live = clutched && ws && ws.readyState === 1;
+  const live = (clutched || leftHeld) && ws && ws.readyState === 1;
   if (!live && !traceOn) return;                     // the trace watches the filter too
   const now = performance.now();
   const xf = deadzone(fYaw.filter(rightRate, dt));   // filters warm up during the guard
@@ -1294,6 +1295,7 @@ function connect() {
   };
   sock.onclose = () => {
     if (ws !== sock) return;           // a newer socket already took over
+    endLeftDrag(false);
     if (CAL.on) calEnd("Calibration canceled because the PC disconnected.");
     cursorFeedback = false;
     cancelAction("Disconnected. Action stopped.");
@@ -1322,6 +1324,7 @@ async function acquireWakeLock() {
   } catch {}
 }
 document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible") endLeftDrag(false);
   if (document.visibilityState !== "visible" && CAL.on) calEnd("Calibration canceled while the phone was away.");
   if (document.visibilityState !== "visible") cancelAction("Action stopped while the phone was away.");
   if (document.visibilityState === "visible" && started) {
@@ -1396,6 +1399,7 @@ function releaseClutch() {
   setClutchLabel(IDLE_LABEL);
   haptic();
   if (dragTimer) { clearTimeout(dragTimer); dragTimer = 0; }
+  if (leftHeld) { dragLatched = false; setClutchLabel("DRAG · L HELD"); return; }
   if (dragLatched) {
     dragLatched = false;
     undoRecent();                                    // drop where you aimed
@@ -1486,26 +1490,50 @@ for (const ev of ["pointerup", "pointercancel"]) {
 /* ---------------- buttons ---------------- */
 
 function holdButton(el, onDown, onUp) {
+  let pointerId = null;
   el.addEventListener("pointerdown", e => {
     e.preventDefault();
     if (el.classList.contains("active")) return;
+    pointerId = e.pointerId;
     try { el.setPointerCapture(e.pointerId); } catch {}
     el.classList.add("active");
     pressFeedback();
     onDown();
   });
-  for (const ev of ["pointerup", "pointercancel"]) {
+  for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) {
     el.addEventListener(ev, e => {
       e.preventDefault();
-      if (!el.classList.contains("active")) return;
+      if (e.pointerId !== pointerId || !el.classList.contains("active")) return;
+      pointerId = null;
       el.classList.remove("active");
-      onUp();
+      onUp(ev === "pointerup");
     });
   }
 }
 
-holdButton($("btnL"), () => send({ t: "b", btn: "l", s: 1 }),
-                      () => send({ t: "b", btn: "l", s: 0 }));
+function beginLeftDrag() {
+  if (!ws || ws.readyState !== 1 || LAYOUT.editing || CAL.on) return;
+  if (dragTimer) { clearTimeout(dragTimer); dragTimer = 0; }
+  dragLatched = false; // transfer any tap-hold drag to the physical L pad
+  leftHeld = true;
+  lastTapEndT = -1e9;
+  sentLog = [];
+  engageT = performance.now();
+  fYaw.reset(); fPitch.reset();
+  send({ t: "b", btn: "l", s: 1 });
+  setClutchLabel("DRAG · L HELD");
+}
+function endLeftDrag(settle = true) {
+  if (!leftHeld) return;
+  if (settle) undoRecent();
+  leftHeld = false;
+  sentLog = [];
+  send({ t: "b", btn: "l", s: 0 });
+  $("btnL").classList.remove("active");
+  setClutchLabel(clutched ? "MOVING" : IDLE_LABEL);
+}
+holdButton($("btnL"), beginLeftDrag, endLeftDrag);
+window.addEventListener("pagehide", () => endLeftDrag(false));
 holdButton($("btnR"), () => send({ t: "b", btn: "r", s: 1 }),
                       () => send({ t: "b", btn: "r", s: 0 }));
 holdButton($("btnHalf"), () => { precision = true; },
@@ -2327,6 +2355,7 @@ function calError(message) {
   calScreen("Let's try that again", message, "Measure again", calRest);
 }
 function calStopTouch() {
+  endLeftDrag(false);
   if (dragTimer) clearTimeout(dragTimer);
   dragTimer = 0;
   if (dragLatched) send({ t: "b", btn: "l", s: 0 });
