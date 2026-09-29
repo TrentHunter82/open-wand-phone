@@ -267,7 +267,6 @@
   }
   #buttons.mirror { flex-direction: row-reverse; }   /* row for the left hand */
   #btnMic.active, #btnMic.on { background: #3b1420; border-color: #ff5d7a; }
-  #btnHalf.active { background: #2a2440; border-color: #9d8cff; }
 
   /* landscape and short screens: keep the clutch usable */
   @media (max-height: 520px) {
@@ -487,7 +486,7 @@
   .padwrap .pad { border-radius: 30%; }
   .padwrap.big .pad { border-radius: 34%; }
   .padwrap small { color: var(--muted); font-size: 11px; margin-top: 5px; }
-  .pad.active, .hotpad.active, #btnMic.active, #btnMic.on, #btnHalf.active {
+  .pad.active, .hotpad.active, #btnMic.active, #btnMic.on {
     background: var(--surface); color: var(--engaged); box-shadow: var(--sunken);
   }
   .hotpad { border-radius: 18px; }
@@ -516,12 +515,12 @@
   button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
   #layoutToolbar { position: fixed; inset: 0 0 auto; z-index: 60; min-height: 60px;
     padding: max(10px, env(safe-area-inset-top)) 12px 10px; background: var(--surface);
-    display: flex; align-items: center; gap: 10px; }
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
   #layoutToolbar[hidden], #layoutHint[hidden] { display: none; }
-  #layoutToolbar button { min-height: 40px; padding: 8px 14px; border: 0; border-radius: 14px;
-    background: var(--surface); color: var(--ink); box-shadow: var(--raised); font-size: 14px; }
+  #layoutToolbar button { min-height: 40px; padding: 8px 11px; border: 0; border-radius: 14px;
+    background: var(--surface); color: var(--ink); box-shadow: var(--raised); font-size: 13px; }
   #layoutDone { margin-left: auto; font-weight: 700; }
-  #layoutHint { position: fixed; top: calc(74px + env(safe-area-inset-top)); left: 20px; right: 20px;
+  #layoutHint { position: fixed; top: calc(var(--toolbar-h, 60px) + 14px); left: 20px; right: 20px;
     color: var(--ink); font-size: 12px; text-align: center; pointer-events: none; z-index: 55; }
   body.arranging [data-layout-key] { outline: 1px dashed #aaaeb8; outline-offset: 4px; cursor: grab; }
   body.arranging [data-layout-key].layout-dragging { outline: 2px solid var(--ink); z-index: 30; cursor: grabbing; }
@@ -569,7 +568,6 @@
   </div>
 
   <div id="buttons">
-    <div class="padwrap"><label class="pad" id="btnHalf" role="button">&frac12;</label><small>precision</small></div>
     <div class="padwrap"><label class="pad" id="btnMic" role="button">MIC</label><small>hold to talk</small></div>
     <div class="padwrap"><label class="pad" id="btnR" role="button">R</label><small>hold</small></div>
     <div class="padwrap big"><label class="pad" id="btnL" role="button">L</label><small>hold / drag</small></div>
@@ -578,7 +576,7 @@
 
 <div id="scrim"></div>
 <div id="layoutToolbar" hidden aria-label="Layout editor">
-  <button id="layoutCancel">Cancel</button><button id="layoutReset">Reset</button><button id="layoutDone">Done</button>
+  <button id="layoutCancel">Cancel</button><button id="layoutReset">Reset</button><button id="layoutTidy" title="Same size for same-kind controls, and straight rows">Tidy</button><button id="layoutDefault">Set default</button><button id="layoutDone">Done</button>
 </div>
 <div id="layoutHint" hidden role="status">Drag any control to where your hand feels comfortable.</div>
 
@@ -830,7 +828,7 @@ const DEFAULTS = {   // owner-tuned daily-driver values
   invertX: false,
   invertY: false,
   pointAxis: "top",  // "top" = top edge points at the screen; "back" = back of the phone
-  hotkeys: ["enter"],     // up to three assignable pads
+  hotkeys: ["enter", "space", "backspace"],   // up to three assignable pads
   redoCombo: "ctrl+y",
   macros: [],
   showHotkey: true,       // Enter is useful enough to show by default
@@ -887,6 +885,7 @@ const SIM = qsParams.get("sim") === "1";
 
 let ws = null;
 let started = false;
+let lastClose = "";      // code and reason of the last socket close, for the About line
 let backoff = 400;
 let failStreak = 0;      // sockets that closed before they ever opened
 let probing = false;
@@ -905,7 +904,6 @@ let engageT = 0;      // guard re-arm time (engage, and after each scroll)
 let clutchDownT = 0;  // actual touch-down time, for tap-to-click
 let didScroll = false, movedAcc = 0;   // per-hold: scrolled? cursor px moved?
 let sentLog = [];     // recent sent deltas, for the lift undo
-let precision = false;
 let micOn = false;
 let sentCount = 0;
 let wakeLock = null;
@@ -997,8 +995,7 @@ function haptic(minGapMs = 0) {
 }
 
 // Every control carries its own switch, so a real touch plays the tick.
-const TICK_HOSTS = ["clutch", "scrollStrip", "btnHalf", "btnMic",
-                    "btnR", "btnL"];
+const TICK_HOSTS = ["clutch", "scrollStrip", "btnMic", "btnR", "btnL"];
 function installTickSwitches() {
   const els = TICK_HOSTS.map(id => $(id))
     .concat(Array.from(document.querySelectorAll("label.hotpad")));
@@ -1125,12 +1122,11 @@ function processRates(rightRate, upRate, dt) {
   if (now - engageT < S.guard) return;               // touch-down settle window
   const tuning = CAL.on && CAL.preview ? CAL.out : S;
   const k = screenW / (tuning.reach * Math.PI / 180);     // px per rad
-  const p = precision ? 0.5 : 1.0;
   // Shape the rate at the reference frame time, then scale by the real dt.
   // Cursor speed then depends on hand speed only, not on the sensor rate.
   const scale = dt / REF_DT;
-  const dx = shape(xf * k * REF_DT) * scale * (tuning.invertX ? -1 : 1) * p;
-  const dy = shape(-yf * k * REF_DT) * scale * (S.invertY ? -1 : 1) * p;  // screen y grows downward
+  const dx = shape(xf * k * REF_DT) * scale * (tuning.invertX ? -1 : 1);
+  const dy = shape(-yf * k * REF_DT) * scale * (S.invertY ? -1 : 1);  // screen y grows downward
   send({ t: "m", dx: +dx.toFixed(2), dy: +dy.toFixed(2) });
   sentCount++;
   movedAcc += Math.abs(dx) + Math.abs(dy);
@@ -1225,6 +1221,8 @@ function setStatus(cls, text) {
 }
 
 let bannerSrc = null;
+let bannerTimer = 0;
+const MSG_BANNER_MS = 6000;   // plain notices clear themselves; warnings stay
 function showBanner(text, src) {
   src = src || "msg";
   if (src === "zoom" && bannerSrc && bannerSrc !== "zoom") return;  // a real warning wins
@@ -1232,9 +1230,12 @@ function showBanner(text, src) {
   $("bannerText").textContent = text;
   $("banner").classList.toggle("zoom", src === "zoom");
   $("banner").classList.add("show");
+  clearTimeout(bannerTimer);
+  if (src === "msg") bannerTimer = setTimeout(() => hideBanner("msg"), MSG_BANNER_MS);
 }
 function hideBanner(src) {
   if (src && bannerSrc !== src) return;
+  clearTimeout(bannerTimer);
   bannerSrc = null;
   $("banner").classList.remove("show", "zoom");
 }
@@ -1278,8 +1279,14 @@ function connect() {
         checkCalWidth();
         agentVer = f.ver || "1.0";
         agentAbs = !!f.abs;
+        LAYOUT.def = normalizeLayouts(f.layout);   // the PC keeps the default arrangement
+        queueLayout();
         $("modeBadge").style.display = agentAbs ? "inline" : "none";
         updateAbout();
+      } else if (f.t === "layout_saved") {
+        LAYOUT.def = normalizeLayouts(f.layout);
+        showBanner("Saved as the default layout. Every phone that loads the page starts with it.", "msg");
+        queueLayout();
       } else if (f.t === "cursor") {
         calCursor(f);
       } else if (f.t === "stat") {
@@ -1293,14 +1300,25 @@ function connect() {
       }
     } catch {}
   };
-  sock.onclose = () => {
+  sock.onclose = ev => {
     if (ws !== sock) return;           // a newer socket already took over
+    lastClose = ev.code + (ev.reason ? " " + ev.reason : "");
     endLeftDrag(false);
     if (CAL.on) calEnd("Calibration canceled because the PC disconnected.");
     cursorFeedback = false;
     cancelAction("Disconnected. Action stopped.");
-    setStatus("", "offline");
     $("blockedChip").style.display = "none";
+    updateAbout();
+    if (ev.code === 4000) {
+      // Another copy of this page took the PC. Two copies that both
+      // auto-reconnect kick each other out every 400 ms, so this copy
+      // now waits for a tap, or for its tab to come back to the front.
+      setStatus("", "replaced");
+      showBanner("Another tab or device took control of the PC. "
+               + "Close the other copy, or tap here to take it back.", "replaced");
+      return;
+    }
+    setStatus("", "offline");
     if (!opened && ++failStreak >= 2) probeAuth();
     if (started) {
       setTimeout(connect, backoff);
@@ -1536,8 +1554,6 @@ holdButton($("btnL"), beginLeftDrag, endLeftDrag);
 window.addEventListener("pagehide", () => endLeftDrag(false));
 holdButton($("btnR"), () => send({ t: "b", btn: "r", s: 1 }),
                       () => send({ t: "b", btn: "r", s: 0 }));
-holdButton($("btnHalf"), () => { precision = true; },
-                         () => { precision = false; });
 
 function setMicUI(on) {
   micOn = on;
@@ -1604,7 +1620,7 @@ for (const el of [clutch, strip, $("buttons"), $("hotRow")]) {
 // zooms on double tap even where touch-action says not to.
 let lastTouchEndT = 0;
 $("app").addEventListener("touchend", e => {
-  if (e.target.closest("#gear, #fitBtn, #moreActions, #layoutEdit")) return;   // these need their click
+  if (e.target.closest("#gear, #fitBtn, #banner, #moreActions, #layoutEdit")) return;   // these need their click
   const now = Date.now();
   if (now - lastTouchEndT <= 350) e.preventDefault();
   lastTouchEndT = now;
@@ -1625,6 +1641,15 @@ function fitToScreen() {
   }, 500);
 }
 $("fitBtn").addEventListener("click", fitToScreen);
+$("banner").addEventListener("click", e => {
+  if (e.target.closest("#fitBtn")) return;
+  // A tap clears a notice or the zoom hint. The replaced copy takes the PC back on a tap.
+  if (bannerSrc === "msg" || bannerSrc === "zoom") { hideBanner(bannerSrc); return; }
+  if (bannerSrc !== "replaced") return;
+  hideBanner("replaced");
+  backoff = 400;
+  connect();
+});
 $("resetSizeBtn").addEventListener("click", fitToScreen);
 $("reloadBtn").addEventListener("click", () => location.reload());
 
@@ -1835,7 +1860,7 @@ function updateAbout() {
   $("about").textContent = ws && ws.readyState === 1
     ? `agent ${agentVer} · desktop ${screenW}×${screenH} px · pointer `
       + (agentAbs ? "absolute" : "relative (turn off Enhance pointer precision)")
-    : "not connected";
+    : "not connected" + (lastClose ? ` · last close: ${lastClose}` : "");
 }
 
 function refreshUI() {
@@ -1991,7 +2016,8 @@ $("copyBtn").addEventListener("click", async () => {
 
 /* ---------------- movable controls ---------------- */
 const LS_LAYOUT = "wand.layout.v1";
-const LAYOUT = { editing: false, saved: {}, draft: {}, drag: null, frame: 0, orientation: "" };
+// saved = this phone's own arrangement; def = the default the PC sends in hello.
+const LAYOUT = { editing: false, saved: {}, def: {}, draft: {}, drag: null, frame: 0, orientation: "" };
 try {
   const value = JSON.parse(localStorage.getItem(LS_LAYOUT) || "{}");
   LAYOUT.saved = normalizeLayouts(value);
@@ -2093,6 +2119,63 @@ function layoutOverlap(a, b) {
   return Math.min(a.right, b.right) - Math.max(a.left, b.left) > 3
     && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 3;
 }
+// Tidy keeps every control about where it is. Controls of one kind take the
+// group's median size around their own centers, controls that nearly share a
+// row or column move onto one center line, and edges near the screen edge
+// snap to it. Overlaps resolve with the control that moved least staying put.
+const TIDY_GROUPS = [k => k.startsWith("btn"), k => k.startsWith("hot")];
+function tidyLayout(items, bounds) {
+  const median = a => { const s = [...a].sort((p, q) => p - q), m = s.length >> 1;
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+  const next = items.map(i => ({ key: i.key, x: i.x, y: i.y, w: i.w, h: i.h }));
+  for (const inGroup of TIDY_GROUPS) {
+    const group = next.filter(i => inGroup(i.key));
+    if (group.length < 2) continue;
+    const w = median(group.map(i => i.w)), h = median(group.map(i => i.h));
+    for (const i of group) { i.x += (i.w - w) / 2; i.y += (i.h - h) / 2; i.w = w; i.h = h; }
+  }
+  const SNAP = 16;
+  const right = bounds.x + bounds.w, bottom = bounds.y + bounds.h;
+  for (const i of next) {
+    if (Math.abs(i.x - bounds.x) <= SNAP) i.x = bounds.x;
+    else if (Math.abs(i.x + i.w - right) <= SNAP) i.x = right - i.w;
+    if (Math.abs(i.y - bounds.y) <= SNAP) i.y = bounds.y;
+    else if (Math.abs(i.y + i.h - bottom) <= SNAP) i.y = bottom - i.h;
+  }
+  for (const [axis, len, lo, hi] of [["y", "h", bounds.y, bottom], ["x", "w", bounds.x, right]]) {
+    const center = i => i[axis] + i[len] / 2;
+    const onEdge = i => i[axis] === lo || i[axis] + i[len] === hi;
+    const done = new Set();
+    for (const seed of next) {
+      if (done.has(seed)) continue;
+      const cluster = next.filter(i => !done.has(i)
+        && Math.abs(center(i) - center(seed)) <= Math.max(SNAP, 0.35 * Math.min(i[len], seed[len])));
+      for (const i of cluster) done.add(i);
+      if (cluster.length < 2) continue;
+      // A control already on the screen edge anchors its row; otherwise use the mean.
+      const anchor = cluster.find(onEdge);
+      const c = anchor ? center(anchor) : cluster.reduce((s, i) => s + center(i), 0) / cluster.length;
+      for (const i of cluster) i[axis] = c - i[len] / 2;
+    }
+  }
+  for (const i of next) {
+    i.x = Math.max(bounds.x, Math.min(right - i.w, i.x));
+    i.y = Math.max(bounds.y, Math.min(bottom - i.h, i.y));
+  }
+  const rect = p => ({ left: p.x, top: p.y, right: p.x + p.w, bottom: p.y + p.h });
+  const placed = [];
+  const order = next.map((n, k) => ({ n, d: Math.hypot(n.x - items[k].x, n.y - items[k].y) }))
+    .sort((a, b) => a.d - b.d);
+  for (const { n } of order) {
+    if (placed.some(r => layoutOverlap(rect(n), r))) {
+      const p = smartPosition({ x: n.x, y: n.y }, { w: n.w, h: n.h }, bounds, placed, true);
+      if (!p) return null;
+      n.x = p.x; n.y = p.y;
+    }
+    placed.push(rect(n));
+  }
+  return Object.fromEntries(next.map(n => [n.key, n]));
+}
 function layoutBounds() {
   const app = $("app").getBoundingClientRect(), status = $("status").getBoundingClientRect();
   return { x: app.left + 12, y: status.bottom + 12,
@@ -2100,7 +2183,7 @@ function layoutBounds() {
 }
 function layoutTargets() {
   const items = [["clutch", clutch], ["scroll", strip]];
-  for (const id of ["btnHalf", "btnMic", "btnR", "btnL"]) items.push([id, $(id).parentElement]);
+  for (const id of ["btnMic", "btnR", "btnL"]) items.push([id, $(id).parentElement]);
   Array.from($("hotRow").children).forEach((el, i) => items.push([el.id === "moreActions" ? "more" : "hot" + i, el]));
   for (const [key, el] of items) {
     el.dataset.layoutKey = key;
@@ -2119,6 +2202,9 @@ function queueLayout() {
   if (LAYOUT.frame) return;
   LAYOUT.frame = requestAnimationFrame(() => { LAYOUT.frame = 0; applyLayout(); });
 }
+function layoutFor(orientation) {
+  return LAYOUT.saved[orientation] || LAYOUT.def[orientation] || {};
+}
 function applyLayout() {
   const orientation = layoutOrientation();
   if (LAYOUT.editing && LAYOUT.orientation !== orientation) finishLayout(false);
@@ -2126,7 +2212,7 @@ function applyLayout() {
   const items = layoutTargets();
   clearLayoutTransforms();
   if (CAL.on) return;
-  const map = (LAYOUT.editing ? LAYOUT.draft : LAYOUT.saved[orientation]) || {};
+  const map = (LAYOUT.editing ? LAYOUT.draft : layoutFor(orientation)) || {};
   const bounds = layoutBounds();
   for (const [key,el] of items) {
     if (!el.getClientRects().length) continue;
@@ -2143,14 +2229,15 @@ function beginLayout() {
   cancelAction("Action stopped for layout editing.");
   for (const btn of ["l", "r"]) send({t:"b",btn,s:0});
   for (const key of ["f8", ...(S.hotkeys || [])]) send({t:"k",key,s:0});
-  precision = false; setMicUI(false);
+  setMicUI(false);
   document.querySelectorAll(".pad.active").forEach(el => el.classList.remove("active"));
   openDrawer(false);
   LAYOUT.orientation = layoutOrientation();
-  LAYOUT.draft = JSON.parse(JSON.stringify(LAYOUT.saved[LAYOUT.orientation] || {}));
+  LAYOUT.draft = JSON.parse(JSON.stringify(layoutFor(LAYOUT.orientation)));
   LAYOUT.editing = true;
   document.body.classList.add("arranging");
   $("layoutToolbar").hidden = false; $("layoutHint").hidden = false;
+  document.documentElement.style.setProperty("--toolbar-h", $("layoutToolbar").offsetHeight + "px");
   $("layoutHint").textContent = "Drag or resize; nearby controls make room. Done saves this " + LAYOUT.orientation + " layout.";
   setTickEnabled(false);
   applyLayout();
@@ -2179,7 +2266,45 @@ $("layoutDone").addEventListener("click", () => finishLayout(true));
 $("layoutCancel").addEventListener("click", () => finishLayout(false));
 $("layoutReset").addEventListener("click", () => {
   if (LAYOUT.drag) LAYOUT.drag.el.classList.remove("layout-dragging");
-  LAYOUT.draft = {}; LAYOUT.drag = null; applyLayout();
+  LAYOUT.draft = JSON.parse(JSON.stringify(LAYOUT.def[LAYOUT.orientation] || {}));
+  LAYOUT.drag = null; applyLayout();
+});
+$("layoutDefault").addEventListener("click", () => {
+  // Save on this phone, then hand the arrangement to the PC as the default.
+  if (!LAYOUT.editing) return;
+  const orientation = LAYOUT.orientation;
+  finishLayout(true);
+  const other = orientation === "portrait" ? "landscape" : "portrait";
+  const value = { [orientation]: LAYOUT.saved[orientation], [other]: layoutFor(other) };
+  if (!ws || ws.readyState !== 1) {
+    showBanner("Saved on this phone. Connect to the PC, then save as default again.", "msg");
+    return;
+  }
+  send({ t: "layout", v: value });
+});
+// Every visible control: its natural box, and where it sits on screen right now.
+function layoutItems() {
+  return layoutTargets().filter(([,node])=>node.getClientRects().length).map(([key,node])=>{
+    const current=node.getBoundingClientRect(),oldTransform=node.style.transform;
+    node.style.transform="";const natural=node.getBoundingClientRect();node.style.transform=oldTransform;
+    return {key,el:node,base:natural,x:current.left,y:current.top,w:current.width,h:current.height};
+  });
+}
+function draftEntry(p, bounds) {
+  return {x:(p.x-bounds.x)/Math.max(1,bounds.w-p.w),y:(p.y-bounds.y)/Math.max(1,bounds.h-p.h),w:p.w,h:p.h};
+}
+$("layoutTidy").addEventListener("click", () => {
+  if (!LAYOUT.editing || LAYOUT.drag) return;
+  const bounds = layoutBounds();
+  const items = layoutItems();
+  const plan = tidyLayout(items, bounds);
+  if (!plan) {
+    $("layoutHint").textContent = "No room to line these up at one size. Move or shrink a control, then try Tidy again.";
+    return;
+  }
+  for (const item of items) LAYOUT.draft[item.key] = draftEntry(plan[item.key], bounds);
+  applyLayout();
+  $("layoutHint").textContent = "Same-kind controls now share one size and sit in line. Tap Done to keep this, or Cancel to undo.";
 });
 $("app").addEventListener("pointerdown", e => {
   if (!LAYOUT.editing) return;
@@ -2190,11 +2315,7 @@ $("app").addEventListener("pointerdown", e => {
   const transform=el.style.transform;
   el.style.transform="";
   const base=el.getBoundingClientRect(); el.style.transform=transform;
-  const items=layoutTargets().filter(([,node])=>node.getClientRects().length).map(([key,node])=>{
-    const current=node.getBoundingClientRect(),oldTransform=node.style.transform;
-    node.style.transform="";const natural=node.getBoundingClientRect();node.style.transform=oldTransform;
-    return {key,el:node,base:natural,x:current.left,y:current.top,w:current.width,h:current.height};
-  });
+  const items=layoutItems();
   LAYOUT.drag = { items, before:JSON.parse(JSON.stringify(LAYOUT.draft)), el, base, resize: !!e.target.closest('.resize-grip'), id: e.pointerId, x: e.clientX, y: e.clientY, rect: r,
     transform: el.style.transform, old: LAYOUT.draft[el.dataset.layoutKey] };
   el.classList.add("layout-dragging");
@@ -2219,7 +2340,7 @@ $("app").addEventListener("pointermove", e => {
   for(const item of d.items) {
     const p=plan[item.key];
     paintLayout(item.el,item.base,p,p);
-    LAYOUT.draft[item.key]={x:(p.x-bounds.x)/Math.max(1,bounds.w-p.w),y:(p.y-bounds.y)/Math.max(1,bounds.h-p.h),w:p.w,h:p.h};
+    LAYOUT.draft[item.key]=draftEntry(p,bounds);
   }
   $("layoutHint").textContent="Controls move out of your way. Release to keep this arrangement; Cancel restores everything.";
 }, true);

@@ -33,6 +33,7 @@ WWW = HERE / "www"
 CERT_FILE = HERE / "wand-cert.pem"
 KEY_FILE = HERE / "wand-key.pem"
 TOKEN_FILE = HERE / "wand-token.txt"
+LAYOUT_FILE = HERE / "layout-default.json"   # control arrangement every phone starts with
 
 # A single frame can never move the cursor further than this. One bad
 # or hostile frame must not throw the pointer across the desktop.
@@ -500,6 +501,57 @@ class State:
         self.client = None
 
 
+CLOSE_TEXT = {
+    1000: "the phone closed it",
+    1001: "the phone left the page",
+    1005: "the phone closed it, no code",
+    1006: "the link dropped, no close frame",
+    4000: "replaced by a newer connection",
+}
+
+
+def close_reason(ws):
+    """One short phrase that says who ended the socket, for the log."""
+    code = ws.close_code
+    text = CLOSE_TEXT.get(code, "close code %s" % code)
+    exc = ws.exception()
+    if exc is not None:
+        text += "; %s" % exc
+    return text
+
+
+def load_default_layout():
+    """The saved default arrangement, or {} when there is none yet."""
+    try:
+        return clean_layout(json.loads(LAYOUT_FILE.read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        return {}
+
+
+def clean_layout(value):
+    """Keep only portrait/landscape maps of finite x, y, w, h numbers."""
+    out = {}
+    if not isinstance(value, dict):
+        return out
+    for orient in ("portrait", "landscape"):
+        items = value.get(orient)
+        if not isinstance(items, dict):
+            continue
+        keep = {}
+        for key, p in items.items():
+            if not (isinstance(key, str) and isinstance(p, dict)):
+                continue
+            nums = {}
+            for name in ("x", "y", "w", "h"):
+                v = p.get(name)
+                if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
+                    nums[name] = v
+            if "x" in nums and "y" in nums:
+                keep[key] = nums
+        out[orient] = keep
+    return out
+
+
 def make_app(token, injector, stats, verbose):
     state = State()
     app = web.Application()
@@ -524,18 +576,22 @@ def make_app(token, injector, stats, verbose):
         ws = web.WebSocketResponse(heartbeat=10)
         await ws.prepare(request)
 
+        peer = request.remote
         prev = state.client
         state.client = ws
         if prev is not None and not prev.closed:
+            # A second tab or device took over. Say so, or the log reads
+            # like a flapping link.
+            print("[ws] %s replaces the previous client (another tab or device)" % peer)
             await prev.close(code=4000, message=b"replaced")
         injector.release_all()
 
-        peer = request.remote
         print("[ws] client connected: %s" % peer)
         _, _, w, h = virtual_rect()
         await ws.send_json({"t": "hello", "w": w, "h": h,
                             "abs": bool(injector.absolute), "ver": VERSION,
-                            "cursor_feedback": True})
+                            "cursor_feedback": True,
+                            "layout": load_default_layout()})
 
         try:
             async for msg in ws:
@@ -563,6 +619,14 @@ def make_app(token, injector, stats, verbose):
                     elif t == "cursor":
                         # Read-only and requested only during calibration.
                         await ws.send_json(cursor_report())
+                    elif t == "layout":
+                        # The phone asks to make its arrangement the default
+                        # for every phone that loads the page from now on.
+                        layout = clean_layout(f.get("v"))
+                        LAYOUT_FILE.write_text(json.dumps(layout, indent=2) + "\n",
+                                               encoding="utf-8")
+                        print("[layout] default arrangement saved to %s" % LAYOUT_FILE.name)
+                        await ws.send_json({"t": "layout_saved", "layout": layout})
                     else:
                         if verbose:
                             print("[ws] unknown frame type: %r" % t)
@@ -573,7 +637,7 @@ def make_app(token, injector, stats, verbose):
             if state.client is ws:
                 state.client = None
                 injector.release_all()
-            print("[ws] client disconnected: %s" % peer)
+            print("[ws] client disconnected: %s (%s)" % (peer, close_reason(ws)))
         return ws
 
     async def blocked_notifier(_app):

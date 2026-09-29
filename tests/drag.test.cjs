@@ -12,7 +12,7 @@ function harness() {
     send:f=>frames.push(f),setClutchLabel(){},IDLE_LABEL:'Idle',
     $:()=>({classList:{remove(){}}}),undoRecent(){},scrollId:null,traceOn:false,
     deadzone:x=>x,shape:x=>x,traceAdd(){},S:{guard:0,reach:135,invertX:false,invertY:false},
-    screenW:1920,precision:false,REF_DT:1/60,sentCount:0,movedAcc:0,
+    screenW:1920,REF_DT:1/60,sentCount:0,movedAcc:0,
     clutch:{classList:{remove(){}}},haptic(){},clutchId:1});
   vm.runInContext(script.slice(script.indexOf('function beginLeftDrag()'),script.indexOf('holdButton($("btnL"), beginLeftDrag')),c);
   vm.runInContext(script.slice(script.indexOf('function processRates('),script.indexOf('/* ---------------- trace')),c);

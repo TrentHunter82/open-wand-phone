@@ -70,7 +70,7 @@ recessed clutch and scroll controls, and a red legend while a control is held.
 Connection status uses a neutral light and text.
 
 Tap **Layout** at the top of the remote to arrange it. Drag the clutch, scroll
-strip, each mouse/dictation/precision button, and each shortcut independently.
+strip, each mouse and dictation button, and each shortcut independently.
 Pull the bright lower-right corner handle to resize a control. The clutch and
 scroll strip resize in both directions; main buttons keep their proportions.
 Minimum sizes keep targets usable. Movement snaps to screen edges, control
@@ -85,7 +85,16 @@ never clicks the PC or starts F8 dictation. Position and size both save with Don
 
 **Done** saves on this phone; **Cancel** discards the current edits. **Reset**
 previews the default arrangement, then Done saves it (Cancel keeps your old
-arrangement). Portrait and landscape save independently. Rotating or leaving
+arrangement). **Tidy** keeps every control about where it is, but gives the
+three main buttons one size and the hotkey pads one size, moves controls that
+nearly share a row or column onto one line, and snaps edges that are close to
+the screen edge. A control that already touches the screen edge anchors its
+row. If the result would overlap, Tidy asks you to move or shrink something.
+Cancel undoes it with the rest of the session. **Set default** saves on this phone and also sends the
+arrangement to the PC, which stores it in `layout-default.json` beside
+`agent.py`. Every phone that loads the page without its own saved arrangement
+starts from that default, and Reset returns to it. Delete the file to go back
+to the built-in positions. Portrait and landscape save independently. Rotating or leaving
 Safari while editing discards unfinished edits. Saved locations scale with the
 visible area and stay within its bounds. Calibration temporarily uses its own
 clutch layout and restores your arrangement afterward. Button assignments and
@@ -189,17 +198,16 @@ still controls its size.
   the same job with one finger. Turn it back on under SCROLL if you
   want it. Direction is natural; flip it with **Invert scroll**.
 - **L:** hold to grab and move the phone to drag, without touching the clutch.
-  Release L to drop. A quick press still clicks. The usual precision button
-  works during the drag. Canceling the touch, leaving Safari, or disconnecting
+  Release L to drop. A quick press still clicks.
+  Canceling the touch, leaving Safari, or disconnecting
   releases the drag; reconnecting does not restart it.
 - **R:** press and hold the right mouse button.
 - **MIC:** hold-to-talk. Hold = F8 held down = CM7 Dictation records
   from the PC microphone. Release = F8 up = CM7 transcribes and pastes
   at the cursor. The agent releases F8 on any disconnect, so CM7 can
   not get stuck in record mode.
-- **½:** hold for half-speed precision movement.
 - **Hotkey pads:** up to three assignable pads, side by side above the
-  main row. **Enter** is there by default. Hold one to hold its combo;
+  main row. **Enter**, **Space**, and **Backspace** are there by default. Hold one to hold its combo;
   release it to release the combo. Set them in the drawer, and hide the
   row with **Show the hotkey pads**.
 - **Gear icon:** open the tuning drawer.
@@ -276,6 +284,9 @@ This calibrates sensitivity for the chosen display; it does not confine the
 cursor to that display. All existing filter, deadzone, touch-guard, scroll,
 vertical direction, and F8 settings remain unchanged. **Undo calibration**
 restores the previous reach, horizontal direction, and calibration width.
+Notices like these clear themselves after six seconds, or tap one to dismiss
+it. Warnings about a stale link, blocked input, or another copy of the page
+stay until the problem is gone.
 
 Absolute pointer mode gives the most predictable result (already enabled in
 start.bat). Relative-mode Windows acceleration and your existing curve,
@@ -428,6 +439,15 @@ SendInput.
   are blocked now, and the two-finger scroll is off by default.
 - **Motion permission denied:** in Safari, tap **aA → Website
   Settings**, allow **Motion & Orientation**, then reload.
+- **The status flips between "connected" and "offline" about twice a
+  second, and the cursor cuts in and out:** two copies of the page are
+  open on the phone, for example two Safari tabs, or a tab plus a Home
+  Screen copy. The agent allows one client, so each copy replaces the
+  other, and the replaced one reconnects 400 ms later. The agent log
+  shows `replaces the previous client` on every line. Close every copy
+  but one, then pull the tab down to reload it. A replaced copy now
+  shows "Another tab or device took control" and waits; tap the bar
+  to take the PC back.
 - **Phone slept and does not reconnect:** the page reconnects with
   backoff within about 3 s after wake. If not, pull the tab to reload.
 - **Cursor moves in wrong direction:** use the Invert X / Invert Y

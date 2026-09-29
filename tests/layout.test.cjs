@@ -86,3 +86,34 @@ test('moving into empty space leaves other controls where they were', () => {
   assert.equal(run('plan.b.x'),100);
   assert.equal(run('plan.b.y'),0);
 });
+test('tidy equalizes same-kind sizes around their centers and keeps positions', () => {
+  const run=harness();
+  run('var b={x:0,y:0,w:400,h:600}; var items=[{key:"btnL",x:300,y:500,w:100,h:100},{key:"btnR",x:200,y:510,w:80,h:80},{key:"btnMic",x:100,y:505,w:90,h:90},{key:"clutch",x:20,y:100,w:360,h:300}]; var plan=tidyLayout(items,b)');
+  assert.equal(run('plan.btnL.w'),90);
+  assert.equal(run('plan.btnR.w'),90);
+  assert.equal(run('plan.btnMic.h'),90);
+  assert.equal(run('plan.clutch.w'),360);
+  assert.equal(run('plan.btnL.x+plan.btnL.w'),400);        // stays on the right edge
+  assert.equal(run('plan.btnR.x'),195);                     // centered where it was
+  assert.equal(run('plan.btnL.y===plan.btnR.y && plan.btnR.y===plan.btnMic.y'),true);
+  assert.equal(run('plan.btnL.y+plan.btnL.h'),600);        // the edge control anchors the row
+});
+test('tidy aligns near rows on their mean line and leaves distant controls alone', () => {
+  const run=harness();
+  run('var b={x:0,y:0,w:400,h:600}; var items=[{key:"hot0",x:20,y:100,w:100,h:50},{key:"hot1",x:140,y:110,w:100,h:50},{key:"hot2",x:260,y:300,w:100,h:50}]; var plan=tidyLayout(items,b)');
+  assert.equal(run('plan.hot0.y'),105);
+  assert.equal(run('plan.hot1.y'),105);
+  assert.equal(run('plan.hot2.y'),300);
+  assert.equal(run('plan.hot0.x'),20);
+});
+test('tidy resolves overlaps it creates, or reports no room', () => {
+  const run=harness();
+  run('var b={x:0,y:0,w:400,h:600}; var items=[{key:"btnL",x:0,y:0,w:100,h:100},{key:"btnR",x:100,y:0,w:60,h:60},{key:"btnMic",x:160,y:0,w:100,h:100}]; var plan=tidyLayout(items,b)');
+  assert.equal(run('Object.values(plan).every((p,i,all)=>all.slice(i+1).every(q=>!layoutOverlap({left:p.x,top:p.y,right:p.x+p.w,bottom:p.y+p.h},{left:q.x,top:q.y,right:q.x+q.w,bottom:q.y+q.h})))'),true);
+  assert.equal(run('tidyLayout([{key:"btnL",x:0,y:0,w:100,h:100},{key:"btnR",x:100,y:0,w:60,h:100},{key:"btnMic",x:160,y:0,w:100,h:100}],{x:0,y:0,w:260,h:100})'),null);
+});
+test('tidy never mutates the starting items', () => {
+  const run=harness();
+  run('var items=[{key:"btnL",x:0,y:0,w:100,h:100},{key:"btnR",x:150,y:5,w:80,h:80}]; var before=JSON.stringify(items); tidyLayout(items,{x:0,y:0,w:400,h:600})');
+  assert.equal(run('JSON.stringify(items)===before'),true);
+});
