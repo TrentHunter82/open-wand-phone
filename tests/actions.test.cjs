@@ -60,3 +60,11 @@ test('offline actions send nothing', async () => {
   await h.eval('runAction("Undo", ["ctrl+z"])');
   assert.equal(h.frames.length, 0);
 });
+
+test('built-in actions use the connected computer platform without rewriting custom shortcuts', () => {
+  const h = harness({hotkeys:['ctrl+c'], macros:[{name:'Copy',steps:'ctrl+c'}]});
+  assert.equal(h.eval('JSON.stringify(builtinActions("darwin", "ctrl+y").map(a=>a.steps[0]))'),
+    '["cmd+c","cmd+v","cmd+z","cmd+shift+z"]');
+  assert.equal(h.eval('builtinActions("win32", "ctrl+shift+z")[3].steps[0]'), 'ctrl+shift+z');
+  assert.equal(h.eval('S.hotkeys[0]'), 'ctrl+c');
+});

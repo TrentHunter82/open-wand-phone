@@ -884,6 +884,7 @@ const TOKEN = qsParams.get("k") || "";
 const SIM = qsParams.get("sim") === "1";
 
 let ws = null;
+let agentPlatform = "win32";
 let started = false;
 let lastClose = "";      // code and reason of the last socket close, for the About line
 let backoff = 400;
@@ -1274,6 +1275,7 @@ function connect() {
     try {
       const f = JSON.parse(ev.data);
       if (f.t === "hello") {
+        agentPlatform = f.platform || "win32";
         cursorFeedback = f.cursor_feedback === true;
         screenW = f.w; screenH = f.h;
         checkCalWidth();
@@ -1292,7 +1294,9 @@ function connect() {
       } else if (f.t === "stat") {
         $("blockedChip").style.display = f.blocked ? "inline" : "none";
         if (f.blocked) {
-          showBanner("Windows is blocking the input. An elevated window has "
+          showBanner(agentPlatform === "darwin"
+                   ? "macOS is blocking input. Allow Terminal or Python in System Settings → Privacy & Security → Accessibility, then restart the agent."
+                   : "Windows is blocking the input. An elevated window has "
                    + "the focus. Run the agent as administrator to reach it.");
         } else {
           hideBanner();
@@ -1748,16 +1752,20 @@ async function runAction(name, steps) {
     if (actionRun === run) actionRun = null;
   }
 }
+function builtinActions(platform, redoCombo) {
+  const mod = platform === "darwin" ? "cmd" : "ctrl";
+  return [
+    { name: "Copy", steps: [mod + "+c"] },
+    { name: "Paste", steps: [mod + "+v"] },
+    { name: "Undo", steps: [mod + "+z"] },
+    { name: "Redo", steps: [platform === "darwin" ? "cmd+shift+z" : redoCombo] },
+  ];
+}
 function openActions() {
   if (clutched || stripId !== null || document.querySelector(".pad.active")) return;
   const grid = $("actionGrid");
   grid.textContent = "";
-  const actions = [
-    { name: "Copy", steps: ["ctrl+c"] },
-    { name: "Paste", steps: ["ctrl+v"] },
-    { name: "Undo", steps: ["ctrl+z"] },
-    { name: "Redo", steps: [S.redoCombo] },
-  ];
+  const actions = builtinActions(agentPlatform, S.redoCombo);
   for (const macro of S.macros) {
     const steps = macroSteps(macro && macro.steps);
     if (steps) actions.push({ name: String(macro.name || "Macro"), steps });
@@ -1768,7 +1776,7 @@ function openActions() {
     button.addEventListener("click", () => runAction(action.name, action.steps));
     grid.appendChild(button);
   }
-  $("actionStatus").textContent = "Shortcuts go to the focused PC app. Add macros in Settings.";
+  $("actionStatus").textContent = "Shortcuts go to the focused computer app. Add macros in Settings.";
   $("actionsPanel").hidden = false;
   grid.querySelector("button").focus();
 }

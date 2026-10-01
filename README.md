@@ -1,16 +1,16 @@
 # open-wand-phone
 
-Turn an iPhone into a gyro air-mouse and hotkey pad for a Windows PC.
-The phone needs only Safari. The PC runs one Python agent.
+Turn an iPhone into a gyro air-mouse and hotkey pad for a Windows PC or Mac.
+The phone needs only Safari. The computer runs one Python agent.
 
 ## Requirements
 
-- Windows 11 PC
+- Windows 11 PC or Mac running macOS 13 or newer
 - Python 3.11 or newer
 - iPhone with iOS 17 or newer
-- The PC and the phone on the same Wi-Fi LAN
+- The computer and the phone on the same Wi-Fi LAN
 
-## Setup (PC)
+## Setup (Windows)
 
 Easy way: double-click **`start.bat`**.
 
@@ -40,6 +40,49 @@ Flags:
 - `--new-token` — make a new token. Old phone links stop working.
 - `--no-qr` — do not print the QR code.
 - `--verbose` — log frame rates, injection counts, and blocked events.
+
+## Setup (Mac)
+
+1. Download this repository from GitHub using **Code → Download ZIP**, and unzip it,
+   or clone it with Git. Keep all the files together.
+2. Install Python 3.11 or newer from [python.org](https://www.python.org/downloads/macos/).
+3. Open Terminal in the extracted project folder and run:
+
+   ```sh
+   bash start-mac.command
+   ```
+
+   The launcher creates a local Python environment and installs dependencies on
+   its first run. Use the same command for subsequent starts. Keep Terminal open;
+   press **Control+C** to stop. Optional arguments go after the command.
+4. Allow Terminal (or the Python launcher named by macOS) in **System Settings →
+   Privacy & Security → Accessibility**, then run the launcher again. If macOS
+   asks for local-network or incoming-network access, allow it so the iPhone can connect.
+5. Scan the QR code on the Mac and follow the iPhone connection steps below.
+   The Windows link controls the Windows computer; the Mac has its own link.
+
+The Mac backend uses [Quartz through PyObjC](https://pyobjc.readthedocs.io/en/latest/apinotes/Quartz.html)
+and checks Apple's [input-posting permission](https://developer.apple.com/documentation/coregraphics/cgpreflightposteventaccess%28%29).
+No screen recording is required. Mouse movement, held-button dragging, scrolling,
+and calibration use the Mac's logical desktop coordinates, including Retina and
+external displays. Movement places the pointer directly; `--absolute` is accepted
+but is already the Mac behavior.
+
+**Copy, Paste, Undo, and Redo automatically use Command on Mac.** Custom hotkeys
+and macros remain literal: use `cmd+c` or `cmd+a, cmd+c` for Mac shortcuts, and
+`ctrl` when you actually want Control. `alt` means Option; `win` and `meta` are
+aliases for Command. The Windows redo preference does not override Mac's
+Command+Shift+Z. The microphone still holds **F8**, so keep your Mac dictation
+app running with that binding.
+
+Mac key names describe physical US keyboard positions. Non-US layouts can produce
+different punctuation/letters. F1–F20 are supported; F21–F24, Insert, and Print
+Screen have no mapping and are ignored as a complete shortcut. Use macOS shortcut
+combinations for screenshots instead.
+
+The Mac backend has automated tests with simulated Quartz events. It still needs
+a first hardware check on a Mac: connect, move and scroll, hold L to drag, test
+copy/paste and F8 dictation, then disconnect while holding a button to confirm release.
 
 ## Connect the iPhone
 

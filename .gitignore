@@ -7,6 +7,7 @@ wand-token.txt
 # Python
 __pycache__/
 *.py[cod]
+.venv-mac/
 
 # Local working copies and logs
 _backup/

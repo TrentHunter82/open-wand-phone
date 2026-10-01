@@ -1,4 +1,6 @@
-"""Read-only Windows agent integration tests; never inject real input."""
+"""Read-only agent integration tests; never inject real input."""
+import runpy
+import sys
 import unittest
 from unittest.mock import Mock, patch
 
@@ -23,6 +25,7 @@ class CursorFeedbackTests(unittest.IsolatedAsyncioTestCase):
         ws = await self.client.ws_connect('/ws?k=test-only-token')
         hello = await ws.receive_json()
         self.assertTrue(hello['cursor_feedback'])
+        self.assertEqual(hello['platform'], sys.platform)
         monitors = [{'x': -1920, 'y': -100, 'w': 1920, 'h': 1080}]
         with patch.object(agent, 'cursor_pos', return_value=(-1, 50)), \
              patch.object(agent, 'virtual_rect', return_value=(-1920, -100, 3840, 1180)), \
@@ -42,6 +45,12 @@ class CursorFeedbackTests(unittest.IsolatedAsyncioTestCase):
         rects = agent.monitor_rects()
         self.assertGreater(len(rects), 0)
         self.assertTrue(all(r['w'] > 0 and r['h'] > 0 for r in rects))
+
+    def test_mac_server_import_does_not_load_windows_backend(self):
+        with patch.object(sys, 'platform', 'darwin'), \
+             patch.dict(sys.modules, {'input_windows': None}):
+            module = runpy.run_path(str(agent.HERE / 'agent.py'), run_name='agent_mac_test')
+        self.assertEqual(module['Injector'].__module__, 'input_macos')
 
 
 if __name__ == '__main__':
