@@ -52,6 +52,15 @@ class CursorFeedbackTests(unittest.IsolatedAsyncioTestCase):
             module = runpy.run_path(str(agent.HERE / 'agent.py'), run_name='agent_mac_test')
         self.assertEqual(module['Injector'].__module__, 'input_macos')
 
+    async def test_dial_assets_are_served_and_private_files_are_not(self):
+        for path in ('dial.css', 'dial-model.js', 'dial.js'):
+            response = await self.client.get('/' + path)
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.headers['Cache-Control'], 'no-store')
+            self.assertGreater(len(await response.read()), 100)
+        response = await self.client.get('/wand-token.txt')
+        self.assertEqual(response.status, 404)
+
 
 if __name__ == '__main__':
     unittest.main()

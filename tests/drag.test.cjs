@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const script=fs.readFileSync(require('node:path').join(__dirname,'../www/index.html'),'utf8');
 function harness() {
   const frames=[];
-  const c=vm.createContext({leftHeld:false,clutched:false,ws:{readyState:1},
+  const c=vm.createContext({leftHeld:false,clutched:false,freeMotion:false,dialScrolling:false,ws:{readyState:1},
     LAYOUT:{editing:false},CAL:{on:false},dragTimer:0,dragLatched:false,lastTapEndT:0,
     sentLog:[],engageT:0,performance:{now:()=>1000},
     fYaw:{reset(){},filter:x=>x},fPitch:{reset(){},filter:x=>x},
@@ -38,4 +38,10 @@ test('cancellation clears dragging; offline and layout editing cannot start it',
   assert.equal(h.run('leftHeld'),false);
   h.run('ws.readyState=1; LAYOUT.editing=true; beginLeftDrag()');
   assert.equal(h.run('leftHeld'),false);
+});
+
+test('free motion works without holding and pauses during rotary scrolling',()=>{
+  const h=harness();
+  h.run('freeMotion=true;processRates(1,0,1/60);dialScrolling=true;processRates(1,0,1/60);dialScrolling=false;freeMotion=false;processRates(1,0,1/60)');
+  assert.deepEqual(h.frames.map(f=>f.t),['m']);
 });

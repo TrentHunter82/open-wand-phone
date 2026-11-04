@@ -106,203 +106,83 @@ bar that tells you to scan the new QR code.
 
 ## Use
 
-### Arrange controls and appearance
+The main interface is a graphite rotary dial. Left Click has the largest touch
+surface; Mic is the large inner circle; Right Click is the smaller circle inside
+Mic. Only the innermost surface under your finger receives a press.
 
-The remote now uses an Escaíllón-inspired graphite surface: raised soft keys,
-recessed clutch and scroll controls, and a red legend while a control is held.
-Connection status uses a neutral light and text.
+- **Motion ON / paused:** after START and the first connection, the cursor follows
+  your hand without a held move button. Tap Motion to pause, reposition your
+  hand, then resume. Resuming resets the motion filter to prevent a jump.
+  Disconnecting, leaving the page, editing, or opening menus pauses motion;
+  reconnecting does not silently resume it. Tap Motion to resume.
+- **Left Click:** tap anywhere on its broad surface to click. Hold while moving
+  your hand to drag, then release to drop. Motion must be enabled to move the
+  cursor. The nested Mic and Right Click regions have their own separate inputs.
+- **Mic:** hold to send F8, release to stop your existing dictation workflow.
+- **Right Click:** tap or hold the smaller nested circle.
+- **Rotary bezel:** turn the thin outside rim to select Enter, Space, Backspace,
+  Copy, Paste, Undo, Redo or a macro. The selected action appears on the large
+  surface; press that surface to send it. Turning the bezel only changes the
+  selection. Keyboard users can focus the bezel and use arrow keys.
+- **Scroll:** select Scroll, then rotate the broad outer surface. No mouse button
+  is pressed, and pointer movement pauses while the scroll gesture is active.
+  Mic and Right Click still work. Click returns the surface to its chosen action.
+  Scroll speed and inversion use the settings drawer.
+- **More:** Copy/Paste/Undo/Redo, up to 32 macros, and Settings & calibration.
+  Built-in shortcuts automatically use Command on Mac. Literal custom shortcuts
+  keep their configured modifiers. A macro runs on a completed tap; canceling
+  the gesture never starts it. Only one macro sequence runs at a time.
 
-Tap **Layout** at the top of the remote to arrange it. Drag the clutch, scroll
-strip, each mouse and dictation button, and each shortcut independently.
-Pull the bright lower-right corner handle to resize a control. The clutch and
-scroll strip resize in both directions; main buttons keep their proportions.
-Minimum sizes keep targets usable. Movement snaps to screen edges, control
-edges and centers, and 10 px spacing. As you drag or resize, the control under
-your finger stays anchored and surrounding controls reorganize live to make room.
-The editor favors arrangements that move other controls the least, keeping their
-sizes. If it cannot find a complete arrangement, it keeps the last valid preview
-and asks you to try a different position or size. Canceling a gesture restores
-all affected controls; Cancel restores the whole editing session.
-Mouse and keyboard input is paused while editing; dragging or resizing a control
-never clicks the PC or starts F8 dictation. Position and size both save with Done.
+### Customize and save your grip
 
-**Done** saves on this phone; **Cancel** discards the current edits. **Reset**
-previews the default arrangement, then Done saves it (Cancel keeps your old
-arrangement). **Tidy** keeps every control about where it is, but gives the
-three main buttons one size and the hotkey pads one size, moves controls that
-nearly share a row or column onto one line, and snaps edges that are close to
-the screen edge. A control that already touches the screen edge anchors its
-row. If the result would overlap, Tidy asks you to move or shrink something.
-Cancel undoes it with the rest of the session. **Set default** saves on this phone and also sends the
-arrangement to the PC, which stores it in `layout-default.json` beside
-`agent.py`. Every phone that loads the page without its own saved arrangement
-starts from that default, and Reset returns to it. Delete the file to go back
-to the built-in positions. Portrait and landscape save independently. Rotating or leaving
-Safari while editing discards unfinished edits. Saved locations scale with the
-visible area and stay within its bounds. Calibration temporarily uses its own
-clutch layout and restores your arrangement afterward. Button assignments and
-motion tuning remain separate from layout; the existing clutch-height setting
-still controls its size.
+Tap **Edit**. Drag the large wheel, Mic circle, or Right Click circle to position
+it; drag its light resize handle to change its size. All computer input is paused
+while editing. The circles remain nested and the small button stays on screen.
 
-- **Grip:** hold the phone like a TV remote, in portrait, with the top
-  edge toward the screen. The cursor follows where the top edge points,
-  like a laser pointer. Roll of the grip does not matter.
-- **Clutch zone (large middle area):** touch and hold to move the
-  cursor. Lift the thumb to stop. This works like lifting a mouse.
-- **Tap to click:** a quick, still tap in the clutch zone sends a left
-  click. Aim, lift, tap. Two taps = double-click. Turn it off in the
-  drawer if you prefer the L button only.
-- **Tap-hold to drag:** tap once, then touch the clutch zone again and
-  keep the thumb down. The left button latches after about 170 ms. The
-  zone turns purple and reads DRAG. Move the wand to drag. Lift the
-  thumb to drop. This needs no second hand and no L button.
-- **Scroll strip:** the tall bar beside the clutch zone. Drag it up or
-  down with one finger to scroll. It sits on the right by default, and
-  it moves to the left with the left-hand layout. Turn it off in the
-  drawer to give the clutch zone the full width.
-- **One-hand layout:** the round pads sit on the bottom edge, under the
-  thumb. The primary click (L) is nearest a right thumb and has the
-  biggest target. Check **Left-hand buttons** in the drawer to mirror
-  the row and move the scroll strip.
-- **Haptics:** the phone ticks on clutch engage/release, button
-  presses, MIC stop, and each scroll notch. Needs iOS 17.4 or newer
-  and **Settings → Sounds & Haptics → System Haptics** on. Toggle in
-  the drawer.
+**Sizes & actions** provides independent size and position sliders, positions for
+both mode switches, a grip name, assignments for the inner circles, and the rotary
+action list. Drag action rows or use the up/down arrows to reorder them. Remove
+unwanted actions or add any available shortcut or macro. **Back to dial** returns
+to the preview; **Save layout** commits the whole edit, and **Cancel** discards it.
 
-  **How it works, and why it took four tries.** The tick comes from
-  `<input type="checkbox" switch>`. iOS plays it only when a **real
-  touch** activates the switch. A JavaScript `click()` never plays it,
-  whether the switch is hidden or visible. Tests on an iPhone 12 mini
-  settled this: a touch on a visible switch ticked, a touch on a label
-  wrapping a hidden switch ticked, and every code-driven click was
-  silent.
+**My grip** opens saved presets. Save a copy to create another grip, then edit
+and rename it. Up to eight presets are supported. Each preset keeps separate
+portrait and landscape positions and sizes. These presets, action choices, and
+macro definitions are saved in this phone browser and survive reloads. Clearing
+website data removes them. They are not synced between computers or browsers.
+The earlier pad layout remains stored separately; it does not override the dial.
 
-  So each control is a `<label>` that holds its own hidden switch. Your
-  own touch on the clutch zone, the strip or a pad activates that
-  switch and plays the tick. Keep these rules in any change:
+Changing orientation or leaving the page while editing cancels unfinished edits.
+Saved positions adapt to the visible viewport. A short, separate hold-to-move pad
+still appears inside calibration so reach measurements remain controlled.
 
-  1. The control must be a `<label>`, not a `<button>`. A button inside
-     a label swallows the activation.
-  2. The switch must render at its natural 51x31. The generic checkbox
-     rule shrinks it to 20x20, and Safari then draws a plain checkbox
-     with no tick.
-  3. Nothing may clip it, and no code may call `preventDefault` on
-     `touchstart`. `pointerdown` and `pointerup` are safe.
+### Macros
 
-  **The tick cannot land at press. Settled by measurement. Do not
-  retry it.** Six experiments ran on an iPhone 12 mini, iOS 18, in
-  Safari:
+In **More > Create macro button**, enter a name and a comma-separated sequence,
+for example `ctrl+a, ctrl+c` on Windows or `cmd+a, cmd+c` on Mac. Check **Show on
+rotary dial** to add it to the bezel, then **Save macro**. More also lets you edit,
+run, delete, pin or unpin macros. Edit > Sizes & actions controls their dial order.
+Existing macros and hotkey assignments are retained.
 
-  | Test | Result |
-  |---|---|
-  | Touch a visible switch | ticks, on lift |
-  | Touch a label over a hidden switch | ticks, on lift |
-  | `input.click()` from script | silent |
-  | `label.click()` from a click handler | silent |
-  | `label.click()` from `pointerdown`, live touch | **silent** |
-  | `label.click()` from `touchstart`, live touch | **silent** |
-  | Press and hold a touchable switch under the thumb | silent until lift |
-  | The same, with the clutch zone's own `preventDefault` calls | silent until lift |
-  | Drag a switch slowly across its travel | **ticks mid-gesture** |
+Macros support up to 12 shortcuts. Each shortcut is held for 80 ms, released,
+then followed by a 120 ms pause. They target the focused computer app; they do
+not wait for dialogs and cannot run arbitrary scripts or type free-form text.
+Closing the panel, pausing motion, opening an editor, hiding the page or losing
+the connection cancels any active sequence and releases held input. Already-sent
+steps are not undone, and canceled sequences never replay on reconnection.
 
-  Two facts come out of that. The tick follows the switch *travelling*,
-  and a resting thumb never moves it far enough. And a script click
-  cannot fire it at all, on this build. WebKit forwarded a script click
-  on a label as a trusted click until a fix dated 2026-05-20 closed it;
-  this phone has that fix.
+Developer checks: `node --test tests/*.test.cjs` tests dial settings, geometry,
+keyboard/mouse releases, macros, motion gating, and calibration. With Python
+requirements installed, `python -m unittest discover -s tests -p "test_*.py" -v`
+checks the server, assets and native backends without injecting real input.
+Browser checks use a simulated receiver; a real iPhone remains the final check
+for hand comfort and motion feel.
 
-  No other haptic route exists either: `navigator.vibrate` is not
-  implemented in Safari, and every other control that plays a haptic
-  needs visible UI on screen.
+## Connection status
 
-  The second of two rapid taps does not tick either, because the
-  double-tap guard suppresses that click on purpose. Scroll detents do
-  not tick, because a drag has no click.
-
-  **What stands in for a press tick.** Press and release are fed on
-  different channels, the way a mechanical key does it.
-
-  - **Press:** a green flash along the top edge of the screen. It sits
-    there because your thumb covers whatever it presses. The pressed
-    state also snaps in with no transition and decays out over 200 ms,
-    so the visual never lags the finger.
-  - **Press, optional:** a 12 ms click through the speaker. Turn on
-    **Click sound on press** in the drawer. It is off by default for two
-    honest reasons: the ringer switch mutes it, and Bluetooth audio
-    delays it by enough to read as an echo. The page uses the `ambient`
-    audio session, so it mixes with your music instead of pausing it.
-  - **Release:** the Taptic tick, as before.
-
-  The HAPTICS section of the drawer keeps one plain switch as a
-  reference, plus a readout of the switch support and the iOS version.
-- **Two-finger scroll:** the older way. It is **off by default** now.
-  A second finger on the clutch zone is how Safari decides you asked
-  it to zoom the page, and that setting sticks. The scroll strip does
-  the same job with one finger. Turn it back on under SCROLL if you
-  want it. Direction is natural; flip it with **Invert scroll**.
-- **L:** hold to grab and move the phone to drag, without touching the clutch.
-  Release L to drop. A quick press still clicks.
-  Canceling the touch, leaving Safari, or disconnecting
-  releases the drag; reconnecting does not restart it.
-- **R:** press and hold the right mouse button.
-- **MIC:** hold-to-talk. Hold = F8 held down = CM7 Dictation records
-  from the PC microphone. Release = F8 up = CM7 transcribes and pastes
-  at the cursor. The agent releases F8 on any disconnect, so CM7 can
-  not get stuck in record mode.
-- **Hotkey pads:** up to three assignable pads, side by side above the
-  main row. **Enter**, **Space**, and **Backspace** are there by default. Hold one to hold its combo;
-  release it to release the combo. Set them in the drawer, and hide the
-  row with **Show the hotkey pads**.
-- **Gear icon:** open the tuning drawer.
-
-### Copy, Paste, Undo, Redo, and macros
-
-Tap **More** beside the three hotkey pads to open **Copy**, **Paste**, **Undo**, **Redo**, and
-up to 32 named macros. Copy sends Ctrl+C and Paste sends Ctrl+V to the
-focused PC app, using the PC clipboard. The panel has a **Back to pointer** button;
-the main clutch and scroll area retain their existing height.
-Your saved Enter, Backspace, Space, and other pad assignments are preserved.
-
-In **Settings → More actions**, choose the Redo shortcut your PC app uses:
-Ctrl+Y (default) or Ctrl+Shift+Z. Undo sends Ctrl+Z.
-In **More → Create macro button**, give the button a name and a comma-separated
-sequence of shortcuts, for example **Copy all** with `ctrl+a, ctrl+c` (or
-`cmd+a, cmd+c` on Mac). Leave **Show on main screen** checked to pin it,
-then tap **Save macro**. More also lets you edit, run, delete, pin, or unpin
-each macro. Existing macros are preserved. Invalid sequences cannot be saved.
-
-Pinned buttons use open space near your shortcut row first. When necessary,
-the arranger moves neighboring controls as little as it can, keeping their
-sizes. Existing controls stay where they are when a free space is available.
-If the screen is full, the extra macro stays accessible in More; move or shrink
-controls in Layout to make room. Pinned buttons can be dragged, resized, and
-included in Tidy. Positions are saved separately for portrait and landscape.
-Definitions and pin choices are saved in this phone browser; saving a PC layout
-default shares positions, not macro definitions.
-
-Macros support up to 12 shortcuts using the same key names
-as the hotkey pads. Each shortcut is held for 80 ms, released, then followed
-by a 120 ms pause. They target the focused PC app and do not wait for dialogs
-or windows to load. They do not support arbitrary text or scripts.
-
-Only one action runs at a time. Leaving the panel, hiding the page, or
-disconnecting cancels the remaining steps; actions never resume on reconnect.
-Already-sent steps are not undone. “Sent” reports transmission, not confirmation
-that the PC app performed the action. F8 hold-to-talk works as before.
-
-Developer checks: `node --test tests/*.test.cjs` validates shortcut migration,
-macro execution, calibration measurements, edge detection, and cancellation.
-On Windows with requirements installed, `python -m unittest discover -s tests
--p "test_*.py" -v` checks authenticated cursor reporting and monitor enumeration
-without injecting mouse or keyboard input.
-
-## Status strip
-
-- **Green dot + "connected":** the phone drives the PC.
-- **ABS:** the agent runs in absolute pointer mode.
-- **SIM:** the page runs the synthetic motion demo.
-- **BLOCKED:** Windows refused the injected input. See Troubleshooting.
-- **pps:** motion frames sent per second. About 60 while you move.
+The header reports the connection. Operating-system input blocks and stale links
+appear in the warning banner. Settings > About reports agent version and pointer
+mode. Motion is always paused after a lost connection, even if the link reconnects.
 
 ## Calibration
 
@@ -317,7 +197,7 @@ and reload your existing Safari tab to enable cursor feedback.
 3. **Mark your comfortable left aim, then right aim.** Aim with a comfortable
    wrist position, mark left, sweep right, hold steady, and mark right. The
    cursor stays where it is. Repeat once; inconsistent sweeps must be repeated.
-4. **Try it with the normal clutch and scroll strip.** The proposed reach is
+4. **Try it with the calibration hold-to-move pad.** The proposed reach is
    temporary. Move the cursor yourself to the selected display's left edge,
    lift to re-aim, then sweep right. The phone reports the actual cursor reaching
    or crossing each edge, including boundaries shared with another display.

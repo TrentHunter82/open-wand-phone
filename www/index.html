@@ -543,6 +543,7 @@
   #clutchLabel { pointer-events:none; }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
 </style>
+<link rel="stylesheet" href="/dial.css">
 </head>
 <body>
 
@@ -802,12 +803,12 @@
     <label for="macroSteps">Shortcuts, separated by commas</label>
     <input id="macroSteps" type="text" maxlength="500" placeholder="ctrl+a, ctrl+c" autocapitalize="off" autocomplete="off" spellcheck="false" required>
     <p>Up to 12 shortcuts. Use cmd on Mac, ctrl on Windows. Steps run in order in the focused app.</p>
-    <label><input id="macroPinned" type="checkbox" checked> Show on main screen</label>
+    <label><input id="macroPinned" type="checkbox" checked> Show on rotary dial</label>
     <p id="macroError" role="alert"></p>
     <button type="submit">Save macro</button><button id="macroCancel" type="button">Cancel edit</button>
   </form>
   <div id="macroList"></div>
-  <button id="actionsClose">Back to pointer</button>
+  <button id="actionsClose">Back to pointer</button><button id="moreSettings" style="min-height:44px;margin-top:12px;width:100%">Settings & calibration</button>
 </section>
 
 <div id="calib">
@@ -917,6 +918,8 @@ const TOKEN = qsParams.get("k") || "";
 const SIM = qsParams.get("sim") === "1";
 
 let ws = null;
+let freeMotion = false;
+let dialScrolling = false;
 let agentPlatform = "win32";
 let started = false;
 let lastClose = "";      // code and reason of the last socket close, for the About line
@@ -1145,8 +1148,8 @@ function deadzone(rate) {
 
 function processRates(rightRate, upRate, dt) {
   if (CAL.on && !CAL.preview) return;
-  if (scrollId !== null) return;                     // scroll mode freezes the cursor
-  const live = (clutched || leftHeld) && ws && ws.readyState === 1;
+  if (scrollId !== null || dialScrolling) return;                     // scroll mode freezes the cursor
+  const live = (clutched || leftHeld || freeMotion) && ws && ws.readyState === 1;
   if (!live && !traceOn) return;                     // the trace watches the filter too
   const now = performance.now();
   const xf = deadzone(fYaw.filter(rightRate, dt));   // filters warm up during the guard
@@ -1252,6 +1255,7 @@ function send(obj) {
 function setStatus(cls, text) {
   $("dot").className = cls;
   $("stateText").textContent = text;
+  window.Dial?.refresh();
 }
 
 let bannerSrc = null;
@@ -1318,6 +1322,7 @@ function connect() {
         queueLayout();
         $("modeBadge").style.display = agentAbs ? "inline" : "none";
         updateAbout();
+        window.Dial?.connected();
       } else if (f.t === "layout_saved") {
         LAYOUT.def = normalizeLayouts(f.layout);
         showBanner("Saved as the default layout. Every phone that loads the page starts with it.", "msg");
@@ -1339,6 +1344,7 @@ function connect() {
   };
   sock.onclose = ev => {
     if (ws !== sock) return;           // a newer socket already took over
+    window.Dial?.disconnected();
     lastClose = ev.code + (ev.reason ? " " + ev.reason : "");
     endLeftDrag(false);
     if (CAL.on) calEnd("Calibration canceled because the PC disconnected.");
@@ -1796,6 +1802,7 @@ function builtinActions(platform, redoCombo) {
   ];
 }
 function openActions() {
+  window.Dial?.pause();
   if (clutched || stripId !== null || document.querySelector(".pad.active")) return;
   const grid = $("actionGrid");
   grid.textContent = "";
@@ -1816,6 +1823,7 @@ $("actionsClose").addEventListener("click", () => {
   $("actionsPanel").hidden = true;
   $("moreActions").focus();
 });
+$("moreSettings").onclick=()=>{$("actionsPanel").hidden=true;openDrawer(true);};
 window.addEventListener("pagehide", () => cancelAction("Action stopped."));
 
 let editingMacroId = null;
@@ -1847,11 +1855,11 @@ function renderMacroList() {
     };
     add("Run " + (macro.name || "macro"), () => runAction(macro.name, macroSteps(macro.steps))).disabled = !macroSteps(macro.steps);
     add("Edit " + (macro.name || "macro"), () => editMacro(macro.id));
-    add(macro.pinned ? "Remove from main screen" : "Add to main screen", () => {
+    add(macro.pinned ? "Remove from dial" : "Add to dial", () => {
       if (!macroSteps(macro.steps)) { editMacro(macro.id); return; }
       cancelAction("Action stopped.");
       if (macro.pinned) forgetMacroPosition(macro.id);
-      macro.pinned = !macro.pinned; saveSettings(); buildMacroButtons(); renderMacroList();
+      macro.pinned = !macro.pinned; window.Dial?.macroPin(macro.id,macro.pinned); saveSettings(); buildMacroButtons(); renderMacroList();
     });
     add("Delete " + (macro.name || "macro"), () => {
       cancelAction("Action stopped.");
@@ -1880,9 +1888,10 @@ $("macroForm").addEventListener("submit", e => {
   if (previous?.pinned && !macro.pinned) forgetMacroPosition(macro.id);
   if (previous) S.macros[S.macros.indexOf(previous)] = macro;
   else S.macros.push(macro);
+  window.Dial?.macroPin(macro.id,macro.pinned);
   saveSettings(); buildMacroButtons(); renderMacroList();
   $("macroForm").hidden = true;
-  $("actionStatus").textContent = macro.pinned ? "Saved. Finding room on the main screen…" : "Saved in More.";
+  $("actionStatus").textContent = macro.pinned ? "Saved. Your macro is available on the rotary bezel." : "Saved in More.";
 });
 function buildMacroButtons() {
   const layer = $("macroButtons"); layer.textContent = "";
@@ -1922,6 +1931,7 @@ const drawer = $("drawer");
 const scrim = $("scrim");
 
 function openDrawer(open) {
+  if (open) window.Dial?.pause();
   drawer.classList.toggle("open", open);
   scrim.classList.toggle("open", open);
   setTrace(S.trace);
@@ -2308,7 +2318,7 @@ function clearLayoutTransforms() {
 }
 function queueLayout() {
   if (LAYOUT.frame) return;
-  LAYOUT.frame = requestAnimationFrame(() => { LAYOUT.frame = 0; applyLayout(); });
+  LAYOUT.frame = requestAnimationFrame(() => { LAYOUT.frame = 0; applyLayout(); window.Dial?.refresh(); });
 }
 function layoutFor(orientation) {
   return LAYOUT.saved[orientation] || LAYOUT.def[orientation] || {};
@@ -2733,6 +2743,7 @@ function calEnd(message) {
   if (typeof message === "string") showBanner(message, "msg");
 }
 function runCalibration() {
+  window.Dial?.pause();
   if (CAL.on) return;
   if (!ws || ws.readyState !== 1 || !cursorFeedback) {
     showBanner("Calibration needs the updated PC agent connected. Restart the agent, then try again.", "msg");
@@ -2809,6 +2820,54 @@ $("startBtn").addEventListener("click", async () => {
   connect();
   $("startOverlay").style.display = "none";
 });
+
+// The dial uses the same authenticated connection and input protocol as the pads.
+const dialHeld = new Map();
+window.wandBridge = {
+  ready: () => !!ws && ws.readyState === 1,
+  connection: () => ws?.readyState === 1 ? "Connected" : $("stateText").textContent,
+  stop: () => cancelAction("Action stopped."),
+  scrollPixels: () => Math.max(5,S.scrollPx),
+  motionEnabled: () => freeMotion,
+  scrolling(on) {dialScrolling=on;engageT=performance.now();fYaw.reset();fPitch.reset();},
+  motion(on) { freeMotion=on; sentLog=[]; engageT=performance.now();fYaw.reset();fPitch.reset(); },
+  busy: () => CAL.on || LAYOUT.editing || document.hidden || !$("actionsPanel").hidden || drawer.classList.contains("open"),
+  actions() {
+    const mod=agentPlatform === "darwin" ? "cmd" : "ctrl";
+    return [
+      {id:"left",name:"Left click",hint:"tap · hold to drag",button:"l"},
+      {id:"mic",name:"Mic",hint:"hold to talk",key:"f8"},
+      {id:"right",name:"Right click",hint:"tap · hold",button:"r"},
+      ...builtinActions(agentPlatform,S.redoCombo).map(a=>({id:a.name.toLowerCase(),name:a.name,hint:"tap to send",steps:a.steps})),
+      ...[...new Set(["enter","space","backspace",...(S.hotkeys || [])])].filter(validCombo).map(key=>({id:"key:"+key,name:({enter:"Enter",space:"Space",backspace:"Backspace"})[key] || key.toUpperCase(),hint:"hold shortcut",key})),
+      ...S.macros.filter(m=>macroSteps(m.steps)).map(m=>({id:"macro:"+m.id,name:m.name || "Macro",hint:"tap to run macro",steps:macroSteps(m.steps),pinned:m.pinned})),
+    ];
+  },
+  press(a) {
+    if (!ws || ws.readyState !== 1 || this.busy()) return () => {};
+    pressFeedback();engageT=performance.now();sentLog=[];fYaw.reset();fPitch.reset();
+    const socket=ws;
+    if(a.steps) return clicked => {if(clicked && socket===ws && socket.readyState===1)runAction(a.name,a.steps);};
+    const id=a.button ? "b:"+a.button : "k:"+a.key;
+    const frame=a.button ? {t:"b",btn:a.button} : {t:"k",key:a.key};
+    const count=dialHeld.get(id)||0;dialHeld.set(id,count+1);
+    if(!count)send({...frame,s:1});
+    if(a.key==="f8")setMicUI(true);
+    let released=false;
+    return () => {if(released)return;released=true;
+      const left=Math.max(0,(dialHeld.get(id)||1)-1);
+      if(left)dialHeld.set(id,left);else {dialHeld.delete(id);if(socket.readyState===1)socket.send(JSON.stringify({...frame,s:0}));}
+      if(a.key==="f8"&&!left)setMicUI(false);
+      engageT=performance.now();fYaw.reset();fPitch.reset();haptic();
+    };
+  },
+  wheel(v) { send({t:"w",v:+(S.scrollInvert?-v:v).toFixed(3)}); },
+  haptic: () => haptic(),
+  more: openActions,
+  settings: () => openDrawer(true),
+};
 </script>
+<script src="/dial-model.js"></script>
+<script src="/dial.js"></script>
 </body>
 </html>

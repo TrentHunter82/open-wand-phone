@@ -25,7 +25,7 @@ from pathlib import Path
 
 from aiohttp import WSMsgType, web
 
-VERSION = "1.3"
+VERSION = "1.4"
 
 HERE = Path(__file__).resolve().parent
 WWW = HERE / "www"
@@ -334,6 +334,11 @@ def make_app(token, injector, stats, verbose):
     app.router.add_get("/favicon.ico", favicon)
     app.router.add_get("/auth", auth)
     app.router.add_get("/ws", ws_handler)
+    async def dial_asset(request):
+        return web.FileResponse(WWW / request.path.lstrip("/"),
+                                headers={"Cache-Control": "no-store"})
+    for asset in ("dial.css", "dial-model.js", "dial.js"):
+        app.router.add_get("/" + asset, dial_asset)
     return app
 
 
