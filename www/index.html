@@ -256,6 +256,15 @@
     color: #dbe4ee; font-size: 17px; touch-action: manipulation; }
   #actionsClose { width: 100%; margin-top: 20px; }
   #actionStatus { min-height: 40px; margin-top: 16px; color: #a9bccf; }
+  #macroButtons { position: absolute; inset: 0; pointer-events: none; }
+  #macroButtons .macro-pad { position: absolute; left: 12px; top: 80px;
+    width: 96px; height: 58px; pointer-events: auto; line-height: normal; }
+  #macroButtons .macro-pad[hidden] { display: none; }
+  #macroForm, .macro-card { margin-top: 16px; padding: 16px; border: 1px solid #41444b; border-radius: 16px; }
+  #macroForm input[type=text] { width: 100%; box-sizing: border-box; margin: 8px 0 16px; min-height: 44px; font-size: 16px; }
+  #macroForm button, #macroList button, #macroAdd { min-height: 44px; padding: 10px; margin: 4px; border-radius: 12px; }
+  .macro-card p { overflow-wrap: anywhere; color: var(--muted); }
+  #macroError { color: #ff8e91; }
 
   #buttons {
     display: flex;
@@ -572,6 +581,7 @@
     <div class="padwrap"><label class="pad" id="btnR" role="button">R</label><small>hold</small></div>
     <div class="padwrap big"><label class="pad" id="btnL" role="button">L</label><small>hold / drag</small></div>
   </div>
+  <div id="macroButtons" aria-label="Macro buttons"></div>
 </div>
 
 <div id="scrim"></div>
@@ -763,11 +773,11 @@
       <option value="ctrl+shift+z">Ctrl+Shift+Z</option></select>
   </div>
   <div id="macroEditor"></div>
-  <div class="hint">Up to three named macros. Separate shortcuts with commas:
+  <div class="hint">Create up to 32 named macros in More and optionally pin them to the main screen. Separate shortcuts with commas:
     ctrl+a, ctrl+c. Each shortcut is pressed and released before the next.
     Maximum 12 steps, with a short pause between steps. These run in the
-    focused PC app; they do not wait for windows to load. Blank steps hide a macro.
-    Changes save when you leave a field. Red fields are not saved.</div>
+    focused computer app; they do not wait for windows to load. Create and edit
+    macros in More, then tap Save macro. Use cmd shortcuts for Mac apps.</div>
 
   <div class="sect">ABOUT</div>
   <div class="hint" id="about">not connected</div>
@@ -784,6 +794,19 @@
   <h2>More actions</h2>
   <div id="actionGrid"></div>
   <div id="actionStatus" role="status" aria-live="polite"></div>
+  <h2>Your macros</h2>
+  <button id="macroAdd">Create macro button</button>
+  <form id="macroForm" hidden>
+    <label for="macroName">Button name</label>
+    <input id="macroName" type="text" maxlength="24" required>
+    <label for="macroSteps">Shortcuts, separated by commas</label>
+    <input id="macroSteps" type="text" maxlength="500" placeholder="ctrl+a, ctrl+c" autocapitalize="off" autocomplete="off" spellcheck="false" required>
+    <p>Up to 12 shortcuts. Use cmd on Mac, ctrl on Windows. Steps run in order in the focused app.</p>
+    <label><input id="macroPinned" type="checkbox" checked> Show on main screen</label>
+    <p id="macroError" role="alert"></p>
+    <button type="submit">Save macro</button><button id="macroCancel" type="button">Cancel edit</button>
+  </form>
+  <div id="macroList"></div>
   <button id="actionsClose">Back to pointer</button>
 </section>
 
@@ -846,6 +869,16 @@ const REF_HZ = 60;          // the curve is shaped at this rate, then scaled by 
 const REF_DT = 1 / REF_HZ;  // so the feel does not change with the sensor rate
 const LS_KEY = "wand.settings.v1";
 const LS_UNDO = "wand.precalib.v1";
+const MAX_MACROS = 32;
+function normalizeMacros(value) {
+  const used = new Set();
+  return (Array.isArray(value) ? value : []).slice(0, MAX_MACROS).filter(m => m && typeof m === "object").map((m,i) => {
+    let id = typeof m.id === "string" && /^[a-zA-Z0-9_-]{1,64}$/.test(m.id) ? m.id : "legacy" + i;
+    for (let suffix=0; used.has(id); suffix++) id = "legacy" + i + "_" + suffix;
+    used.add(id);
+    return {id, name:String(m.name || "").slice(0,24), steps:typeof m.steps === "string" ? m.steps.slice(0,500) : "", pinned:m.pinned === true};
+  });
+}
 
 let S = loadSettings();
 
@@ -862,7 +895,7 @@ function loadSettings() {
     }
     cur.hotkeys = cur.hotkeys.slice(0, 3);
     cur.redoCombo = raw.redoCombo === "ctrl+shift+z" ? raw.redoCombo : "ctrl+y";
-    cur.macros = Array.isArray(raw.macros) ? raw.macros.slice(0, 3) : [];
+    cur.macros = normalizeMacros(raw.macros);
     delete cur.hotkey;
     if (raw.beta !== undefined && raw.betaUnit !== "hz100") {
       // Convert the old rad/s coefficient so day one feels identical.
@@ -1727,6 +1760,7 @@ function cancelAction(message) {
   $("actionStatus").textContent = message;
 }
 async function runAction(name, steps) {
+  if (typeof LAYOUT !== "undefined" && LAYOUT.editing) return;
   if (actionRun) return;
   if (!ws || ws.readyState !== 1) {
     $("actionStatus").textContent = "Connect to the PC first.";
@@ -1766,17 +1800,14 @@ function openActions() {
   const grid = $("actionGrid");
   grid.textContent = "";
   const actions = builtinActions(agentPlatform, S.redoCombo);
-  for (const macro of S.macros) {
-    const steps = macroSteps(macro && macro.steps);
-    if (steps) actions.push({ name: String(macro.name || "Macro"), steps });
-  }
   for (const action of actions) {
     const button = document.createElement("button");
     button.textContent = action.name;
     button.addEventListener("click", () => runAction(action.name, action.steps));
     grid.appendChild(button);
   }
-  $("actionStatus").textContent = "Shortcuts go to the focused computer app. Add macros in Settings.";
+  $("actionStatus").textContent = "Shortcuts go to the focused computer app. Create and manage your macro buttons below.";
+  renderMacroList();
   $("actionsPanel").hidden = false;
   grid.querySelector("button").focus();
 }
@@ -1787,46 +1818,97 @@ $("actionsClose").addEventListener("click", () => {
 });
 window.addEventListener("pagehide", () => cancelAction("Action stopped."));
 
+let editingMacroId = null;
+function editMacro(id = null) {
+  cancelAction("Action stopped for editing.");
+  const macro = S.macros.find(m => m.id === id);
+  if (!macro && S.macros.length >= MAX_MACROS) return;
+  editingMacroId = macro ? id : null;
+  $("macroName").value = macro?.name || "";
+  $("macroSteps").value = macro?.steps || "";
+  $("macroPinned").checked = macro ? macro.pinned : true;
+  $("macroError").textContent = "";
+  $("macroForm").hidden = false;
+  $("macroName").focus();
+}
+function renderMacroList() {
+  const list = $("macroList");
+  list.textContent = "";
+  $("macroAdd").disabled = S.macros.length >= MAX_MACROS;
+  $("macroAdd").textContent = "Create macro button (" + S.macros.length + "/" + MAX_MACROS + ")";
+  for (const macro of S.macros) {
+    const card = document.createElement("div"); card.className = "macro-card";
+    const title = document.createElement("strong"); title.textContent = macro.name || "Unnamed macro";
+    const detail = document.createElement("p"); detail.textContent = macro.steps || "No shortcuts yet";
+    card.append(title, detail);
+    const add = (label, handler) => {
+      const button = document.createElement("button"); button.textContent = label;
+      button.addEventListener("click", handler); card.appendChild(button); return button;
+    };
+    add("Run " + (macro.name || "macro"), () => runAction(macro.name, macroSteps(macro.steps))).disabled = !macroSteps(macro.steps);
+    add("Edit " + (macro.name || "macro"), () => editMacro(macro.id));
+    add(macro.pinned ? "Remove from main screen" : "Add to main screen", () => {
+      if (!macroSteps(macro.steps)) { editMacro(macro.id); return; }
+      cancelAction("Action stopped.");
+      if (macro.pinned) forgetMacroPosition(macro.id);
+      macro.pinned = !macro.pinned; saveSettings(); buildMacroButtons(); renderMacroList();
+    });
+    add("Delete " + (macro.name || "macro"), () => {
+      cancelAction("Action stopped.");
+      S.macros = S.macros.filter(m => m.id !== macro.id);
+      forgetMacroPosition(macro.id);
+      saveSettings(); buildMacroButtons(); renderMacroList();
+      if (editingMacroId === macro.id) $("macroForm").hidden = true;
+    });
+    list.appendChild(card);
+  }
+}
+$("macroAdd").addEventListener("click", () => editMacro());
+$("macroCancel").addEventListener("click", () => { $("macroForm").hidden = true; });
+$("macroForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const name = $("macroName").value.trim(), steps = $("macroSteps").value.trim();
+  if (!name || !macroSteps(steps)) {
+    $("macroError").textContent = "Enter a name and 1–12 valid shortcuts, separated by commas (for example ctrl+a, ctrl+c).";
+    return;
+  }
+  const previous = S.macros.find(m => m.id === editingMacroId);
+  if (!previous && S.macros.length >= MAX_MACROS) return;
+  const macro = {id:previous?.id || "m" + Date.now().toString(36) + Math.random().toString(36).slice(2,8),
+    name:name.slice(0,24), steps, pinned:$("macroPinned").checked};
+  cancelAction("Action stopped for editing.");
+  if (previous?.pinned && !macro.pinned) forgetMacroPosition(macro.id);
+  if (previous) S.macros[S.macros.indexOf(previous)] = macro;
+  else S.macros.push(macro);
+  saveSettings(); buildMacroButtons(); renderMacroList();
+  $("macroForm").hidden = true;
+  $("actionStatus").textContent = macro.pinned ? "Saved. Finding room on the main screen…" : "Saved in More.";
+});
+function buildMacroButtons() {
+  const layer = $("macroButtons"); layer.textContent = "";
+  for (const macro of S.macros.filter(m => m.pinned && macroSteps(m.steps))) {
+    const button = document.createElement("button");
+    button.className = "pad hotpad macro-pad";
+    button.dataset.macroId = macro.id;
+    button.textContent = macro.name || "Macro";
+    button.setAttribute("aria-label", "Run " + (macro.name || "macro"));
+    button.addEventListener("click", async () => {
+      if (LAYOUT.editing || CAL.on) return;
+      button.classList.add("active");
+      try { await runAction(macro.name, macroSteps(macro.steps)); }
+      finally { button.classList.remove("active"); }
+    });
+    layer.appendChild(button);
+  }
+  queueLayout();
+}
 function refreshMacroEditor() {
   $("redoCombo").value = S.redoCombo;
-  const editor = $("macroEditor");
-  editor.textContent = "";
-  for (let i = 0; i < 3; i++) {
-    const macro = S.macros[i] || {};
-    const row = document.createElement("div");
-    row.className = "row";
-    const label = document.createElement("label");
-    label.textContent = "Macro " + (i + 1);
-    row.appendChild(label);
-    const name = document.createElement("input");
-    name.type = "text";
-    name.maxLength = 24;
-    name.placeholder = "Name, e.g. Copy all";
-    name.setAttribute("aria-label", label.textContent + " name");
-    name.value = String(macro.name || "");
-    const steps = document.createElement("input");
-    steps.type = "text";
-    steps.maxLength = 500;
-    steps.placeholder = "ctrl+a, ctrl+c";
-    steps.setAttribute("aria-label", label.textContent + " shortcuts");
-    steps.autocapitalize = "off";
-    steps.autocomplete = "off";
-    steps.spellcheck = false;
-    steps.value = String(macro.steps || "");
-    const save = () => {
-      const value = steps.value.trim();
-      const ok = !value || !!macroSteps(value);
-      steps.classList.toggle("bad", !ok);
-      steps.setAttribute("aria-invalid", String(!ok));
-      if (!ok) return;
-      S.macros[i] = { name: name.value.trim().slice(0, 24), steps: value };
-      saveSettings();
-    };
-    name.addEventListener("change", save);
-    steps.addEventListener("change", save);
-    row.append(name, steps);
-    editor.appendChild(row);
-  }
+  const editor = $("macroEditor"); editor.textContent = "";
+  const button = document.createElement("button"); button.textContent = "Manage macro buttons in More";
+  button.addEventListener("click", () => { openDrawer(false); openActions(); });
+  editor.appendChild(button);
+  buildMacroButtons();
 }
 $("redoCombo").addEventListener("change", e => {
   S.redoCombo = e.target.value;
@@ -2131,7 +2213,7 @@ function layoutOverlap(a, b) {
 // group's median size around their own centers, controls that nearly share a
 // row or column move onto one center line, and edges near the screen edge
 // snap to it. Overlaps resolve with the control that moved least staying put.
-const TIDY_GROUPS = [k => k.startsWith("btn"), k => k.startsWith("hot")];
+const TIDY_GROUPS = [k => k.startsWith("btn"), k => k.startsWith("hot"), k => k.startsWith("macro_")];
 function tidyLayout(items, bounds) {
   const median = a => { const s = [...a].sort((p, q) => p - q), m = s.length >> 1;
     return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
@@ -2184,6 +2266,23 @@ function tidyLayout(items, bounds) {
   }
   return Object.fromEntries(next.map(n => [n.key, n]));
 }
+// Prefer a free space near the shortcut row. Only move neighbors if necessary.
+function insertMacroLayout(items, key, size, bounds, preferred) {
+  const obstacles = items.map(p => ({left:p.x,top:p.y,right:p.x+p.w,bottom:p.y+p.h}));
+  const point = smartPosition(preferred, size, bounds, obstacles, true);
+  if (point) return Object.fromEntries([...items.map(p => [p.key,{x:p.x,y:p.y,w:p.w,h:p.h}]), [key,{...point,...size}]]);
+  let best = null, score = Infinity;
+  const xs = [bounds.x, bounds.x+(bounds.w-size.w)/2, bounds.x+bounds.w-size.w];
+  const ys = [preferred.y, bounds.y, bounds.y+bounds.h-size.h];
+  for (const x of xs) for (const y of ys) {
+    const target = smartPosition({x,y},size,bounds,[]);
+    const plan = reflowLayout(items,key,{...target,...size},bounds);
+    if (!plan) continue;
+    const cost = items.reduce((sum,p) => sum+Math.hypot(plan[p.key].x-p.x,plan[p.key].y-p.y),0);
+    if (cost < score) { best=plan;score=cost; }
+  }
+  return best;
+}
 function layoutBounds() {
   const app = $("app").getBoundingClientRect(), status = $("status").getBoundingClientRect();
   return { x: app.left + 12, y: status.bottom + 12,
@@ -2192,6 +2291,7 @@ function layoutBounds() {
 function layoutTargets() {
   const items = [["clutch", clutch], ["scroll", strip]];
   for (const id of ["btnMic", "btnR", "btnL"]) items.push([id, $(id).parentElement]);
+  Array.from($("macroButtons").children).forEach(el => items.push(["macro_" + el.dataset.macroId, el]));
   Array.from($("hotRow").children).forEach((el, i) => items.push([el.id === "moreActions" ? "more" : "hot" + i, el]));
   for (const [key, el] of items) {
     el.dataset.layoutKey = key;
@@ -2218,6 +2318,7 @@ function applyLayout() {
   if (LAYOUT.editing && LAYOUT.orientation !== orientation) finishLayout(false);
   if (LAYOUT.drag) return;
   const items = layoutTargets();
+  for (const [,el] of items) if (el.dataset.macroId) el.hidden = false;
   clearLayoutTransforms();
   if (CAL.on) return;
   const map = (LAYOUT.editing ? LAYOUT.draft : layoutFor(orientation)) || {};
@@ -2229,6 +2330,7 @@ function applyLayout() {
     const p = layoutPosition(map[key], bounds, size);
     if (p) paintLayout(el,r,p,size);
   }
+  placeNewMacros(map, bounds, orientation);
 }
 function beginLayout() {
   if (CAL.on || LAYOUT.editing) return;
@@ -2300,6 +2402,50 @@ function layoutItems() {
 }
 function draftEntry(p, bounds) {
   return {x:(p.x-bounds.x)/Math.max(1,bounds.w-p.w),y:(p.y-bounds.y)/Math.max(1,bounds.h-p.h),w:p.w,h:p.h};
+}
+function persistMacroLayout() {
+  try { localStorage.setItem(LS_LAYOUT, JSON.stringify(LAYOUT.saved)); }
+  catch { showBanner("Macro positions work this session, but Safari could not save the layout.", "msg"); }
+}
+function forgetMacroPosition(id) {
+  for (const orientation of ["portrait", "landscape"]) {
+    LAYOUT.saved[orientation] = {...layoutFor(orientation)};
+    delete LAYOUT.saved[orientation]["macro_" + id];
+  }
+  persistMacroLayout();
+}
+function placeNewMacros(map, bounds, orientation) {
+  const all = layoutItems();
+  const pending = all.filter(p => p.key.startsWith("macro_") && !map[p.key]);
+  if (!pending.length) return;
+  const missing = new Set(pending.map(p => p.key));
+  let placed = all.filter(p => !missing.has(p.key));
+  const next = {...map};
+  let added = 0, failed = 0;
+  for (const item of pending) {
+    const anchor = placed.find(p => p.key === "more") || {x:bounds.x,y:bounds.y};
+    const plan = insertMacroLayout(placed,item.key,{w:item.w,h:item.h},bounds,{x:anchor.x,y:anchor.y-item.h-10});
+    if (!plan) { item.el.hidden = true; failed++; continue; }
+    placed.push(item);
+    placed = placed.map(p => {
+      const pos = plan[p.key];
+      // Do not turn untouched natural controls into saved overrides: clamping
+      // those on reload could shift the owner's original layout.
+      if (p.key === item.key || Math.abs(pos.x-p.x)>0.01 || Math.abs(pos.y-p.y)>0.01)
+        next[p.key] = draftEntry(pos,bounds);
+      paintLayout(p.el,p.base,pos,pos);
+      return {...p,...pos};
+    });
+    added++;
+  }
+  if (added) {
+    if (LAYOUT.editing) LAYOUT.draft = next;
+    else { LAYOUT.saved[orientation] = next; persistMacroLayout(); }
+  }
+  const message = failed ? "Not enough room for " + failed + " macro button(s). They are still in More. Shrink or move controls in Layout to make space."
+    : "Macro button placed. Use Layout to move or resize it.";
+  $("actionStatus").textContent = message;
+  if (failed && $("actionsPanel").hidden) showBanner(message,"msg");
 }
 $("layoutTidy").addEventListener("click", () => {
   if (!LAYOUT.editing || LAYOUT.drag) return;

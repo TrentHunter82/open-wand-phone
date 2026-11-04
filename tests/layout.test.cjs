@@ -23,6 +23,23 @@ test('portrait and landscape use separate layouts', () => {
   assert.equal(run('layoutOrientation()'),'portrait');
   assert.equal(run('innerWidth=844;innerHeight=390;layoutOrientation()'),'landscape');
 });
+
+test('inserting macro buttons uses open space without moving or resizing existing controls', () => {
+  const run=harness();
+  run('var b={x:12,y:60,w:351,h:580}; var items=[{key:"clutch",x:12,y:240,w:280,h:180},{key:"more",x:310,y:450,w:53,h:58}]; var before=JSON.stringify(items); var plan=insertMacroLayout(items,"macro_a",{w:96,h:58},b,{x:310,y:382})');
+  assert.equal(run('JSON.stringify(items)===before'),true);
+  assert.equal(run('plan.clutch.x===items[0].x && plan.clutch.y===items[0].y && plan.clutch.w===items[0].w'),true);
+  assert.equal(run('plan.more.x===items[1].x && plan.more.y===items[1].y'),true);
+  assert.equal(run('Object.values(plan).every((p,i,all)=>all.slice(i+1).every(q=>!layoutOverlap({left:p.x,top:p.y,right:p.x+p.w,bottom:p.y+p.h},{left:q.x,top:q.y,right:q.x+q.w,bottom:q.y+q.h})))'),true);
+});
+
+test('insertion can move neighbors when needed and returns null without changing a full screen', () => {
+  const run=harness();
+  run('var b={x:0,y:0,w:200,h:100}; var items=[{key:"a",x:50,y:0,w:100,h:100}]; var plan=insertMacroLayout(items,"macro_a",{w:100,h:100},b,{x:0,y:0})');
+  assert.ok(run('plan'));
+  assert.equal(run('plan.a.w'),100);
+  assert.equal(run('insertMacroLayout([{key:"a",x:0,y:0,w:200,h:100}],"macro_a",{w:100,h:100},b,{x:0,y:0})'),null);
+});
 test('invalid stored layouts cannot break the editor', () => {
   const run=harness();
   assert.equal(run('JSON.stringify(normalizeLayouts({portrait:3,landscape:[]}))'),'{}');

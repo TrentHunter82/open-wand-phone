@@ -258,17 +258,29 @@ still controls its size.
 ### Copy, Paste, Undo, Redo, and macros
 
 Tap **More** beside the three hotkey pads to open **Copy**, **Paste**, **Undo**, **Redo**, and
-up to three named macros. Copy sends Ctrl+C and Paste sends Ctrl+V to the
+up to 32 named macros. Copy sends Ctrl+C and Paste sends Ctrl+V to the
 focused PC app, using the PC clipboard. The panel has a **Back to pointer** button;
 the main clutch and scroll area retain their existing height.
 Your saved Enter, Backspace, Space, and other pad assignments are preserved.
 
 In **Settings → More actions**, choose the Redo shortcut your PC app uses:
 Ctrl+Y (default) or Ctrl+Shift+Z. Undo sends Ctrl+Z.
-Give each macro a name and a comma-separated sequence of shortcuts, for
-example **Copy all** with `ctrl+a, ctrl+c`. Leave its steps blank to hide it.
-Settings save when you leave a field; invalid sequences are marked red and
-are not saved. Macros support up to 12 shortcuts using the same key names
+In **More → Create macro button**, give the button a name and a comma-separated
+sequence of shortcuts, for example **Copy all** with `ctrl+a, ctrl+c` (or
+`cmd+a, cmd+c` on Mac). Leave **Show on main screen** checked to pin it,
+then tap **Save macro**. More also lets you edit, run, delete, pin, or unpin
+each macro. Existing macros are preserved. Invalid sequences cannot be saved.
+
+Pinned buttons use open space near your shortcut row first. When necessary,
+the arranger moves neighboring controls as little as it can, keeping their
+sizes. Existing controls stay where they are when a free space is available.
+If the screen is full, the extra macro stays accessible in More; move or shrink
+controls in Layout to make room. Pinned buttons can be dragged, resized, and
+included in Tidy. Positions are saved separately for portrait and landscape.
+Definitions and pin choices are saved in this phone browser; saving a PC layout
+default shares positions, not macro definitions.
+
+Macros support up to 12 shortcuts using the same key names
 as the hotkey pads. Each shortcut is held for 80 ms, released, then followed
 by a 120 ms pause. They target the focused PC app and do not wait for dialogs
 or windows to load. They do not support arbitrary text or scripts.

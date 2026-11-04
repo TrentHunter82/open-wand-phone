@@ -37,6 +37,24 @@ test('macro validation rejects unknown, empty and excessive steps', () => {
   }
 });
 
+test('macro migration preserves more than three definitions and stable unique identities', () => {
+  const stored = Array.from({length:40},(_,i)=>({id:'same',name:'Macro '+i,steps:'ctrl+c',pinned:i%2===0}));
+  const h=harness({macros:stored});
+  assert.equal(h.eval('S.macros.length'),32);
+  assert.equal(h.eval('new Set(S.macros.map(m=>m.id)).size'),32);
+  assert.equal(h.eval('S.macros[4].steps'),'ctrl+c');
+  assert.equal(h.eval('S.macros[4].pinned'),true);
+  assert.equal(h.eval('JSON.stringify(normalizeMacros(S.macros))===JSON.stringify(S.macros)'),true);
+  assert.equal(h.eval('normalizeMacros([null,7,{name:"Old",steps:"enter"}])[0].pinned'),false);
+});
+
+test('layout editing cannot execute a macro through its direct socket path', async () => {
+  const h=harness();
+  h.eval('var LAYOUT={editing:true}');
+  await h.eval('runAction("Copy",["ctrl+c"])');
+  assert.equal(h.frames.length,0);
+});
+
 test('steps release modifiers before the next shortcut and ignore overlapping runs', async () => {
   const h = harness();
   const done = h.eval('runAction("Copy all", ["ctrl+a", "ctrl+c"])');
