@@ -52,6 +52,7 @@
     <label for="dialAddAction">Add a shortcut or macro</label><select id="dialAddAction"></select><button id="dialAdd">Add action</button><button id="dialReset">Reset this orientation</button>
     <p class="dial-hint">Create custom macros in Menu → Shortcuts & macros. Save this grip, then use Menu → Saved grips to save a copy (up to eight presets).</p>
   </section><section id="dialPresets" hidden aria-label="Saved grips"><h2>Saved grips</h2><div id="dialPresetList"></div><button id="dialPresetCopy">Save a copy of current grip</button><button id="dialPresetClose">Back</button></section>`);
+  const glass=window.DialGlass?.mount($('dialRoot'));
   const sliders=[['r','Outer wheel size',.5,1.3],['bw','Function selector thickness',.1,.25],['mr','Mic circle size',.25,.65],['rr','Right Click size',.25,.55],
     ['x','Wheel horizontal position',.25,1.25],['y','Wheel vertical position',.28,.75],
     ['mx','Mic horizontal offset',-.6,.6],['my','Mic vertical offset',-.6,.6],
@@ -75,6 +76,7 @@
     $('dialMotion').title=live?'Motion on — tap to pause':'Motion paused — tap to resume';
     $('dialConnection').textContent=B.connection();
     $('dialConnectionDot').classList.toggle('connected',B.ready());
+    glass?.wake();
   }
   function releaseAll(){for(const p of pointers.values()) {if(p.release)p.release();}pointers.clear();if(editing&&controlDrag)Object.assign(view(),controlDrag.before);controlDrag=null;B.scrolling(false);
     $('dialStage').querySelectorAll('.active').forEach(el=>el.classList.remove('active'));}
@@ -180,17 +182,17 @@
     const obstacles=[...headerBlocks,...['dialMode','dialMotion','dialModeGrip','dialMotionGrip'].map(id=>$(id)).filter(el=>!el.hidden).map(rectFor)].map(b=>({x:b.x-3,y:b.y-3,w:b.w+6,h:b.h+6}));
     const outerCircle={x:g.cx,y:g.cy,r:ringR},innerCircle={x:g.mx,y:g.my,r:g.mr},rightCircle={x:g.rx,y:g.ry,r:g.rr};
     let svg=`<defs>
-      <radialGradient id="dialBg" cx="28%" cy="14%" r="95%"><stop stop-color="#50535a"/><stop offset=".35" stop-color="#3e4148"/><stop offset=".85" stop-color="#30333a"/><stop offset="1" stop-color="#26292f"/></radialGradient>
-      <radialGradient id="dialInner" cx="30%" cy="15%" r="95%"><stop stop-color="#55585f"/><stop offset=".4" stop-color="#40434a"/><stop offset="1" stop-color="#292c32"/></radialGradient>
-      <linearGradient id="dialKey" x2=".25" y2="1"><stop stop-color="#50535b"/><stop offset=".5" stop-color="#3d4047"/><stop offset="1" stop-color="#2b2e35"/></linearGradient>
-      <linearGradient id="dialBevel" x1="0" y1="0" x2=".65" y2="1"><stop stop-color="#858993" stop-opacity=".65"/><stop offset=".45" stop-color="#545861" stop-opacity=".25"/><stop offset="1" stop-color="#171a20" stop-opacity=".8"/></linearGradient>
+      <radialGradient id="dialBg" cx="28%" cy="14%" r="95%"><stop stop-color="#8295a3"/><stop offset=".35" stop-color="#344b5b"/><stop offset=".85" stop-color="#162b39"/><stop offset="1" stop-color="#0e1c29"/></radialGradient>
+      <radialGradient id="dialInner" cx="30%" cy="15%" r="95%"><stop stop-color="#91a8b5"/><stop offset=".4" stop-color="#365263"/><stop offset="1" stop-color="#112632"/></radialGradient>
+      <linearGradient id="dialKey" x2=".25" y2="1"><stop stop-color="#435b6b"/><stop offset=".5" stop-color="#293e50"/><stop offset="1" stop-color="#142535"/></linearGradient>
+      <linearGradient id="dialBevel" x1="0" y1="0" x2=".65" y2="1"><stop stop-color="#d7edf5" stop-opacity=".78"/><stop offset=".45" stop-color="#89bccb" stop-opacity=".27"/><stop offset="1" stop-color="#060f1c" stop-opacity=".85"/></linearGradient>
       <filter id="dialShadow" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="#080b10" flood-opacity=".6"/></filter>
       <filter id="dialKeyShadow" x="-20%" y="-30%" width="140%" height="170%"><feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-color="#080b10" flood-opacity=".6"/></filter>
       <clipPath id="dialClipOuter"><path clip-rule="evenodd" d="${circlePath(outerCircle)} ${circlePath(innerCircle)}"/></clipPath>
       <clipPath id="dialClipInner"><path clip-rule="evenodd" d="${circlePath(innerCircle)} ${circlePath(rightCircle)}"/></clipPath>
       <clipPath id="dialClipRight"><circle cx="${g.rx}" cy="${g.ry}" r="${g.rr}"/></clipPath>
     </defs>`;
-    svg+=`<g class="dial-bezel" data-zone="bezel"><circle cx="${g.cx}" cy="${g.cy}" r="${g.r}" fill="#24272d" stroke="#454951" stroke-width="1"/>`;
+    svg+=`<g class="dial-bezel" data-zone="bezel"><path d="${circlePath({x:g.cx,y:g.cy,r:g.r})} ${circlePath(outerCircle)}" fill-rule="evenodd" fill="#15212d" stroke="#3c5262" stroke-width="1"/>`;
     const availableKeys=M.rimKeys(g,w,h,obstacles);
     const page=M.rimPage(ids,rimPage,g.r,g.bezelWidth,availableKeys.length);rimPage=page.index;rimSlots=[];
     const count=page.slots;
@@ -221,6 +223,7 @@
       svg+=`<circle class="dial-edit-outline" cx="${x}" cy="${y}" r="${r}"/><circle data-resize="${zone}" class="dial-handle" cx="${x-r*.82}" cy="${y-r*.57}" r="13"/>`;
     }
     $('dialStage').setAttribute('viewBox',`0 0 ${w} ${h}`);$('dialStage').innerHTML=svg;
+    glass?.layout(g,w,h,scroll);
     if(focusZone)$('dialStage').querySelector('[data-zone="'+focusZone+'"]')?.focus({preventScroll:true});
     else if(focusAction)$('dialStage').querySelector('[data-action="'+CSS.escape(focusAction)+'"]')?.focus({preventScroll:true});
     else if(focusPage)$('dialStage').querySelector('[data-page]')?.focus({preventScroll:true});

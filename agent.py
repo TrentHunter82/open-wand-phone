@@ -337,7 +337,7 @@ def make_app(token, injector, stats, verbose):
     async def dial_asset(request):
         return web.FileResponse(WWW / request.path.lstrip("/"),
                                 headers={"Cache-Control": "no-store"})
-    for asset in ("dial.css", "dial-model.js", "dial.js"):
+    for asset in ("dial.css", "dial-model.js", "dial-glass.js", "dial.js"):
         app.router.add_get("/" + asset, dial_asset)
     return app
 

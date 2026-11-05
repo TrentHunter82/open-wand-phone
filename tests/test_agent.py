@@ -53,7 +53,7 @@ class CursorFeedbackTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(module['Injector'].__module__, 'input_macos')
 
     async def test_dial_assets_are_served_and_private_files_are_not(self):
-        for path in ('dial.css', 'dial-model.js', 'dial.js'):
+        for path in ('dial.css', 'dial-model.js', 'dial-glass.js', 'dial.js'):
             response = await self.client.get('/' + path)
             self.assertEqual(response.status, 200)
             self.assertEqual(response.headers['Cache-Control'], 'no-store')

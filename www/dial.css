@@ -78,3 +78,30 @@ body.dial-view {background:#27282c;color:#f1ede5;}
 #dialPresets button {max-width:calc(100% - 12px);overflow-wrap:anywhere;}
 .dial-view .macro-card strong,.dial-view #macroList button {overflow-wrap:anywhere;}
 .dial-view #macroList button {max-width:calc(100% - 8px);}
+
+/* Clear optical edges sit above a separate, non-interactive liquid layer. */
+body.dial-view {background:#0e1722;color:#eef5f7;}
+#dialRoot {background:radial-gradient(ellipse at 18% 0%,#233442 0%,#121f2b 48%,#0b1420 100%);}
+#dialLiquid {position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+#dialStage {z-index:1;}
+#dialRoot.glass-ready .dial-surface {fill-opacity:.36;}
+#dialRoot.glass-ready .dial-press.active > .dial-surface {fill-opacity:.52;filter:brightness(1.10);}
+.dial-label {fill:#f0f6f7;}
+.dial-secondary {fill:#c1d2db;}
+.dial-connection {color:#b8ccd6;}
+#dialRoot button {background:linear-gradient(145deg,#354c5bba,#172a3cdd);box-shadow:3px 5px 12px #020b1470,inset 0 1px 1px #c4e9f04d,inset 0 -1px 1px #07121fd9,inset 0 0 0 1px #8fb5c31f;border:0;}
+#dialRoot .dial-mode {background:#0b1727d9!important;box-shadow:inset 2px 3px 7px #030b14a3,inset 0 -1px 1px #acd4e22b!important;}
+#dialRoot .dial-mode button {border-color:transparent;}
+#dialRoot .dial-mode button[aria-pressed=true] {background:linear-gradient(145deg,#526c7baa,#293e52c9);box-shadow:0 2px 7px #020a1480,inset 0 1px 1px #c4e5f05c;}
+#dialRoot #dialMenu {background:linear-gradient(145deg,#293f50f7,#122335f7);border-color:#97bac044;box-shadow:0 15px 40px #02070fc4,inset 0 1px 1px #b6dce142;}
+#dialRoot #dialMenu button {background:transparent;border-color:transparent;box-shadow:none;}
+#dialRoot #dialMenu button:hover,#dialRoot #dialMenu button:focus-visible {background:#69879633;}
+.dial-menu-feedback {border-color:#7ea1b538;}
+.dial-menu-feedback p,.dial-appearance p {color:#b9ccd5;}
+.dial-appearance {margin:10px 8px 3px;padding-top:12px;border-top:1px solid #7ea1b538;}
+.dial-appearance label {display:block;font-size:13px;margin-bottom:8px;}
+#dialMaterial {width:100%;min-height:44px;border:1px solid #8fb5c340;border-radius:12px;background:#132638;color:#eff7fa;font:inherit;font-size:16px;padding:8px 12px;color-scheme:dark;}
+.dial-appearance p {font-size:12px;line-height:1.5;margin:9px 0 4px;}
+#dialNotice {background:#0d2032ed;border-color:#8fb5c340;color:#e0edf2;}
+#dialRoot[data-material=smoke] {background:radial-gradient(ellipse at 15% 0%,#2b3445,#161e2d 55%,#101724);}
+@media (prefers-reduced-motion:reduce) {#dialNotice {transition:none;}}

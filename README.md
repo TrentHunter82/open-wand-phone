@@ -138,6 +138,20 @@ Mic. Only the innermost surface under your finger receives a press.
   keep their configured modifiers. A macro runs on a completed tap; canceling
   the gesture never starts it. Only one macro sequence runs at a time.
 
+### Glass materials
+
+**Menu > Under the glass** switches between Liquid, Smoke, and Still glass.
+Liquid has a moving waterline, refracted highlights, and touch ripples; phone tilt
+adds a damped slosh using the motion permission already granted at Start. Smoke
+uses flowing silver-blue wisps. Holding the Mic gives its material a warm tint.
+These are decorative effects: they cannot send input or change saved grip geometry.
+The material choice saves separately from layouts and macros.
+
+Animation runs at up to 30 frames per second with a capped pixel budget and adaptive
+resolution. It pauses behind menus, while editing, and when the page is hidden.
+The phone's Reduce Motion setting freezes animated materials. If WebGL is unavailable
+or lost, the controls retain their static glass lighting and remain usable.
+
 ### Ring feedback
 
 Menu has independent **Ring haptics** and **Ring tick sound** options. Each
