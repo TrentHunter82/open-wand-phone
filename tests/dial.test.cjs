@@ -53,6 +53,49 @@ test('large pad defaults to Left Click independently of the old rotary selection
   d.presets[0].outer='key:enter';assert.equal(M.normalize(d).presets[0].outer,'key:enter');
 });
 
+test('Scroll is inside the wheel and outside Mic for normal phone layouts',()=>{
+  for(const [w,h] of [[320,568],[375,667],[390,844],[430,932],[844,390]]){
+    const v=M.defaults(w>h?'landscape':'portrait'),g=M.geometry(v,w,h),copy={...g},b=M.scrollButton(v,g,w,h);
+    assert.ok(b.inside);assert.ok(b.r>=24);
+    assert.ok(Math.hypot(b.x-g.cx,b.y-g.cy)+b.r<=g.clickR);
+    assert.ok(Math.hypot(b.x-g.mx,b.y-g.my)>=g.mr+b.r+8);
+    assert.ok(b.x-b.r>=0&&b.x+b.r<=w&&b.y-b.r>=0&&b.y+b.r<=h);
+    assert.deepEqual(g,copy);
+  }
+});
+
+test('Scroll finds room in tight grips without changing saved wheels',()=>{
+  for(const r of [.5,1.3])for(const mr of [.25,.65])for(const x of [.25,.96,1.25]){
+    const v=M.view({r,mr,x,mx:.6,my:.6}),g=M.geometry(v,375,667),copy={...g},b=M.scrollButton(v,g,375,667);
+    assert.ok(Math.hypot(b.x-g.mx,b.y-g.my)>=g.mr+b.r+7.99);
+    assert.ok(b.x-b.r>=0&&b.x+b.r<=375&&b.y-b.r>=0&&b.y+b.r<=667);
+    assert.deepEqual(g,copy);
+  }
+  const d=M.normalize();d.presets[0].views.portrait.sx=-.7;d.presets[0].views.portrait.sy=.5;d.presets[0].views.portrait.sr=.15;
+  assert.deepEqual(M.normalize(JSON.parse(JSON.stringify(d))),d);
+});
+
+test('motion scrolling ignores tremor, reverses promptly, and stops without a tail',()=>{
+  const radians=degrees=>degrees*Math.PI/180;
+  assert.equal(M.scrollStep({rate:100},radians(1),1/60).notches,0);
+  const up=M.scrollStep({rate:0},radians(40),1/60),down=M.scrollStep(up,radians(-40),1/60);
+  assert.ok(up.notches>0&&down.notches<0);
+  assert.equal(M.scrollStep(up,0,1/60).notches,0);
+  for(const [rate,dt] of [[NaN,1/60],[Infinity,1/60],[10,NaN],[10,-1]])assert.equal(M.scrollStep(up,rate,dt).notches,0);
+});
+
+test('motion scrolling has a moderate speed cap and consistent travel across sensor rates',()=>{
+  const totals=[];
+  for(const hz of [30,60,120]){
+    let state={rate:0},sum=0;
+    for(let i=0;i<hz;i++){state=M.scrollStep(state,36*Math.PI/180,1/hz,9);sum+=state.notches;}
+    totals.push(sum);assert.ok(Math.abs(sum)>3&&Math.abs(sum)<4);
+  }
+  assert.ok(Math.max(...totals)-Math.min(...totals)<.06);
+  assert.ok(Math.abs(M.scrollStep({rate:0},100,10).notches)<=.3000001);
+  assert.ok(Math.abs(M.scrollStep({rate:0},.5,.02,6).notches)>Math.abs(M.scrollStep({rate:0},.5,.02,18).notches));
+});
+
 test('every rim action remains reachable on small screens and macro-heavy layouts',()=>{
   for(const size of [1,8,40])for(const r of [187,320,366]){
     const ids=Array.from({length:size},(_,i)=>'a'+i),first=M.rimPage(ids,0,r,50),seen=[];

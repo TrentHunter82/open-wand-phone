@@ -3,13 +3,13 @@
   'use strict';
   const clamp = (n, lo, hi, fallback) => Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : fallback;
   const defaults = (orientation) => ({x:.96,y:.53,r:.94,bw:.17,mx:-.13,my:0,mr:.41,rx:0,ry:.45,rr:.38,
-    scrollX:.045,scrollY:.18,motionX:.045,motionY:.9,motionFree:0,dockX:.04,dockY:.055,
+    scrollX:.045,scrollY:.18,sx:-.50,sy:.60,sr:.12,motionX:.045,motionY:.9,motionFree:0,dockX:.04,dockY:.055,
     ...(orientation==='landscape'?{x:.68,y:.54,scrollX:.2,scrollY:.34,motionX:.25,motionY:.65}:{})});
   const baseOrder = ['left','key:enter','key:space','key:backspace','copy','paste','undo','redo'];
   function view(value = {}) {
     const d = defaults(), out = {};
     const limits = {x:[.25,1.25],y:[.28,.75],r:[.5,1.3],bw:[.1,.25],mx:[-.6,.6],my:[-.6,.6],mr:[.25,.65],
-      rx:[-.6,.6],ry:[-.6,.6],rr:[.25,.55],scrollX:[0,.7],scrollY:[.12,.85],motionX:[0,.9],motionY:[.03,.9],motionFree:[0,1],dockX:[0,.8],dockY:[.03,.85]};
+      rx:[-.6,.6],ry:[-.6,.6],rr:[.25,.55],scrollX:[0,.7],scrollY:[.12,.85],sx:[-1,1],sy:[-1,1],sr:[.08,.22],motionX:[0,.9],motionY:[.03,.9],motionFree:[0,1],dockX:[0,.8],dockY:[.03,.85]};
     for (const [k,[lo,hi]] of Object.entries(limits)) out[k]=clamp(value?.[k],lo,hi,d[k]);
     // Keep nested buttons within their parents with a usable surrounding band.
     for (const [x,y,limit] of [['mx','my',1-out.bw-out.mr],['rx','ry',.92-out.rr]]) {
@@ -51,6 +51,40 @@
     out.splice(to,0,out.splice(from,1)[0]);return out;
   }
   const overlaps=(a,b,gap=0)=>a.x<b.x+b.w+gap&&a.x+a.w+gap>b.x&&a.y<b.y+b.h+gap&&a.y+a.h+gap>b.y;
+  function scrollButton(v,g,w,h,obstacles=[]) {
+    const wanted={x:g.cx+v.sx*g.clickR,y:g.cy+v.sy*g.clickR},size=Math.max(24,Math.min(64,g.r*v.sr));
+    const clear=(x,y,r,inside)=>{
+      if(x<r+8||x>w-r-8||y<r+70||y>h-r-16)return false;
+      if(inside&&Math.hypot(x-g.cx,y-g.cy)+r+5>g.clickR)return false;
+      if(Math.hypot(x-g.mx,y-g.my)<g.mr+r+8||Math.hypot(x-g.rx,y-g.ry)<g.rr+r+8)return false;
+      return !obstacles.some(o=>Math.hypot(x-Math.max(o.x,Math.min(x,o.x+o.w)),y-Math.max(o.y,Math.min(y,o.y+o.h)))<r+5);
+    };
+    // Preserve the existing circles. If an unusually tight grip has no room
+    // inside the wheel, keep Scroll nearby and clear of the other buttons.
+    for(const inside of [true,false])for(let r=size;;r=Math.max(24,r-4)){
+      if(clear(wanted.x,wanted.y,r,inside))return {...wanted,r,inside};
+      let best=null,score=Infinity;
+      for(let y=r+70;y<=h-r-16;y+=10)for(let x=r+8;x<=w-r-8;x+=10){
+        if(!clear(x,y,r,inside))continue;
+        const distance=Math.hypot(x-wanted.x,y-wanted.y);
+        if(distance<score){score=distance;best={x,y,r,inside};}
+      }
+      if(best)return best;if(r===24)break;
+    }
+    // Extremely small viewports still get a visible target; normal phone sizes
+    // always find a clear position above.
+    return {x:Math.max(32,Math.min(w-32,wanted.x)),y:Math.max(94,Math.min(h-40,wanted.y)),r:24,inside:false};
+  }
+  function scrollStep(state,upRate,dt,degreesPerNotch=9) {
+    if(!Number.isFinite(upRate)||!Number.isFinite(dt)||dt<=0)return {rate:0,notches:0};
+    const seconds=Math.min(.05,dt),degrees=Math.max(-720,Math.min(720,upRate*180/Math.PI));
+    if(Math.abs(degrees)<=2.5)return {rate:0,notches:0};
+    const input=Math.sign(degrees)*(Math.abs(degrees)-2.5),previous=Number.isFinite(state?.rate)&&Math.sign(state.rate)===Math.sign(input)?state.rate:0;
+    const rate=previous+(input-previous)*(1-Math.exp(-seconds/.075));
+    const gain=clamp(degreesPerNotch,6,18,9),speed=Math.max(-6,Math.min(6,rate/gain));
+    // The receivers use native wheel units: positive scrolls upward.
+    return {rate,notches:speed*seconds};
+  }
   function placeControl(rect,bounds,obstacles=[]) {
     const cx=x=>Math.max(bounds.left,Math.min(bounds.right-rect.w,x)),cy=y=>Math.max(bounds.top,Math.min(bounds.bottom-rect.h,y));
     const xs=[cx(rect.x)],ys=[cy(rect.y)];
@@ -88,7 +122,7 @@
     const index=((page%pages)+pages)%pages;
     return {items:list.slice(index*size,(index+1)*size),index,pages,slots:pages>1?capacity:Math.max(1,list.length)};
   }
-  const api={defaults,baseOrder,view,preset,normalize,geometry,delta,reorder,rimPage,placeControl,rimKeys};
+  const api={defaults,baseOrder,view,preset,normalize,geometry,delta,reorder,rimPage,placeControl,rimKeys,scrollButton,scrollStep};
   if(typeof module!=='undefined' && module.exports) module.exports=api;
   else root.DialModel=api;
 })(typeof window==='undefined' ? globalThis : window);

@@ -45,3 +45,10 @@ test('rapid direct taps remain separate and macros still use the safe sequence r
   assert.deepEqual(h.frames.map(f=>f.s),[1,0,1,0]);
   h.run('window.wandBridge.tap({name:"Copy",steps:["ctrl+c"]})');assert.equal(h.runs.length,1);
 });
+
+test('scroll inversion applies once and scrolling preserves the pointer motion preference',()=>{
+  const h=harness();
+  h.run('freeMotion=true;window.wandBridge.scrolling(true);window.wandBridge.wheel(.25);S.scrollInvert=true;window.wandBridge.wheel(.25);window.wandBridge.scrolling(false)');
+  assert.deepEqual(h.frames.map(f=>f.v),[.25,-.25]);
+  assert.equal(h.run('freeMotion'),true);assert.equal(h.run('dialScrolling'),false);
+});

@@ -689,6 +689,11 @@
 
   <div class="sect">SCROLL</div>
   <div class="row">
+    <label for="sMotionScroll">Motion scroll, higher = slower <b id="vMotionScroll"></b></label>
+    <input type="range" id="sMotionScroll" min="6" max="18" step="1">
+  </div>
+  <div class="hint">Hold the round Scroll button and aim the phone up or down. Release to return to pointer control. Sideways motion is ignored.</div>
+  <div class="row">
     <label>Drag px per notch, lower = faster <b id="vScrollPx"></b></label>
     <input type="range" id="sScrollPx" min="10" max="80" step="2">
   </div>
@@ -844,6 +849,7 @@ const DEFAULTS = {   // owner-tuned daily-driver values
   beta: 0.0,         // 1-euro speed term, Hz added per 100 deg/s
   deadzone: 2.5,     // deg/s; filtered rates below this are ignored (hand tremor floor)
   guard: 130,        // ms; ignore motion after touch-down, undo motion sent just before lift
+  motionScrollDeg: 9, // phone aim degrees per wheel notch; higher = slower
   scrollPx: 30,      // px of two-finger drag per wheel notch
   scrollInvert: false,
   tapClick: true,    // quick tap in the clutch zone = left click
@@ -898,6 +904,7 @@ function loadSettings() {
     cur.hotkeys = cur.hotkeys.slice(0, 3);
     cur.redoCombo = raw.redoCombo === "ctrl+shift+z" ? raw.redoCombo : "ctrl+y";
     cur.macros = normalizeMacros(raw.macros);
+    cur.motionScrollDeg = Number.isFinite(raw.motionScrollDeg) ? Math.max(6,Math.min(18,raw.motionScrollDeg)) : 9;
     delete cur.hotkey;
     if (raw.beta !== undefined && raw.betaUnit !== "hz100") {
       // Convert the old rad/s coefficient so day one feels identical.
@@ -1173,7 +1180,8 @@ function deadzone(rate) {
 
 function processRates(rightRate, upRate, dt) {
   if (CAL.on && !CAL.preview) return;
-  if (scrollId !== null || dialScrolling) return;                     // scroll mode freezes the cursor
+  if (dialScrolling) { window.Dial?.scrollRate(upRate,dt); return; }   // held Scroll owns vertical motion
+  if (scrollId !== null) return;                                    // touch scrolling freezes the cursor
   const live = (clutched || leftHeld || freeMotion) && ws && ws.readyState === 1;
   if (!live && !traceOn) return;                     // the trace watches the filter too
   const now = performance.now();
@@ -1972,6 +1980,7 @@ const SLIDERS = [
   ["sBeta", "vBeta", "beta", v => v.toFixed(1) + " Hz"],
   ["sDeadzone", "vDeadzone", "deadzone", v => v.toFixed(1) + "°/s"],
   ["sGuard", "vGuard", "guard", v => v.toFixed(0) + " ms"],
+  ["sMotionScroll", "vMotionScroll", "motionScrollDeg", v => v.toFixed(0) + "\u00b0"],
   ["sScrollPx", "vScrollPx", "scrollPx", v => v.toFixed(0) + " px"],
   ["sClutch", "vClutch", "clutchPct", v => v.toFixed(0) + "%"],
 ];
@@ -2112,6 +2121,7 @@ $("copyBtn").addEventListener("click", async () => {
     gravity_tau_s: 0.2,
     deadzone_dps: S.deadzone,
     touch_guard_ms: S.guard,
+    motion_scroll_degrees_per_notch: S.motionScrollDeg,
     scroll_px_per_notch: S.scrollPx,
     scroll_invert: S.scrollInvert,
     scroll_strip: S.scrollStrip,
@@ -2853,6 +2863,7 @@ window.wandBridge = {
   connection: () => ws?.readyState === 1 ? "Connected" : $("stateText").textContent,
   stop() {cancelAction("Action stopped.");for(const release of dialTaps)release();dialTaps.clear();},
   scrollPixels: () => Math.max(5,S.scrollPx),
+  motionScrollDegrees: () => S.motionScrollDeg,
   motionEnabled: () => freeMotion,
   scrolling(on) {dialScrolling=on;engageT=performance.now();fYaw.reset();fPitch.reset();},
   motion(on) { freeMotion=on; sentLog=[]; engageT=performance.now();fYaw.reset();fPitch.reset(); },

@@ -110,7 +110,7 @@ The main interface is a graphite rotary dial. Left Click has the largest touch
 surface; Mic is the large inner circle; Right Click is the smaller circle inside
 Mic. Only the innermost surface under your finger receives a press.
 
-- **Motion button (pause/play icon in the control dock):** after START and the first connection, the cursor follows
+- **Motion button (pause/play icon):** after START and the first connection, the cursor follows
   your hand without a held move button. Tap Motion to pause, reposition your
   hand, then resume. Resuming resets the motion filter to prevent a jump.
   Disconnecting, leaving the page, editing, or opening menus pauses motion;
@@ -126,13 +126,21 @@ Mic. Only the innermost surface under your finger receives a press.
   the screen is short, **Next** cycles through the remaining shortcut pages.
   Dragging off a shortcut cancels it. Keyboard users can Tab to a button and
   press Enter or Space.
-- **Scroll:** select Scroll, then rotate the broad outer surface. No mouse button
-  is pressed, and pointer movement pauses while the scroll gesture is active.
-  Mic and Right Click still work. Click returns the surface to its own assignment (Left Click by default).
-  Scroll speed and inversion use the settings drawer.
+- **Scroll:** hold the smaller Scroll circle near the bottom of the wheel and
+  aim the phone up or down. Up scrolls up; down scrolls down. Sideways motion is
+  ignored. The pointer stays still while held, and release returns to its prior
+  motion preference with no accumulated jump. Release to reset your wrist, then
+  hold again. This replaces the Click/Scroll toggle and finger-rotation gesture;
+  the large pad keeps its own assignment. Engraved dial marks appear while held.
+  A short touch guard, tremor dead zone, smoothing, and six-notch-per-second cap
+  keep the response controlled. **Settings & calibration > Motion scroll** adjusts
+  the movement per notch (9 degrees by default; higher is slower). Invert scroll
+  reverses direction independently of pointer inversion. Keyboard users can hold
+  Space or Enter while the Scroll button has focus. Menus, editing, lost capture,
+  hiding the page, or disconnecting cancel the hold; no scrolling continues afterward.
 - **Menu:** saved grips, Edit layout, Shortcuts & macros, and Settings & calibration.
-  The old title and bottom navigation are removed. Click/Scroll and Motion have
-  compact controls; existing wheel sizes and positions are retained.
+  The old title and bottom navigation are removed. The existing wheel sizes and
+  positions are retained when the separate Scroll button is added.
   Shortcuts & macros contains Copy/Paste/Undo/Redo and up to 32 macros.
   Built-in shortcuts automatically use Command on Mac. Literal custom shortcuts
   keep their configured modifiers. A macro runs on a completed tap; canceling
@@ -145,8 +153,8 @@ Liquid has a moving waterline, refracted highlights, and touch ripples; phone ti
 adds a damped slosh using the motion permission already granted at Start. Smoke
 uses flowing silver wisps. Hand rotation stirs both materials, then the motion settles
 when the hand stops. Holding the Mic adds a soft silver highlight. The glass and
-controls use a dark charcoal palette. Scroll mode reveals engraved dial marks
-that follow the scroll gesture, with reduced motion keeping the marks stationary.
+controls use a dark charcoal palette. Holding Scroll reveals engraved dial marks
+that follow the phone motion, with reduced motion keeping the marks stationary.
 These are decorative effects: they cannot send input or change saved grip geometry.
 The material choice saves separately from layouts and macros.
 
@@ -170,13 +178,15 @@ for every main-button press. Feedback choices save with the phone settings.
 Tap **Menu > Edit layout**. Drag the large wheel, Mic circle, or Right Click circle to position
 it; drag its light resize handle to change its size. All computer input is paused
 while editing. The circles remain nested and the small button stays on screen.
-Drag Click/Scroll and Motion by their dotted handles or directly by their bodies;
-they move independently, and moving them does not move the wheels. You can also
+Drag Scroll directly and resize it with its light handle. Move Motion by its
+dotted handle or body; moving either control does not move the other wheels.
+Scroll stays outside Mic and Right Click. In unusually tight custom grips, it
+uses the nearest clear space beside the wheel if it cannot fit inside. You can also
 drag rim keys onto one another to reorder them right on the dial. Save layout
 keeps all these changes; Cancel restores the previous grip.
 
 **Sizes & actions** provides independent size and position sliders, positions for
-both control widgets, a grip name, independent assignments for all three circle
+Scroll and Motion, a grip name, independent assignments for the three main circle
 surfaces, and the rim shortcut list. Drag action rows or use the up/down arrows to reorder them. Remove
 unwanted actions or add any available shortcut or macro. **Large pad assignment** defaults to
 Left Click and can be customized independently of the rim keys. **Back to dial** returns

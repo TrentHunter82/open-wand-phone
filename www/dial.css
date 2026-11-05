@@ -30,9 +30,6 @@ body.dial-view {background:#27282c;color:#f1ede5;}
 .dial-rim-key.active .dial-key-face {filter:brightness(.82);stroke:#a5a7ad;}
 .dial-rim-key:focus-visible {outline:none;}
 .dial-rim-key:focus-visible .dial-key-face {stroke:#edb19a;stroke-width:2;}
-.dial-mode {position:absolute;pointer-events:auto;display:flex;padding:4px!important;border-radius:24px!important;box-shadow:inset 3px 3px 7px #1a1b1f,inset -2px -2px 6px #45464b!important;background:#292a2e!important;}
-#dialRoot .dial-mode button {box-shadow:none;background:transparent;min-height:38px;padding:7px 13px;font-size:14px;}
-#dialRoot .dial-mode button[aria-pressed=true] {background:linear-gradient(145deg,#4b4c51,#393a3f);box-shadow:3px 3px 7px #1b1c20,inset 0 1px 1px #626367;}
 #dialRoot #dialMotion {position:absolute;pointer-events:auto;min-width:46px;width:46px;height:46px;padding:8px;border-radius:17px;font-size:19px;display:flex;align-items:center;justify-content:center;}
 #dialMotion .dial-dot {position:absolute;top:6px;right:6px;width:5px;height:5px;}
 #dialMotion .dial-dot {background:#85858b;}
@@ -93,9 +90,6 @@ body.dial-view {background:#090909;color:#ededed;}
 #dialRoot button {background:linear-gradient(160deg,#3a3a3ad9 0%,#252525ed 45%,#161616 100%);box-shadow:0 3px 0 #080808,0 7px 13px #0009,inset 0 1px 1px #ffffff30,inset 0 -1px 1px #000c,inset 0 0 0 1px #ffffff10;border:0;}
 #dialRoot button[aria-pressed=true] {background:linear-gradient(160deg,#414141,#262626);}
 #dialRoot:not(.editing) > :not(#dialMenu) button:active {transform:translateY(2px);box-shadow:0 1px 0 #080808,0 3px 7px #0009,inset 0 1px 3px #0008;}
-#dialRoot .dial-mode {background:#101010!important;box-shadow:inset 0 2px 5px #000b,inset 0 -1px 1px #ffffff12!important;}
-#dialRoot .dial-mode button {border:0;}
-#dialRoot .dial-mode button[aria-pressed=true] {background:linear-gradient(160deg,#484848,#292929 60%,#202020);box-shadow:0 2px 2px #0009,inset 0 1px 1px #ffffff38,inset 0 -1px 1px #111;}
 #dialRoot #dialMenu {background:linear-gradient(145deg,#272727fa,#141414fa);border-color:#ffffff20;box-shadow:0 15px 40px #000c,inset 0 1px 1px #ffffff1f;}
 #dialRoot #dialMenu button {background:transparent;border:0;box-shadow:none;}
 #dialRoot #dialMenu button:hover,#dialRoot #dialMenu button:focus-visible {background:#ffffff10;}

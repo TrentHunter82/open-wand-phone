@@ -27,6 +27,14 @@ test('existing shortcuts and motion tuning survive migration', () => {
   assert.equal(h.eval('S.reach'), 123);
   assert.equal(h.eval('S.redoCombo'), 'ctrl+y');
   assert.equal(h.eval('S.macros.length'), 0);
+  assert.equal(h.eval('S.motionScrollDeg'), 9);
+});
+
+test('motion-scroll speed saves independently and invalid stored speeds are bounded',()=>{
+  for(const [stored,expected] of [[12,12],[1,6],[99,18],['fast',9],[null,9]]){
+    const h=harness({motionScrollDeg:stored,reach:123});
+    assert.equal(h.eval('S.motionScrollDeg'),expected);assert.equal(h.eval('S.reach'),123);
+  }
 });
 
 test('macro validation rejects unknown, empty and excessive steps', () => {
