@@ -3,13 +3,13 @@
   'use strict';
   const clamp = (n, lo, hi, fallback) => Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : fallback;
   const defaults = (orientation) => ({x:.96,y:.53,r:.94,bw:.17,mx:-.13,my:0,mr:.41,rx:0,ry:.45,rr:.38,
-    scrollX:.045,scrollY:.18,motionX:.045,motionY:.9,dockX:.04,dockY:.055,
+    scrollX:.045,scrollY:.18,motionX:.045,motionY:.9,motionFree:0,dockX:.04,dockY:.055,
     ...(orientation==='landscape'?{x:.68,y:.54,scrollX:.2,scrollY:.34,motionX:.25,motionY:.65}:{})});
   const baseOrder = ['left','key:enter','key:space','key:backspace','copy','paste','undo','redo'];
   function view(value = {}) {
     const d = defaults(), out = {};
     const limits = {x:[.25,1.25],y:[.28,.75],r:[.5,1.3],bw:[.1,.25],mx:[-.6,.6],my:[-.6,.6],mr:[.25,.65],
-      rx:[-.6,.6],ry:[-.6,.6],rr:[.25,.55],scrollX:[0,.7],scrollY:[.12,.85],motionX:[0,.7],motionY:[.12,.9],dockX:[0,.8],dockY:[.03,.85]};
+      rx:[-.6,.6],ry:[-.6,.6],rr:[.25,.55],scrollX:[0,.7],scrollY:[.12,.85],motionX:[0,.9],motionY:[.03,.9],motionFree:[0,1],dockX:[0,.8],dockY:[.03,.85]};
     for (const [k,[lo,hi]] of Object.entries(limits)) out[k]=clamp(value?.[k],lo,hi,d[k]);
     // Keep nested buttons within their parents with a usable surrounding band.
     for (const [x,y,limit] of [['mx','my',1-out.bw-out.mr],['rx','ry',.92-out.rr]]) {
@@ -23,7 +23,7 @@
     return {id:'p'+i,name:typeof p.name==='string' ? p.name.slice(0,24) : 'My grip',
       views:{portrait:view(p.views?.portrait),landscape:view(p.views?.landscape || defaults("landscape"))},
       order:Array.isArray(p.order) ? [...new Set(p.order.filter(s=>typeof s==='string' && s.length<100))].slice(0,64) : [...baseOrder],
-      inner:typeof p.inner==='string' ? p.inner : 'mic',right:typeof p.right==='string' ? p.right : 'right',
+      outer:typeof p.outer==='string' ? p.outer : 'left',inner:typeof p.inner==='string' ? p.inner : 'mic',right:typeof p.right==='string' ? p.right : 'right',
       hidden:Array.isArray(p.hidden)?p.hidden.filter(s=>typeof s==='string').slice(0,64):[],
       selected:typeof p.selected==='string' ? p.selected : 'left'};
   }
@@ -50,7 +50,45 @@
     if(from<0 || from>=out.length || to<0 || to>=out.length) return out;
     out.splice(to,0,out.splice(from,1)[0]);return out;
   }
-  const api={defaults,baseOrder,view,preset,normalize,geometry,delta,reorder};
+  const overlaps=(a,b,gap=0)=>a.x<b.x+b.w+gap&&a.x+a.w+gap>b.x&&a.y<b.y+b.h+gap&&a.y+a.h+gap>b.y;
+  function placeControl(rect,bounds,obstacles=[]) {
+    const cx=x=>Math.max(bounds.left,Math.min(bounds.right-rect.w,x)),cy=y=>Math.max(bounds.top,Math.min(bounds.bottom-rect.h,y));
+    const xs=[cx(rect.x)],ys=[cy(rect.y)];
+    for(const o of obstacles){xs.push(cx(o.x-rect.w-8),cx(o.x+o.w+8));ys.push(cy(o.y-rect.h-8),cy(o.y+o.h+8));}
+    const choices=xs.flatMap(x=>ys.map(y=>({...rect,x,y}))).sort((a,b)=>Math.hypot(a.x-rect.x,a.y-rect.y)-Math.hypot(b.x-rect.x,b.y-rect.y));
+    return choices.find(r=>!obstacles.some(o=>overlaps(r,o,6)))||choices[0];
+  }
+  function rimKeys(g,w,h,obstacles=[]) {
+    const radius=(g.r+g.clickR)/2,kw=Math.max(62,Math.min(100,radius*.42*.88)),kh=Math.max(28,Math.min(42,g.bezelWidth-10));
+    const candidates=[],side=g.cx>w/2?Math.PI:0;
+    // Sample the reachable half of the rim, reserving space for floating controls.
+    for(let offset=1.45;offset>=-1.45;offset-=.02){
+      const angle=side+offset,x=g.cx+Math.cos(angle)*radius,y=g.cy+Math.sin(angle)*radius;
+      let rotation=((angle*180/Math.PI-270+540)%360)-180;
+      if(rotation>90)rotation-=180;if(rotation<-90)rotation+=180;
+      const a=rotation*Math.PI/180,bw=Math.abs(Math.cos(a))*kw+Math.abs(Math.sin(a))*kh,bh=Math.abs(Math.sin(a))*kw+Math.abs(Math.cos(a))*kh;
+      const box={x:x-bw/2,y:y-bh/2,w:bw,h:bh};
+      if(box.x<8||box.y<8||box.x+bw>w-8||box.y+bh>h-8||obstacles.some(o=>overlaps(box,o,5)))continue;
+      candidates.push({x,y,rotation,angle,box,kw,kh});
+    }
+    let best=[];
+    for(let seed=0;seed<Math.min(20,candidates.length);seed++){
+      const chosen=[];
+      for(const c of candidates.slice(seed))if(!chosen.length||Math.abs(c.angle-chosen.at(-1).angle)*radius>=kw+10){
+        if(!chosen.some(p=>overlaps(p.box,c.box,4)))chosen.push(c);
+      }
+      if(chosen.length>best.length)best=chosen;
+    }
+    return best.slice(0,8);
+  }
+  function rimPage(list, page, radius, width, available) {
+    const capacity=available===undefined?Math.max(3,Math.min(8,Math.floor((radius-width/2)*2.1/84)+1)):Math.max(2,Math.min(8,available));
+    const size=list.length>capacity?capacity-1:capacity;
+    const pages=Math.max(1,Math.ceil(list.length/size));
+    const index=((page%pages)+pages)%pages;
+    return {items:list.slice(index*size,(index+1)*size),index,pages,slots:pages>1?capacity:Math.max(1,list.length)};
+  }
+  const api={defaults,baseOrder,view,preset,normalize,geometry,delta,reorder,rimPage,placeControl,rimKeys};
   if(typeof module!=='undefined' && module.exports) module.exports=api;
   else root.DialModel=api;
 })(typeof window==='undefined' ? globalThis : window);

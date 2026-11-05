@@ -3,14 +3,14 @@ const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const script=require('node:fs').readFileSync(require('node:path').join(__dirname,'../www/index.html'),'utf8');
 function harness(){
-  const frames=[],runs=[];
+  const frames=[],runs=[],timers=[];
   const c=vm.createContext({window:{},ws:{readyState:1,send:m=>frames.push(JSON.parse(m))},send:m=>frames.push(m),
     freeMotion:false,dialScrolling:false,CAL:{on:false},LAYOUT:{editing:false},document:{hidden:false},
     $:()=>({hidden:true}),drawer:{classList:{contains:()=>false}},S:{scrollPx:30,scrollInvert:false},
     pressFeedback(){},haptic(){},dialDetent(){},setMicUI(){},performance:{now:()=>1000},fYaw:{reset(){}},fPitch:{reset(){}},sentLog:[],engageT:0,
-    runAction:(name,steps)=>runs.push({name,steps}),openActions(){},openDrawer(){},cancelAction(){}});
+    setTimeout:fn=>timers.push(fn),runAction:(name,steps)=>runs.push({name,steps}),openActions(){},openDrawer(){},cancelAction(){}});
   vm.runInContext(script.slice(script.indexOf('const dialHeld ='),script.indexOf('</script>',script.indexOf('const dialHeld ='))),c);
-  return {c,frames,runs,run:s=>vm.runInContext(s,c)};
+  return {c,frames,runs,timers,run:s=>vm.runInContext(s,c)};
 }
 test('two fingers sharing Mic retain F8 until both release; duplicate releases are harmless',()=>{
   const h=harness();
@@ -30,4 +30,18 @@ test('macros run only on completed taps and cannot replay across reconnects',()=
 test('offline and calibration touches cannot send button frames',()=>{
   const h=harness();h.run('ws.readyState=3;window.wandBridge.press({button:"l"})();ws.readyState=1;CAL.on=true;window.wandBridge.press({button:"r"})()');
   assert.equal(h.frames.length,0);
+});
+
+test('direct shortcut taps send their own key and can be stopped without a stuck press',()=>{
+  const h=harness();h.run('window.wandBridge.tap({name:"Enter",key:"enter"})');
+  assert.deepEqual(h.frames.map(f=>[f.key,f.s]),[['enter',1]]);
+  h.run('window.wandBridge.stop()');h.timers.shift()();
+  assert.deepEqual(h.frames.map(f=>[f.key,f.s]),[['enter',1],['enter',0]]);
+});
+
+test('rapid direct taps remain separate and macros still use the safe sequence runner',()=>{
+  const h=harness();h.run('window.wandBridge.tap({button:"l"});window.wandBridge.tap({button:"l"})');
+  h.timers.forEach(fn=>fn());
+  assert.deepEqual(h.frames.map(f=>f.s),[1,0,1,0]);
+  h.run('window.wandBridge.tap({name:"Copy",steps:["ctrl+c"]})');assert.equal(h.runs.length,1);
 });

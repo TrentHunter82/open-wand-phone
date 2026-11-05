@@ -13,7 +13,10 @@ body.dial-view {background:#27282c;color:#f1ede5;}
 #dialRoot button[aria-pressed=true] {background:linear-gradient(145deg,#44454b,#323338);}
 .dial-header {position:absolute;z-index:12;top:max(12px,env(safe-area-inset-top));left:16px;right:14px;display:flex;justify-content:space-between;gap:8px;align-items:center;pointer-events:none;}
 .dial-header button {pointer-events:auto;}
-.dial-connection {font-size:12px;color:#bdbcc1;display:flex;gap:7px;align-items:center;}
+.dial-connection {font-size:12px;color:#bdbcc1;display:flex;gap:7px;align-items:center;min-width:0;}
+#dialConnection {min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#dialRoot.editing .dial-connection {max-width:calc(100% - 190px);}
+.dial-header > button {flex:none;}
 .dial-dot {width:8px;height:8px;border-radius:50%;background:#85858b;display:inline-block;}
 .dial-dot.connected {background:#f3977e;}
 #dialStage {position:absolute;inset:0;width:100%;height:100%;touch-action:none;}
@@ -22,11 +25,15 @@ body.dial-view {background:#27282c;color:#f1ede5;}
 .dial-press {cursor:pointer;}
 .dial-press.active {transform:translate(1px,2px);}
 .dial-press.active > .dial-surface {filter:brightness(.94);}
-.dial-bezel {cursor:grab;}
-.dial-mode {position:relative;display:flex;padding:4px!important;border-radius:24px!important;box-shadow:inset 3px 3px 7px #1a1b1f,inset -2px -2px 6px #45464b!important;background:#292a2e!important;}
+.dial-bezel {cursor:default;}
+.dial-rim-key {cursor:pointer;}
+.dial-rim-key.active .dial-key-face {filter:brightness(.82);stroke:#a5a7ad;}
+.dial-rim-key:focus-visible {outline:none;}
+.dial-rim-key:focus-visible .dial-key-face {stroke:#edb19a;stroke-width:2;}
+.dial-mode {position:absolute;pointer-events:auto;display:flex;padding:4px!important;border-radius:24px!important;box-shadow:inset 3px 3px 7px #1a1b1f,inset -2px -2px 6px #45464b!important;background:#292a2e!important;}
 #dialRoot .dial-mode button {box-shadow:none;background:transparent;min-height:38px;padding:7px 13px;font-size:14px;}
 #dialRoot .dial-mode button[aria-pressed=true] {background:linear-gradient(145deg,#4b4c51,#393a3f);box-shadow:3px 3px 7px #1b1c20,inset 0 1px 1px #626367;}
-#dialRoot #dialMotion {position:relative;min-width:46px;width:46px;height:46px;padding:8px;border-radius:17px;font-size:19px;display:flex;align-items:center;justify-content:center;}
+#dialRoot #dialMotion {position:absolute;pointer-events:auto;min-width:46px;width:46px;height:46px;padding:8px;border-radius:17px;font-size:19px;display:flex;align-items:center;justify-content:center;}
 #dialMotion .dial-dot {position:absolute;top:6px;right:6px;width:5px;height:5px;}
 #dialMotion .dial-dot {background:#85858b;}
 #dialMotion[aria-pressed=true] .dial-dot {background:#f3977e;}
@@ -41,15 +48,20 @@ body.dial-view {background:#27282c;color:#f1ede5;}
 #dialEditor input[type=text],#dialEditor select,#dialPresets input {width:100%;min-height:44px;background:#222327;border:1px solid #505157;border-radius:10px;padding:10px;font-size:16px;color:#f1ede5;}
 .dial-editor-head {display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;background:#28292e;padding-bottom:16px;z-index:1;}
 .dial-editor-head h2 {font-size:20px;margin:0;}
+.dial-editor-head h2 {min-width:0;overflow-wrap:anywhere;}
+.dial-editor-head button {flex:none;}
 .dial-order-row {display:flex;gap:6px;align-items:center;margin:8px 0;background:#313238;border-radius:12px;padding:8px;}
-.dial-order-row span {flex:1;}
+.dial-order-row span {flex:1;min-width:0;overflow-wrap:anywhere;}
+.dial-order-row button {flex:none;}
 .dial-order-row span {touch-action:none;cursor:grab;min-height:44px;display:flex;align-items:center;}
 .dial-order-row button {padding:8px!important;min-width:40px;box-shadow:none!important;background:#3c3d43!important;}
 #dialOrder {padding:0;list-style:none;}
-.dial-editbar {position:absolute;z-index:5;left:16px;right:16px;top:108px;display:flex;gap:8px;flex-wrap:wrap;}
-#dialRoot .dial-editbar button {font-size:12px;min-height:40px;padding:8px 12px;}
+.dial-editbar {position:absolute;z-index:8;right:14px;top:max(12px,env(safe-area-inset-top));display:flex;gap:8px;}
+#dialRoot .dial-editbar button {font-size:12px;min-height:44px;min-width:44px;padding:8px 12px;}
 .dial-hint {font-size:13px;color:#bbb9bf;line-height:1.5;}
-#dialDock {position:absolute;z-index:5;display:flex;gap:8px;align-items:center;}
+#dialDock {position:absolute;inset:0;z-index:5;pointer-events:none;}
+#dialRoot .dial-control-grip {position:absolute;z-index:6;pointer-events:auto;min-height:28px;width:28px;height:28px;padding:0;border-radius:50%;background:#d8cbb9;color:#292c32;box-shadow:0 2px 5px #1118;font-size:19px;cursor:grab;touch-action:none;}
+.dial-control-editing {outline:1px dashed #c9c1b4;outline-offset:4px;cursor:grab;}
 #dialRoot #dialMenuToggle {border-radius:16px;padding:8px 13px;min-height:44px;font-size:13px;}
 #dialMenu {position:absolute;top:max(66px,calc(env(safe-area-inset-top) + 54px));right:14px;z-index:20;width:min(280px,calc(100% - 28px));max-height:calc(100% - 90px);overflow-y:auto;touch-action:pan-y;padding:9px;border:1px solid #55565d;border-radius:22px;background:linear-gradient(145deg,#36373d,#27282d);box-shadow:10px 14px 35px #111216b0,inset 0 1px 1px #68696f;}
 #dialRoot #dialMenu button {display:block;position:static;width:100%;text-align:left;margin:0;padding:13px 12px;border-radius:12px;box-shadow:none;background:transparent;font-size:15px;}
@@ -61,5 +73,8 @@ body.dial-view {background:#27282c;color:#f1ede5;}
 .dial-menu-feedback p {color:#c0bcc0;font-size:12px;line-height:1.45;margin:5px 0;}
 #dialRoot button {box-shadow:5px 7px 12px #131418c9,-2px -3px 8px #4d4e545c,inset 0 1px 1px #7071787d,inset 0 -2px 2px #17181d8c;}
 #dialRoot.detent .dial-index {filter:drop-shadow(0 0 6px #f3977e);fill:#ffd0b6;}
-@media(max-height:500px){.dial-header{top:8px}.dial-connection{font-size:11px}.dial-editbar{top:98px}#dialRoot #dialMenuToggle{min-height:40px}.dial-menu-feedback p{font-size:11px}}
+@media(max-height:500px){.dial-header{top:8px}.dial-connection{font-size:11px}.dial-editbar{top:8px}#dialRoot #dialMenuToggle{min-height:40px}.dial-menu-feedback p{font-size:11px}}
 #dialPresets button {min-height:44px;margin:6px;padding:12px;background:#38393f;color:#eee7df;border:0;border-radius:12px;font-size:16px;}
+#dialPresets button {max-width:calc(100% - 12px);overflow-wrap:anywhere;}
+.dial-view .macro-card strong,.dial-view #macroList button {overflow-wrap:anywhere;}
+.dial-view #macroList button {max-width:calc(100% - 8px);}

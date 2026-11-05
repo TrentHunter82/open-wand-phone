@@ -120,17 +120,19 @@ Mic. Only the innermost surface under your finger receives a press.
   cursor. The nested Mic and Right Click regions have their own separate inputs.
 - **Mic:** hold to send F8, release to stop your existing dictation workflow.
 - **Right Click:** tap or hold the smaller nested circle.
-- **Rotary bezel:** turn the wide outside rim to select Enter, Space, Backspace,
-  Copy, Paste, Undo, Redo or a macro. The selected action appears on the large
-  surface; press that surface to send it. Turning the bezel only changes the
-  selection. Keyboard users can focus the bezel and use arrow keys.
+- **Rim shortcut buttons:** tap Enter, Space, Backspace, Copy, Paste, Undo,
+  Redo or a macro to run it immediately. The large pad stays Left Click by
+  default; these buttons never change its assignment. If the list is long or
+  the screen is short, **Next** cycles through the remaining shortcut pages.
+  Dragging off a shortcut cancels it. Keyboard users can Tab to a button and
+  press Enter or Space.
 - **Scroll:** select Scroll, then rotate the broad outer surface. No mouse button
   is pressed, and pointer movement pauses while the scroll gesture is active.
-  Mic and Right Click still work. Click returns the surface to its chosen action.
+  Mic and Right Click still work. Click returns the surface to its own assignment (Left Click by default).
   Scroll speed and inversion use the settings drawer.
 - **Menu:** saved grips, Edit layout, Shortcuts & macros, and Settings & calibration.
-  The old title and bottom navigation are removed. Click/Scroll and Motion share
-  one compact control dock; existing wheel sizes and positions are retained.
+  The old title and bottom navigation are removed. Click/Scroll and Motion have
+  compact controls; existing wheel sizes and positions are retained.
   Shortcuts & macros contains Copy/Paste/Undo/Redo and up to 32 macros.
   Built-in shortcuts automatically use Command on Mac. Literal custom shortcuts
   keep their configured modifiers. A macro runs on a completed tap; canceling
@@ -139,11 +141,11 @@ Mic. Only the innermost surface under your finger receives a press.
 ### Ring feedback
 
 Menu has independent **Ring haptics** and **Ring tick sound** options. Each
-selector notch produces a short visual pulse. Vibration is requested where the
+rim shortcut press produces a short visual pulse. Vibration is requested where the
 browser supports it; a native WebKit switch is also tried during an active user
 gesture when vibration is unavailable. This is best effort: newer Safari versions
 can suppress scripted switch haptics, and automated tests cannot confirm physical
-vibration. Optional tick sound supplies audible detents without enabling sounds
+vibration. Optional tick sound supplies audible feedback without enabling sounds
 for every main-button press. Feedback choices save with the phone settings.
 
 ### Customize and save your grip
@@ -151,14 +153,23 @@ for every main-button press. Feedback choices save with the phone settings.
 Tap **Menu > Edit layout**. Drag the large wheel, Mic circle, or Right Click circle to position
 it; drag its light resize handle to change its size. All computer input is paused
 while editing. The circles remain nested and the small button stays on screen.
+Drag Click/Scroll and Motion by their dotted handles or directly by their bodies;
+they move independently, and moving them does not move the wheels. You can also
+drag rim keys onto one another to reorder them right on the dial. Save layout
+keeps all these changes; Cancel restores the previous grip.
 
 **Sizes & actions** provides independent size and position sliders, positions for
-the control dock, a grip name, assignments for the inner circles, and the rotary
-action list. Drag action rows or use the up/down arrows to reorder them. Remove
-unwanted actions or add any available shortcut or macro. **Back to dial** returns
+both control widgets, a grip name, independent assignments for all three circle
+surfaces, and the rim shortcut list. Drag action rows or use the up/down arrows to reorder them. Remove
+unwanted actions or add any available shortcut or macro. **Large pad assignment** defaults to
+Left Click and can be customized independently of the rim keys. **Back to dial** returns
 to the preview; **Save layout** commits the whole edit, and **Cancel** discards it.
-**Function selector thickness** adjusts the width of the outer selection ring.
+**Function selector thickness** adjusts the width of the rim shortcut band.
 It starts wider for easier thumb access and saves separately for each orientation.
+Labels fit their surfaces, wrap or shorten long action names, and avoid the nested
+circles and floating controls. Full action names remain available to screen readers.
+The floating controls stay clear of each other and the header. Rim buttons use the
+available arc without covering controls; additional actions remain reachable with Next.
 
 **Menu > Saved grips** opens saved presets. Save a copy to create another grip, then edit
 and rename it. Up to eight presets are supported. Each preset keeps separate
@@ -175,13 +186,14 @@ still appears inside calibration so reach measurements remain controlled.
 
 In **Menu > Shortcuts & macros > Create macro button**, enter a name and a comma-separated sequence,
 for example `ctrl+a, ctrl+c` on Windows or `cmd+a, cmd+c` on Mac. Check **Show on
-rotary dial** to add it to the bezel, then **Save macro**. That panel also lets you edit,
+rim** to add it to the rim shortcuts, then **Save macro**. That panel also lets you edit,
 run, delete, pin or unpin macros. Edit > Sizes & actions controls their dial order.
 Existing macros and hotkey assignments are retained.
 
 Macros support up to 12 shortcuts. Each shortcut is held for 80 ms, released,
 then followed by a 120 ms pause. They target the focused computer app; they do
 not wait for dialogs and cannot run arbitrary scripts or type free-form text.
+A new rim shortcut or manual press interrupts an earlier sequence safely.
 Closing the panel, pausing motion, opening an editor, hiding the page or losing
 the connection cancels any active sequence and releases held input. Already-sent
 steps are not undone, and canceled sequences never replay on reconnection.

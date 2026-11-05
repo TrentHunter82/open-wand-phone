@@ -47,3 +47,43 @@ test('adding or moving the control dock preserves an existing custom wheel layou
   for(const key of ['x','y','r','bw','mx','my','mr','rx','ry','rr'])assert.equal(p.views.portrait[key],saved[key]);
   assert.deepEqual(M.geometry(p.views.portrait,375,667),M.geometry({...p.views.portrait,dockX:.4,dockY:.4},375,667));
 });
+
+test('large pad defaults to Left Click independently of the old rotary selection',()=>{
+  const d=M.normalize({presets:[{selected:'copy'}]});assert.equal(d.presets[0].outer,'left');
+  d.presets[0].outer='key:enter';assert.equal(M.normalize(d).presets[0].outer,'key:enter');
+});
+
+test('every rim action remains reachable on small screens and macro-heavy layouts',()=>{
+  for(const size of [1,8,40])for(const r of [187,320,366]){
+    const ids=Array.from({length:size},(_,i)=>'a'+i),first=M.rimPage(ids,0,r,50),seen=[];
+    for(let page=0;page<first.pages;page++)seen.push(...M.rimPage(ids,page,r,50).items);
+    assert.deepEqual(seen,ids);assert.deepEqual(M.rimPage(ids,first.pages,r,50).items,first.items);
+  }
+});
+
+test('floating controls find nearby space clear of other controls and the header',()=>{
+  const bounds={left:10,top:74,right:310,bottom:548},blocks=[{x:146,y:74,w:46,h:46},{x:138,y:12,w:168,h:44}];
+  const target={x:150,y:80,w:122,h:46},placed=M.placeControl(target,bounds,blocks);
+  const overlap=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+  assert.equal(blocks.some(b=>overlap(placed,b)),false);
+  assert.ok(placed.x>=bounds.left&&placed.x+placed.w<=bounds.right&&placed.y>=bounds.top&&placed.y+placed.h<=bounds.bottom);
+  const clear={x:10,y:220,w:122,h:46};assert.deepEqual(M.placeControl(clear,bounds,blocks),clear);
+  assert.deepEqual(target,{x:150,y:80,w:122,h:46});
+});
+
+test('rim keys fit the viewport and leave labels clear of controls in customized layouts',()=>{
+  const overlap=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+  for(const [w,h] of [[320,568],[375,667],[390,844],[844,390]])for(const x of [.25,.96,1.25])for(const r of [.5,.94,1.3]){
+    const g=M.geometry(M.view({...M.defaults(w>h?'landscape':'portrait'),x,r}),w,h);
+    const blocks=[{x:10,y:12,w:100,h:30},{x:130,y:12,w:180,h:44},{x:10,y:74,w:130,h:46},{x:148,y:74,w:46,h:46}];
+    const keys=M.rimKeys(g,w,h,blocks);assert.ok(keys.length>=2);
+    keys.forEach((k,i)=>{
+      assert.ok(k.box.x>=8&&k.box.y>=8&&k.box.x+k.box.w<=w-8&&k.box.y+k.box.h<=h-8);
+      assert.equal(blocks.some(b=>overlap(k.box,b)),false);
+      assert.equal(keys.slice(i+1).some(other=>overlap(k.box,other.box)),false);
+    });
+    const ids=Array.from({length:40},(_,i)=>'macro:'+i),first=M.rimPage(ids,0,g.r,g.bezelWidth,keys.length),seen=[];
+    for(let page=0;page<first.pages;page++)seen.push(...M.rimPage(ids,page,g.r,g.bezelWidth,keys.length).items);
+    assert.deepEqual(seen,ids);assert.ok(first.slots<=keys.length);
+  }
+});
