@@ -144,6 +144,8 @@ both mode switches, a grip name, assignments for the inner circles, and the rota
 action list. Drag action rows or use the up/down arrows to reorder them. Remove
 unwanted actions or add any available shortcut or macro. **Back to dial** returns
 to the preview; **Save layout** commits the whole edit, and **Cancel** discards it.
+**Function selector thickness** adjusts the width of the outer selection ring.
+It starts wider for easier thumb access and saves separately for each orientation.
 
 **My grip** opens saved presets. Save a copy to create another grip, then edit
 and rename it. Up to eight presets are supported. Each preset keeps separate

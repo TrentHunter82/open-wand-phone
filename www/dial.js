@@ -53,7 +53,7 @@
     <label for="dialAddAction">Add a shortcut or macro</label><select id="dialAddAction"></select><button id="dialAdd">Add action</button><button id="dialReset">Reset this orientation</button>
     <p class="dial-hint">Create custom macros in More. Save this grip, then use the grip menu to save a copy (up to eight presets).</p>
   </section><section id="dialPresets" hidden aria-label="Saved grips"><h2>Saved grips</h2><div id="dialPresetList"></div><button id="dialPresetCopy">Save a copy of current grip</button><button id="dialPresetClose">Back</button></section>`);
-  const sliders=[['r','Outer wheel size',.5,1.3],['mr','Mic circle size',.25,.65],['rr','Right Click size',.25,.55],
+  const sliders=[['r','Outer wheel size',.5,1.3],['bw','Function selector thickness',.1,.25],['mr','Mic circle size',.25,.65],['rr','Right Click size',.25,.55],
     ['x','Wheel horizontal position',.25,1.25],['y','Wheel vertical position',.28,.75],
     ['mx','Mic horizontal offset',-.6,.6],['my','Mic vertical offset',-.6,.6],
     ['rx','Right Click horizontal offset',-.6,.6],['ry','Right Click vertical offset',-.6,.6],
@@ -86,16 +86,17 @@
     const ids=order();if(!ids.includes(p.selected))p.selected=ids[0]||'left';
     const selected=action(p.selected)||action('left'),inner=action(p.inner)||action('mic'),right=action(p.right)||action('right');
     const font=Math.max(14,Math.min(25,w*.055)),selectedIndex=Math.max(0,ids.indexOf(p.selected));
-    const ringR=g.r*.91;
+    const ringR=g.clickR;
     let svg=`<defs><radialGradient id="dialBg" cx="27%" cy="12%" r="100%"><stop stop-color="#4b4c51"/><stop offset=".35" stop-color="#37383e"/><stop offset=".82" stop-color="#303137"/><stop offset="1" stop-color="#202125"/></radialGradient><linearGradient id="dialInner" x2=".8" y2="1"><stop stop-color="#4b4c51"/><stop offset=".25" stop-color="#37383d"/><stop offset="1" stop-color="#232428"/></linearGradient><filter id="dialShadow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="5" dy="8" stdDeviation="7" flood-color="#111216" flood-opacity=".8"/></filter></defs>`;
     svg+=`<g class="dial-bezel" data-zone="bezel" role="slider" tabindex="0" aria-label="Rotary action selector" aria-valuemin="1" aria-valuemax="${ids.length}" aria-valuenow="${selectedIndex+1}" aria-valuetext="${escape(selected.name)}"><circle cx="${g.cx}" cy="${g.cy}" r="${g.r}" fill="#24252a" stroke="#414248" stroke-width="1.5"/>`;
     for(let i=-4;i<=4;i++){
       const angle=(g.cx>w/2?Math.PI:0)+i*.39,idx=(selectedIndex+i+ids.length*10)%ids.length,a=action(ids[idx]);
       if(!a || Math.abs(i)>Math.floor((ids.length-1)/2))continue;
-      const x=g.cx+Math.cos(angle)*g.r*.958,y=g.cy+Math.sin(angle)*g.r*.958;
+      const labelR=(g.r+ringR)/2;
+      const x=g.cx+Math.cos(angle)*labelR,y=g.cy+Math.sin(angle)*labelR;
       const rotation=angle*180/Math.PI-270;
       const bezelName=a.name.length>12?a.name.slice(0,11)+'…':a.name;
-      svg+=`<text class="dial-label" x="${x}" y="${y}" font-size="${Math.max(9,Math.min(w*.034,g.r*.06))}" transform="rotate(${rotation} ${x} ${y})" ${i===0?'fill="#f3977e"':''}>${escape(bezelName)}</text>`;
+      svg+=`<text class="dial-label" x="${x}" y="${y}" font-size="${Math.max(9,Math.min(w*.037,g.r*.06))}" transform="rotate(${rotation} ${x} ${y})" ${i===0?'fill="#f3977e"':''}>${escape(bezelName)}</text>`;
     }
     svg+='</g>';
     svg+=`<g data-zone="outer" class="dial-press" role="button" tabindex="0" aria-label="${escape(scroll?'Rotate to scroll':selected.name)}"><circle class="dial-surface" cx="${g.cx}" cy="${g.cy}" r="${ringR}" fill="url(#dialBg)" stroke="#48494e" stroke-width="1" filter="url(#dialShadow)"/>`;
