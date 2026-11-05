@@ -3,13 +3,13 @@
   'use strict';
   const clamp = (n, lo, hi, fallback) => Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : fallback;
   const defaults = (orientation) => ({x:.96,y:.53,r:.94,bw:.17,mx:-.13,my:0,mr:.41,rx:0,ry:.45,rr:.38,
-    scrollX:.045,scrollY:.18,motionX:.045,motionY:.9,
+    scrollX:.045,scrollY:.18,motionX:.045,motionY:.9,dockX:.04,dockY:.055,
     ...(orientation==='landscape'?{x:.68,y:.54,scrollX:.2,scrollY:.34,motionX:.25,motionY:.65}:{})});
   const baseOrder = ['left','key:enter','key:space','key:backspace','copy','paste','undo','redo'];
   function view(value = {}) {
     const d = defaults(), out = {};
     const limits = {x:[.25,1.25],y:[.28,.75],r:[.5,1.3],bw:[.1,.25],mx:[-.6,.6],my:[-.6,.6],mr:[.25,.65],
-      rx:[-.6,.6],ry:[-.6,.6],rr:[.25,.55],scrollX:[0,.7],scrollY:[.12,.85],motionX:[0,.7],motionY:[.12,.9]};
+      rx:[-.6,.6],ry:[-.6,.6],rr:[.25,.55],scrollX:[0,.7],scrollY:[.12,.85],motionX:[0,.7],motionY:[.12,.9],dockX:[0,.8],dockY:[.03,.85]};
     for (const [k,[lo,hi]] of Object.entries(limits)) out[k]=clamp(value?.[k],lo,hi,d[k]);
     // Keep nested buttons within their parents with a usable surrounding band.
     for (const [x,y,limit] of [['mx','my',1-out.bw-out.mr],['rx','ry',.92-out.rr]]) {

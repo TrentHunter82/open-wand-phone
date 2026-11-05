@@ -5,14 +5,14 @@
   let data;try{data=M.normalize(JSON.parse(localStorage.getItem(STORAGE)));}catch{data=M.normalize();}
   let editing=false,draft=null,before=null,scroll=false,firstConnection=true,settingsOpen=false;
   const pointers=new Map();
-  let geometry=null,resizeFrame=0;
+  let geometry=null,resizeFrame=0,noticeTimer=0,feedbackTimer=0,menuOpen=false,swallowMenuClick=false;
   const current=()=>editing?draft:data.presets[data.current];
   const orientation=()=>innerWidth>innerHeight?'landscape':'portrait';
   let editOrientation=orientation();
   const view=()=>current().views[editing?editOrientation:orientation()];
   function persist(){try{localStorage.setItem(STORAGE,JSON.stringify(data));return true;}
     catch{notice('Safari could not save this layout. It works for this session.');return false;}}
-  function notice(text){$('dialNotice').textContent=text;}
+  function notice(text){clearTimeout(noticeTimer);$('dialNotice').textContent=text;$('dialNotice').classList.add('show');noticeTimer=setTimeout(()=>$('dialNotice').classList.remove('show'),2200);}
   function escape(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   const micIcon=(x,y,s=1)=>`<g transform="translate(${x} ${y}) scale(${s})" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" pointer-events="none"><rect x="-5" y="-15" width="10" height="20" rx="5" fill="currentColor" stroke="none"/><path d="M-10 -3v3a10 10 0 0 0 20 0v-3M0 10v8M-6 18H6"/></g>`;
   function actions(){return B.actions();}
@@ -22,13 +22,11 @@
     return result.length?result:['left'];}
   const initialHTML=`<div id="dialRoot">
     <svg id="dialStage" xmlns="http://www.w3.org/2000/svg" aria-label="Air mouse dial"></svg>
-    <header class="dial-header"><div><div class="dial-brand">OPEN WAND</div><div class="dial-connection"><span id="dialConnectionDot" class="dial-dot"></span><span id="dialConnection">Offline</span></div></div><div class="dial-tools"><button id="dialMore">•••<br>More</button><button id="dialEdit">✎<br>Edit</button></div></header>
-    <button id="dialPreset" aria-label="Choose saved grip">My grip ▾</button>
-    <div id="dialMode" class="dial-mode" role="group" aria-label="Dial mode"><button id="dialClickMode" aria-pressed="true">Click</button><button id="dialScrollMode" aria-pressed="false">Scroll</button></div>
-    <button id="dialMotion" aria-pressed="false"><span class="dial-dot"></span><span id="dialMotionText">Motion paused</span><span aria-hidden="true">Ⅱ</span></button>
+    <header class="dial-header"><div class="dial-connection"><span id="dialConnectionDot" class="dial-dot"></span><span id="dialConnection">Offline</span></div><button id="dialMenuToggle" aria-expanded="false" aria-controls="dialMenu">Menu <span aria-hidden="true">⌄</span></button></header>
+    <nav id="dialMenu" hidden aria-label="Remote menu"><button id="dialEdit">Edit layout</button><button id="dialPreset" aria-label="Choose saved grip">Saved grips</button><button id="dialMore">Shortcuts & macros</button><button id="dialSettings">Settings & calibration</button><div class="dial-menu-feedback"><label><input id="dialRingHaptics" type="checkbox"> Ring haptics</label><label><input id="dialRingSound" type="checkbox"> Ring tick sound</label><p id="dialFeedbackHint"></p></div></nav>
+    <div id="dialDock" aria-label="Pointer controls"><div id="dialMode" class="dial-mode" role="group" aria-label="Dial mode"><button id="dialClickMode" aria-pressed="true">Click</button><button id="dialScrollMode" aria-pressed="false">Scroll</button></div><button id="dialMotion" aria-pressed="false" aria-label="Enable motion"><span class="dial-dot"></span><span id="dialMotionIcon" aria-hidden="true">▶</span></button></div>
     <div id="dialEditbar" class="dial-editbar" hidden><button id="dialCancel">Cancel</button><button id="dialCustomize">Sizes & actions</button><button id="dialSave">Save layout</button></div>
     <div id="dialNotice" role="status" aria-live="polite"></div>
-    <footer class="dial-footer"><button id="dialShortcuts">••• &nbsp; Shortcuts · Macros</button><button id="dialSettings">Settings</button></footer>
   </div>`;
   $('app').insertAdjacentHTML('beforeend',initialHTML);
   document.body.classList.add('dial-view');
@@ -36,7 +34,7 @@
   // for the calibration pad, without presenting inactive dial controls.
   for(const id of ['cTapClick','cDragLock','cStrip','cTwoFinger','cMirror','cShowHot'])$(id).closest('label').hidden=true;
   const clutchRow=$('sClutch').closest('.row');clutchRow.hidden=true;
-  const feedbackHint=$('hapticReal').closest('.realRow')?.nextElementSibling;
+  const feedbackHint=$('hapticReal').closest('#realRow')?.nextElementSibling;
   if(feedbackHint?.classList.contains('hint'))feedbackHint.textContent='The reference switch tests native switch feedback. Custom rotary surfaces use visual feedback and optional click sound; vibration depends on your browser.';
   const feedbackDetail=$('hapticSupport').previousElementSibling;
   if(feedbackDetail?.classList.contains('hint'))feedbackDetail.textContent='Enable Click sound on press for an audible response. The ringer switch can mute it, and Bluetooth audio may add a delay.';
@@ -51,20 +49,19 @@
     <div id="dialSliders"></div><label for="dialInnerAction">Mic circle assignment</label><select id="dialInnerAction"></select><label for="dialRightAction">Small circle assignment</label><select id="dialRightAction"></select>
     <h3>Rotary actions</h3><p class="dial-hint">Use the arrows or drag a row to reorder. The bezel selects an action; the large ring presses it.</p><ol id="dialOrder"></ol>
     <label for="dialAddAction">Add a shortcut or macro</label><select id="dialAddAction"></select><button id="dialAdd">Add action</button><button id="dialReset">Reset this orientation</button>
-    <p class="dial-hint">Create custom macros in More. Save this grip, then use the grip menu to save a copy (up to eight presets).</p>
+    <p class="dial-hint">Create custom macros in Menu → Shortcuts & macros. Save this grip, then use Menu → Saved grips to save a copy (up to eight presets).</p>
   </section><section id="dialPresets" hidden aria-label="Saved grips"><h2>Saved grips</h2><div id="dialPresetList"></div><button id="dialPresetCopy">Save a copy of current grip</button><button id="dialPresetClose">Back</button></section>`);
   const sliders=[['r','Outer wheel size',.5,1.3],['bw','Function selector thickness',.1,.25],['mr','Mic circle size',.25,.65],['rr','Right Click size',.25,.55],
     ['x','Wheel horizontal position',.25,1.25],['y','Wheel vertical position',.28,.75],
     ['mx','Mic horizontal offset',-.6,.6],['my','Mic vertical offset',-.6,.6],
     ['rx','Right Click horizontal offset',-.6,.6],['ry','Right Click vertical offset',-.6,.6],
-    ['scrollX','Mode switch horizontal position',0,.7],['scrollY','Mode switch vertical position',.12,.85],
-    ['motionX','Motion switch horizontal position',0,.7],['motionY','Motion switch vertical position',.12,.9]];
+    ['dockX','Control dock horizontal position',0,.8],['dockY','Control dock vertical position',.03,.85]];
   $('dialSliders').innerHTML=sliders.map(([key,label,min,max])=>`<label for="dialRange_${key}">${label}</label><input id="dialRange_${key}" type="range" min="${min}" max="${max}" step="0.01">`).join('');
   for(const [key] of sliders) $('dialRange_'+key).addEventListener('input',e=>{
     const v=view();v[key]=Number(e.target.value);Object.assign(v,M.view(v));render();
   });
   function setMotion(on){
-    if(on && (!B.ready() || editing || settingsOpen || B.busy())) {notice('Connect and close menus before enabling motion.');return;}
+    if(on && (!B.ready() || editing || settingsOpen || menuOpen || B.busy())) {notice('Connect and close menus before enabling motion.');return;}
     if(!on) {releaseAll();B.stop();}
     B.motion(!!on);renderState();
   }
@@ -72,7 +69,9 @@
   function renderState(){
     const live=B.motionEnabled();
     $('dialMotion').setAttribute('aria-pressed',String(live));
-    $('dialMotionText').textContent=live?'Motion ON':'Motion paused';
+    $('dialMotionIcon').textContent=live?'Ⅱ':'▶';
+    $('dialMotion').setAttribute('aria-label',live?'Pause motion':'Enable motion');
+    $('dialMotion').title=live?'Motion on — tap to pause':'Motion paused — tap to resume';
     $('dialConnection').textContent=B.connection();
     $('dialConnectionDot').classList.toggle('connected',B.ready());
   }
@@ -87,8 +86,14 @@
     const selected=action(p.selected)||action('left'),inner=action(p.inner)||action('mic'),right=action(p.right)||action('right');
     const font=Math.max(14,Math.min(25,w*.055)),selectedIndex=Math.max(0,ids.indexOf(p.selected));
     const ringR=g.clickR;
-    let svg=`<defs><radialGradient id="dialBg" cx="27%" cy="12%" r="100%"><stop stop-color="#4b4c51"/><stop offset=".35" stop-color="#37383e"/><stop offset=".82" stop-color="#303137"/><stop offset="1" stop-color="#202125"/></radialGradient><linearGradient id="dialInner" x2=".8" y2="1"><stop stop-color="#4b4c51"/><stop offset=".25" stop-color="#37383d"/><stop offset="1" stop-color="#232428"/></linearGradient><filter id="dialShadow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="5" dy="8" stdDeviation="7" flood-color="#111216" flood-opacity=".8"/></filter></defs>`;
-    svg+=`<g class="dial-bezel" data-zone="bezel" role="slider" tabindex="0" aria-label="Rotary action selector" aria-valuemin="1" aria-valuemax="${ids.length}" aria-valuenow="${selectedIndex+1}" aria-valuetext="${escape(selected.name)}"><circle cx="${g.cx}" cy="${g.cy}" r="${g.r}" fill="#24252a" stroke="#414248" stroke-width="1.5"/>`;
+    let svg=`<defs>
+      <radialGradient id="dialBg" cx="26%" cy="12%" r="95%"><stop stop-color="#62646b"/><stop offset=".22" stop-color="#47494f"/><stop offset=".67" stop-color="#34363c"/><stop offset=".92" stop-color="#292b30"/><stop offset="1" stop-color="#1b1d21"/></radialGradient>
+      <radialGradient id="dialInner" cx="28%" cy="14%" r="92%"><stop stop-color="#606269"/><stop offset=".24" stop-color="#45474e"/><stop offset=".78" stop-color="#303239"/><stop offset="1" stop-color="#1d1f24"/></radialGradient>
+      <radialGradient id="dialTrack" cx="42%" cy="40%" r="65%"><stop offset=".75" stop-color="#1e2025"/><stop offset=".92" stop-color="#2b2d33"/><stop offset="1" stop-color="#3c3e45"/></radialGradient>
+      <linearGradient id="dialBevel" x1="0" y1="0" x2=".65" y2="1"><stop stop-color="#91949f" stop-opacity=".68"/><stop offset=".4" stop-color="#60636d" stop-opacity=".2"/><stop offset=".75" stop-color="#16181e" stop-opacity=".8"/><stop offset="1" stop-color="#090b0f" stop-opacity=".95"/></linearGradient>
+      <filter id="dialShadow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="7" dy="12" stdDeviation="8" flood-color="#0a0c10" flood-opacity=".85"/><feDropShadow dx="-2" dy="-3" stdDeviation="3" flood-color="#8b8e98" flood-opacity=".16"/></filter>
+    </defs>`;
+    svg+=`<g class="dial-bezel" data-zone="bezel" role="slider" tabindex="0" aria-label="Rotary action selector" aria-valuemin="1" aria-valuemax="${ids.length}" aria-valuenow="${selectedIndex+1}" aria-valuetext="${escape(selected.name)}"><circle cx="${g.cx}" cy="${g.cy}" r="${g.r}" fill="url(#dialTrack)" stroke="url(#dialBevel)" stroke-width="2.5"/>`;
     for(let i=-4;i<=4;i++){
       const angle=(g.cx>w/2?Math.PI:0)+i*.39,idx=(selectedIndex+i+ids.length*10)%ids.length,a=action(ids[idx]);
       if(!a || Math.abs(i)>Math.floor((ids.length-1)/2))continue;
@@ -99,30 +104,36 @@
       svg+=`<text class="dial-label" x="${x}" y="${y}" font-size="${Math.max(9,Math.min(w*.037,g.r*.06))}" transform="rotate(${rotation} ${x} ${y})" ${i===0?'fill="#f3977e"':''}>${escape(bezelName)}</text>`;
     }
     svg+='</g>';
-    svg+=`<g data-zone="outer" class="dial-press" role="button" tabindex="0" aria-label="${escape(scroll?'Rotate to scroll':selected.name)}"><circle class="dial-surface" cx="${g.cx}" cy="${g.cy}" r="${ringR}" fill="url(#dialBg)" stroke="#48494e" stroke-width="1" filter="url(#dialShadow)"/>`;
+    svg+=`<g data-zone="outer" class="dial-press" role="button" tabindex="0" aria-label="${escape(scroll?'Rotate to scroll':selected.name)}"><circle class="dial-surface" cx="${g.cx}" cy="${g.cy}" r="${ringR}" fill="url(#dialBg)" stroke="url(#dialBevel)" stroke-width="4" filter="url(#dialShadow)"/>`;
     const leftEdge=Math.max(8,g.cx-ringR),rightEdge=Math.min(w-8,g.cx+ringR);
     const leftGap=Math.max(0,g.mx-g.mr-leftEdge),rightGap=Math.max(0,rightEdge-g.mx-g.mr);
     const labelX=leftGap>=rightGap?(leftEdge+g.mx-g.mr)/2:(rightEdge+g.mx+g.mr)/2;
     const outerFont=Math.min(font,Math.max(13,Math.max(leftGap,rightGap)*.18));
     if(!scroll && selected.id==='left') svg+=`<text class="dial-label" x="${labelX}" y="${g.cy-22}" font-size="${outerFont}" font-weight="750"><tspan x="${labelX}">LEFT CLICK</tspan><tspan x="${labelX}" dy="25" class="dial-secondary" font-size="11">tap · hold to drag</tspan></text></g>`;
     else svg+=label(labelX,g.cy-12,[scroll?'SCROLL':(selected.name.length>13?selected.name.slice(0,12)+'…':selected.name).toUpperCase(),scroll?'rotate the ring':selected.hint],outerFont)+'</g>';
-    svg+=`<g data-zone="inner" class="dial-press" role="button" tabindex="0" aria-label="${escape(inner.name)}"><circle class="dial-surface" cx="${g.mx}" cy="${g.my}" r="${g.mr}" fill="url(#dialInner)" stroke="#55565b" stroke-width="1" filter="url(#dialShadow)"/><g style="color:#eee6db">${p.inner==='mic'?micIcon(g.mx,g.my-g.mr*.58,.85):''}</g>`;
+    svg+=`<g data-zone="inner" class="dial-press" role="button" tabindex="0" aria-label="${escape(inner.name)}"><circle class="dial-surface" cx="${g.mx}" cy="${g.my}" r="${g.mr}" fill="url(#dialInner)" stroke="url(#dialBevel)" stroke-width="3" filter="url(#dialShadow)"/><g style="color:#eee6db">${p.inner==='mic'?micIcon(g.mx,g.my-g.mr*.58,.85):''}</g>`;
     svg+=label(g.mx,g.my-g.mr*.20,[inner.name.toUpperCase(),inner.hint],Math.min(font,g.mr*.19))+'</g>';
-    svg+=`<g data-zone="right" class="dial-press" role="button" tabindex="0" aria-label="${escape(right.name)}"><circle class="dial-surface" cx="${g.rx}" cy="${g.ry}" r="${g.rr}" fill="url(#dialInner)" stroke="#55565b" stroke-width="1" filter="url(#dialShadow)"/>${label(g.rx,g.ry-2,[right.name],Math.min(13,g.rr*.28))}</g>`;
-    const ix=g.cx+(g.cx>w/2?-g.r+3:g.r-3);svg+=`<circle cx="${ix}" cy="${g.cy}" r="4" fill="#f3977e" pointer-events="none"/>`;
+    svg+=`<g data-zone="right" class="dial-press" role="button" tabindex="0" aria-label="${escape(right.name)}"><circle class="dial-surface" cx="${g.rx}" cy="${g.ry}" r="${g.rr}" fill="url(#dialInner)" stroke="url(#dialBevel)" stroke-width="3" filter="url(#dialShadow)"/>${label(g.rx,g.ry-2,[right.name],Math.min(13,g.rr*.28))}</g>`;
+    const ix=g.cx+(g.cx>w/2?-g.r+3:g.r-3);svg+=`<circle class="dial-index" cx="${ix}" cy="${g.cy}" r="4" fill="#f3977e" pointer-events="none"/>`;
     if(editing)for(const [zone,x,y,r] of [['outer',g.cx,g.cy,g.r],['inner',g.mx,g.my,g.mr],['right',g.rx,g.ry,g.rr]]){
       svg+=`<circle class="dial-edit-outline" cx="${x}" cy="${y}" r="${r}"/><circle data-resize="${zone}" class="dial-handle" cx="${x-r*.82}" cy="${y-r*.57}" r="13"/>`;
     }
     $('dialStage').setAttribute('viewBox',`0 0 ${w} ${h}`);$('dialStage').innerHTML=svg;
     if(focusZone)$('dialStage').querySelector('[data-zone="'+focusZone+'"]')?.focus({preventScroll:true});
-    for(const [id,x,y] of [['dialMode',v.scrollX,v.scrollY],['dialMotion',v.motionX,v.motionY]]){
-      const el=$(id);el.style.left=Math.min(w-el.offsetWidth-10,Math.max(10,w*x))+'px';el.style.top=Math.min(h-el.offsetHeight-50,Math.max(122,h*y))+'px';
-    }
+    const dock=$('dialDock'),safeTop=parseFloat(getComputedStyle(root).getPropertyValue('--dial-safe-top'))||0;
+    dock.style.left=Math.max(10,Math.min(w-dock.offsetWidth-10,w*v.dockX))+'px';
+    dock.style.top=Math.max(safeTop+42,Math.min(h-dock.offsetHeight-32,h*v.dockY))+'px';
     $('dialClickMode').setAttribute('aria-pressed',String(!scroll));$('dialScrollMode').setAttribute('aria-pressed',String(scroll));
-    $('dialPreset').textContent=p.name+' ▾';$('dialPreset').hidden=editing;
+    $('dialPreset').textContent='Saved grips · '+p.name;
+    $('dialMenuToggle').hidden=editing;
     $('dialEditbar').hidden=!editing;renderState();
   }
-  function select(step){const ids=order(),p=current();p.selected=ids[((Math.max(0,ids.indexOf(p.selected))+step)%ids.length+ids.length)%ids.length];if(!editing)persist();notice('Selected: '+(action(p.selected)?.name||'Left click'));render();}
+  function detent(){
+    B.detent();clearTimeout(feedbackTimer);$('dialRoot').classList.remove('detent');
+    void $('dialRoot').offsetWidth;$('dialRoot').classList.add('detent');
+    feedbackTimer=setTimeout(()=>$('dialRoot').classList.remove('detent'),110);
+  }
+  function select(step){const ids=order(),p=current();p.selected=ids[((Math.max(0,ids.indexOf(p.selected))+step)%ids.length+ids.length)%ids.length];if(!editing)persist();notice('Selected: '+(action(p.selected)?.name||'Left click'));render();detent();}
   const stage=$('dialStage');
   stage.addEventListener('pointerdown',e=>{
     const target=e.target.closest('[data-zone],[data-resize]');if(!target || pointers.has(e.pointerId))return;
@@ -153,14 +164,14 @@
     if(p.zone==='bezel'||p.zone==='outer'&&scroll){
       const angle=Math.atan2(y-p.g.cy,x-p.g.cx),delta=M.delta(p.angle,angle);p.angle=angle;p.acc+=delta;
       if(p.zone==='bezel'){
-        const steps=Math.trunc(p.acc/.28);if(steps){p.acc-=steps*.28;select(-steps);B.haptic();}
+        const steps=Math.trunc(p.acc/.28);if(steps){p.acc-=steps*.28;select(-steps);}
       }else{if(Math.abs(delta)<1){B.wheel(delta*p.g.r/B.scrollPixels());if(Math.abs(p.acc)>.15){B.haptic();p.acc=0;}}}
     }
   });
   function end(e){const p=pointers.get(e.pointerId);if(!p)return;pointers.delete(e.pointerId);if(p.release)p.release(e.type==='pointerup');if(p.scrolling&&!Array.from(pointers.values()).some(p=>p.scrolling))B.scrolling(false);p.element.classList.remove('active');}
   for(const name of ['pointerup','pointercancel','lostpointercapture'])stage.addEventListener(name,end);
   stage.addEventListener('keydown',e=>{
-    const zone=e.target.dataset.zone;if(!zone||editing)return;
+    const zone=e.target.dataset.zone;if(!zone||editing||menuOpen)return;
     if(zone==='bezel'&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();select(e.key==='ArrowRight'?1:-1);return;}
     if((e.key===' '||e.key==='Enter')&&!e.repeat){e.preventDefault();if(zone==='outer'&&scroll)return;
       const p=current(),a=action(zone==='outer'?p.selected:zone==='inner'?p.inner:p.right);
@@ -193,26 +204,41 @@
   $('dialAdd').onclick=()=>{const id=$('dialAddAction').value;draft.hidden=(draft.hidden||[]).filter(s=>s!==id);if(!draft.order.includes(id))draft.order.push(id);renderOrder();render();};
   $('dialReset').onclick=()=>{draft.views[editOrientation]=M.defaults(editOrientation);customize();render();};
   $('dialEditorBack').onclick=()=>{settingsOpen=false;$('dialEditor').hidden=true;render();};
-  $('dialCustomize').onclick=customize;$('dialEdit').onclick=beginEdit;
+  $('dialCustomize').onclick=customize;$('dialEdit').onclick=()=>{closeMenu();beginEdit();};
   $('dialSave').onclick=()=>finishEdit(true);$('dialCancel').onclick=()=>finishEdit(false);
   $('dialMotion').onclick=()=>{if(!editing)setMotion(!B.motionEnabled());};
   function mode(value){releaseAll();scroll=value;render();notice(scroll?'Rotate the outer ring to scroll.':'The outer ring presses the selected action.');}
   $('dialClickMode').onclick=()=>mode(false);$('dialScrollMode').onclick=()=>mode(true);
-  for(const id of ['dialMore','dialShortcuts'])$(id).onclick=()=>{pause();B.more();};
-  $('dialSettings').onclick=()=>{pause();B.settings();};
+  $('dialMore').onclick=()=>{closeMenu();pause();B.more();};
+  $('dialSettings').onclick=()=>{closeMenu();pause();B.settings();};
+  function closeMenu(focus=false){menuOpen=false;$('dialMenu').hidden=true;$('dialMenuToggle').setAttribute('aria-expanded','false');if(focus)$('dialMenuToggle').focus();}
+  $('dialMenuToggle').onclick=()=>{
+    if(menuOpen){closeMenu();return;}
+    pause();menuOpen=true;$('dialMenu').hidden=false;$('dialMenuToggle').setAttribute('aria-expanded','true');
+    const feedback=B.feedback();$('dialRingHaptics').checked=feedback.haptics;$('dialRingSound').checked=feedback.sound;
+    $('dialFeedbackHint').textContent=feedback.support;
+  };
+  document.addEventListener('pointerdown',e=>{
+    swallowMenuClick=false;
+    if(!menuOpen||$('dialMenu').contains(e.target)||$('dialMenuToggle').contains(e.target))return;
+    swallowMenuClick=true;e.preventDefault();e.stopImmediatePropagation();closeMenu();
+  },true);
+  document.addEventListener('click',e=>{if(swallowMenuClick){swallowMenuClick=false;e.preventDefault();e.stopImmediatePropagation();}},true);
+  document.addEventListener('keydown',e=>{if(menuOpen&&e.key==='Escape'){e.preventDefault();closeMenu(true);}});
+  for(const [id,key] of [['dialRingHaptics','haptics'],['dialRingSound','sound']])$(id).onchange=e=>B.setFeedback(key,e.target.checked);
   function showPresets(){pause();settingsOpen=true;$('dialPresets').hidden=false;
     $('dialPresetList').innerHTML=data.presets.map((p,i)=>`<div><button data-use="${i}">${escape(p.name)}${i===data.current?' ✓':''}</button><button data-delete="${i}" ${data.presets.length===1?'disabled':''} aria-label="Delete ${escape(p.name)} preset">Delete</button></div>`).join('');
     $('dialPresetCopy').disabled=data.presets.length>=8;
   }
-  $('dialPreset').onclick=showPresets;
+  $('dialPreset').onclick=()=>{closeMenu();showPresets();};
   $('dialPresetList').onclick=e=>{if(e.target.dataset.use!==undefined){data.current=Number(e.target.dataset.use);persist();settingsOpen=false;$('dialPresets').hidden=true;render();}
     else if(e.target.dataset.delete!==undefined&&data.presets.length>1){data.presets.splice(Number(e.target.dataset.delete),1);data.current=0;persist();showPresets();}};
   $('dialPresetCopy').onclick=()=>{if(data.presets.length>=8)return;const copy=structuredClone(current());copy.name=(copy.name+' copy').slice(0,24);data.presets.push(copy);data.current=data.presets.length-1;persist();showPresets();};
   $('dialPresetClose').onclick=()=>{settingsOpen=false;$('dialPresets').hidden=true;render();};
   function resize(){if(editing&&orientation()!==editOrientation)finishEdit(false);if(!resizeFrame)resizeFrame=requestAnimationFrame(()=>{resizeFrame=0;releaseAll();render();});}
   window.addEventListener('resize',resize);window.visualViewport?.addEventListener('resize',resize);
-  window.addEventListener('pagehide',pause);window.addEventListener('blur',pause);
-  document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();if(editing)finishEdit(false);}});
+  window.addEventListener('pagehide',()=>{closeMenu();pause();});window.addEventListener('blur',pause);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){closeMenu();pause();if(editing)finishEdit(false);}});
   window.Dial={pause,refresh:()=>{if(!pointers.size)render();},
     macroPin(id,pinned){const key='macro:'+id;for(const preset of data.presets){preset.hidden=(preset.hidden||[]).filter(s=>s!==key);if(!pinned){preset.order=preset.order.filter(s=>s!==key);preset.hidden.push(key);}}persist();render();},
     connected:()=>{renderState();if(firstConnection){firstConnection=false;setMotion(true);}},disconnected:pause};

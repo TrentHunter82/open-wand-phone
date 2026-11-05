@@ -110,7 +110,7 @@ The main interface is a graphite rotary dial. Left Click has the largest touch
 surface; Mic is the large inner circle; Right Click is the smaller circle inside
 Mic. Only the innermost surface under your finger receives a press.
 
-- **Motion ON / paused:** after START and the first connection, the cursor follows
+- **Motion button (pause/play icon in the control dock):** after START and the first connection, the cursor follows
   your hand without a held move button. Tap Motion to pause, reposition your
   hand, then resume. Resuming resets the motion filter to prevent a jump.
   Disconnecting, leaving the page, editing, or opening menus pauses motion;
@@ -120,7 +120,7 @@ Mic. Only the innermost surface under your finger receives a press.
   cursor. The nested Mic and Right Click regions have their own separate inputs.
 - **Mic:** hold to send F8, release to stop your existing dictation workflow.
 - **Right Click:** tap or hold the smaller nested circle.
-- **Rotary bezel:** turn the thin outside rim to select Enter, Space, Backspace,
+- **Rotary bezel:** turn the wide outside rim to select Enter, Space, Backspace,
   Copy, Paste, Undo, Redo or a macro. The selected action appears on the large
   surface; press that surface to send it. Turning the bezel only changes the
   selection. Keyboard users can focus the bezel and use arrow keys.
@@ -128,26 +128,39 @@ Mic. Only the innermost surface under your finger receives a press.
   is pressed, and pointer movement pauses while the scroll gesture is active.
   Mic and Right Click still work. Click returns the surface to its chosen action.
   Scroll speed and inversion use the settings drawer.
-- **More:** Copy/Paste/Undo/Redo, up to 32 macros, and Settings & calibration.
+- **Menu:** saved grips, Edit layout, Shortcuts & macros, and Settings & calibration.
+  The old title and bottom navigation are removed. Click/Scroll and Motion share
+  one compact control dock; existing wheel sizes and positions are retained.
+  Shortcuts & macros contains Copy/Paste/Undo/Redo and up to 32 macros.
   Built-in shortcuts automatically use Command on Mac. Literal custom shortcuts
   keep their configured modifiers. A macro runs on a completed tap; canceling
   the gesture never starts it. Only one macro sequence runs at a time.
 
+### Ring feedback
+
+Menu has independent **Ring haptics** and **Ring tick sound** options. Each
+selector notch produces a short visual pulse. Vibration is requested where the
+browser supports it; a native WebKit switch is also tried during an active user
+gesture when vibration is unavailable. This is best effort: newer Safari versions
+can suppress scripted switch haptics, and automated tests cannot confirm physical
+vibration. Optional tick sound supplies audible detents without enabling sounds
+for every main-button press. Feedback choices save with the phone settings.
+
 ### Customize and save your grip
 
-Tap **Edit**. Drag the large wheel, Mic circle, or Right Click circle to position
+Tap **Menu > Edit layout**. Drag the large wheel, Mic circle, or Right Click circle to position
 it; drag its light resize handle to change its size. All computer input is paused
 while editing. The circles remain nested and the small button stays on screen.
 
 **Sizes & actions** provides independent size and position sliders, positions for
-both mode switches, a grip name, assignments for the inner circles, and the rotary
+the control dock, a grip name, assignments for the inner circles, and the rotary
 action list. Drag action rows or use the up/down arrows to reorder them. Remove
 unwanted actions or add any available shortcut or macro. **Back to dial** returns
 to the preview; **Save layout** commits the whole edit, and **Cancel** discards it.
 **Function selector thickness** adjusts the width of the outer selection ring.
 It starts wider for easier thumb access and saves separately for each orientation.
 
-**My grip** opens saved presets. Save a copy to create another grip, then edit
+**Menu > Saved grips** opens saved presets. Save a copy to create another grip, then edit
 and rename it. Up to eight presets are supported. Each preset keeps separate
 portrait and landscape positions and sizes. These presets, action choices, and
 macro definitions are saved in this phone browser and survive reloads. Clearing
@@ -160,9 +173,9 @@ still appears inside calibration so reach measurements remain controlled.
 
 ### Macros
 
-In **More > Create macro button**, enter a name and a comma-separated sequence,
+In **Menu > Shortcuts & macros > Create macro button**, enter a name and a comma-separated sequence,
 for example `ctrl+a, ctrl+c` on Windows or `cmd+a, cmd+c` on Mac. Check **Show on
-rotary dial** to add it to the bezel, then **Save macro**. More also lets you edit,
+rotary dial** to add it to the bezel, then **Save macro**. That panel also lets you edit,
 run, delete, pin or unpin macros. Edit > Sizes & actions controls their dial order.
 Existing macros and hotkey assignments are retained.
 

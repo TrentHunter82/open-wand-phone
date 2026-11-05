@@ -40,3 +40,10 @@ test('extreme resizing and repositioning preserve nesting and visible Right Clic
     assert.ok(g.ry-g.rr>=0 && g.ry+g.rr<=667);
   }
 });
+
+test('adding or moving the control dock preserves an existing custom wheel layout',()=>{
+  const saved={x:.96,y:.61,r:.92,bw:.18,mx:-.13,my:.05,mr:.41,rx:0,ry:.45,rr:.38,scrollX:.6,scrollY:.2,motionX:.5,motionY:.3};
+  const p=M.normalize({presets:[{name:'My saved grip',views:{portrait:saved}}]}).presets[0];
+  for(const key of ['x','y','r','bw','mx','my','mr','rx','ry','rr'])assert.equal(p.views.portrait[key],saved[key]);
+  assert.deepEqual(M.geometry(p.views.portrait,375,667),M.geometry({...p.views.portrait,dockX:.4,dockY:.4},375,667));
+});

@@ -774,7 +774,7 @@
       <option value="ctrl+shift+z">Ctrl+Shift+Z</option></select>
   </div>
   <div id="macroEditor"></div>
-  <div class="hint">Create up to 32 named macros in More and optionally pin them to the main screen. Separate shortcuts with commas:
+  <div class="hint">Create up to 32 named macros in Shortcuts &amp; macros and optionally pin them to the main screen. Separate shortcuts with commas:
     ctrl+a, ctrl+c. Each shortcut is pressed and released before the next.
     Maximum 12 steps, with a short pause between steps. These run in the
     focused computer app; they do not wait for windows to load. Create and edit
@@ -792,7 +792,7 @@
 </div>
 
 <section id="actionsPanel" hidden aria-label="More actions">
-  <h2>More actions</h2>
+  <h2>Shortcuts &amp; macros</h2>
   <div id="actionGrid"></div>
   <div id="actionStatus" role="status" aria-live="polite"></div>
   <h2>Your macros</h2>
@@ -862,6 +862,7 @@ const DEFAULTS = {   // owner-tuned daily-driver values
   twoFinger: false,       // the old two-finger scroll; off, it invites pinches
   dragLock: true,         // tap, then touch and hold, to latch a drag
   clickSound: false,      // short speaker click at press; see the drawer note
+  ringTickSound: false,   // optional sound on each rotary selection notch
   betaUnit: "hz100",      // marks the converted beta unit
   calWidth: 0,            // desktop width the last calibration measured
 };
@@ -996,8 +997,8 @@ function unlockAudio() {
   } catch {}
 }
 
-function clickSound() {
-  if (!S.clickSound || !audioCtx || !clickBuf) return;
+function clickSound(force = false) {
+  if ((!S.clickSound && !force) || !audioCtx || !clickBuf) return;
   if (audioCtx.state !== "running") { try { audioCtx.resume(); } catch {} return; }
   try {
     const src = audioCtx.createBufferSource();
@@ -1017,7 +1018,7 @@ function clickSound() {
 function pressFeedback() {
   flashPress();
   clickSound();
-  try { if (navigator.vibrate) navigator.vibrate(8); } catch {}
+  try { if (S.haptics && navigator.vibrate) navigator.vibrate(8); } catch {}
 }
 
 let lastHapticT = 0;
@@ -1029,6 +1030,30 @@ function haptic(minGapMs = 0) {
   // On iOS the tick comes from the user's own touch on the hidden
   // switches, not from here. This covers everything else.
   try { if (navigator.vibrate) navigator.vibrate(8); } catch {}
+}
+
+// WebKit's switch feedback is best effort: newer Safari versions can require
+// a direct native-control tap and suppress this during a rotary gesture.
+let ringSwitch = null, lastRingTick = -Infinity;
+function dialDetent() {
+  const now = performance.now();
+  if (now - lastRingTick < 35) return;
+  lastRingTick = now;
+  if (S.haptics) {
+    let delivered = false;
+    try { if (typeof navigator.vibrate === "function") delivered = navigator.vibrate(7) !== false; } catch {}
+    if (!delivered && "switch" in document.createElement("input") && navigator.userActivation?.isActive !== false) {
+      if (!ringSwitch) {
+        const label = document.createElement("label"), input = document.createElement("input");
+        input.type = "checkbox"; input.setAttribute("switch", ""); input.tabIndex = -1;
+        label.setAttribute("aria-hidden", "true");
+        label.style.cssText = "position:fixed;left:-100px;top:-100px;width:1px;height:1px;opacity:0;pointer-events:none";
+        label.appendChild(input); document.body.appendChild(label); ringSwitch = label;
+      }
+      try { ringSwitch.click(); } catch {}
+    }
+  }
+  if (S.ringTickSound) clickSound(true);
 }
 
 // Every control carries its own switch, so a real touch plays the tick.
@@ -1891,7 +1916,7 @@ $("macroForm").addEventListener("submit", e => {
   window.Dial?.macroPin(macro.id,macro.pinned);
   saveSettings(); buildMacroButtons(); renderMacroList();
   $("macroForm").hidden = true;
-  $("actionStatus").textContent = macro.pinned ? "Saved. Your macro is available on the rotary bezel." : "Saved in More.";
+  $("actionStatus").textContent = macro.pinned ? "Saved. Your macro is available on the rotary bezel." : "Saved in Shortcuts & macros.";
 });
 function buildMacroButtons() {
   const layer = $("macroButtons"); layer.textContent = "";
@@ -1914,7 +1939,7 @@ function buildMacroButtons() {
 function refreshMacroEditor() {
   $("redoCombo").value = S.redoCombo;
   const editor = $("macroEditor"); editor.textContent = "";
-  const button = document.createElement("button"); button.textContent = "Manage macro buttons in More";
+  const button = document.createElement("button"); button.textContent = "Manage macros";
   button.addEventListener("click", () => { openDrawer(false); openActions(); });
   editor.appendChild(button);
   buildMacroButtons();
@@ -2863,6 +2888,14 @@ window.wandBridge = {
   },
   wheel(v) { send({t:"w",v:+(S.scrollInvert?-v:v).toFixed(3)}); },
   haptic: () => haptic(),
+  detent: dialDetent,
+  feedback: () => ({haptics:!!S.haptics,sound:!!S.ringTickSound,
+    support:typeof navigator.vibrate === "function" ? "Vibration is requested at each selector notch." : "Safari may suppress rotary vibration. Enable tick sound for audible feedback."}),
+  setFeedback(key, value) {
+    if (key === "haptics") {S.haptics=!!value;$("cHaptics").checked=!!value;setTickEnabled(!!value);}
+    if (key === "sound") S.ringTickSound=!!value;
+    saveSettings();
+  },
   more: openActions,
   settings: () => openDrawer(true),
 };
