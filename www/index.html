@@ -690,7 +690,7 @@
   <div class="sect">SCROLL</div>
   <div class="row">
     <label for="sMotionScroll">Motion scroll, higher = slower <b id="vMotionScroll"></b></label>
-    <input type="range" id="sMotionScroll" min="6" max="18" step="1">
+    <input type="range" id="sMotionScroll" min="2" max="18" step="1">
   </div>
   <div class="hint">Hold the round Scroll button and aim the phone up or down. Release to return to pointer control. Sideways motion is ignored.</div>
   <div class="row">
@@ -904,7 +904,7 @@ function loadSettings() {
     cur.hotkeys = cur.hotkeys.slice(0, 3);
     cur.redoCombo = raw.redoCombo === "ctrl+shift+z" ? raw.redoCombo : "ctrl+y";
     cur.macros = normalizeMacros(raw.macros);
-    cur.motionScrollDeg = Number.isFinite(raw.motionScrollDeg) ? Math.max(6,Math.min(18,raw.motionScrollDeg)) : 9;
+    cur.motionScrollDeg = Number.isFinite(raw.motionScrollDeg) ? Math.max(2,Math.min(18,raw.motionScrollDeg)) : 9;
     delete cur.hotkey;
     if (raw.beta !== undefined && raw.betaUnit !== "hz100") {
       // Convert the old rad/s coefficient so day one feels identical.

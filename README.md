@@ -132,9 +132,12 @@ Mic. Only the innermost surface under your finger receives a press.
   motion preference with no accumulated jump. Release to reset your wrist, then
   hold again. This replaces the Click/Scroll toggle and finger-rotation gesture;
   the large pad keeps its own assignment. Engraved dial marks appear while held.
-  A short touch guard, tremor dead zone, smoothing, and six-notch-per-second cap
-  keep the response controlled. **Settings & calibration > Motion scroll** adjusts
-  the movement per notch (9 degrees by default; higher is slower). Invert scroll
+  A short touch guard, tremor dead zone, smoothing, and a speed cap
+  keep the response controlled. The cap rises from 6 to 18 notches per second
+  at the faster settings, so it does not flatten their response. **Settings & calibration > Motion scroll** adjusts
+  the movement per notch (2 to 18 degrees; 9 by default; higher is slower).
+  Try 4 degrees for about 50% more speed than the previous fastest setting;
+  2 degrees gives three times that previous maximum response. Invert scroll
   reverses direction independently of pointer inversion. Keyboard users can hold
   Space or Enter while the Scroll button has focus. Menus, editing, lost capture,
   hiding the page, or disconnecting cancel the hold; no scrolling continues afterward.

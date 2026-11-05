@@ -81,7 +81,8 @@
     if(Math.abs(degrees)<=2.5)return {rate:0,notches:0};
     const input=Math.sign(degrees)*(Math.abs(degrees)-2.5),previous=Number.isFinite(state?.rate)&&Math.sign(state.rate)===Math.sign(input)?state.rate:0;
     const rate=previous+(input-previous)*(1-Math.exp(-seconds/.075));
-    const gain=clamp(degreesPerNotch,6,18,9),speed=Math.max(-6,Math.min(6,rate/gain));
+    const gain=clamp(degreesPerNotch,2,18,9),limit=6*Math.max(1,6/gain);
+    const speed=Math.max(-limit,Math.min(limit,rate/gain));
     // The receivers use native wheel units: positive scrolls upward.
     return {rate,notches:speed*seconds};
   }

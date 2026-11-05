@@ -96,6 +96,20 @@ test('motion scrolling has a moderate speed cap and consistent travel across sen
   assert.ok(Math.abs(M.scrollStep({rate:0},.5,.02,6).notches)>Math.abs(M.scrollStep({rate:0},.5,.02,18).notches));
 });
 
+test('faster scroll settings increase both fine movement and capped speed',()=>{
+  for(const degrees of [5,36,180])for(const hz of [30,60,120]){
+    let state={rate:0};const totals={2:0,4:0,6:0};
+    for(let i=0;i<hz;i++){
+      for(const gain of [2,4,6])totals[gain]+=M.scrollStep(state,degrees*Math.PI/180,1/hz,gain).notches;
+      state=M.scrollStep(state,degrees*Math.PI/180,1/hz,6);
+    }
+    assert.ok(Math.abs(totals[2]-totals[6]*3)<1e-8);
+    assert.ok(Math.abs(totals[4]-totals[6]*1.5)<1e-8);
+  }
+  assert.ok(Math.abs(M.scrollStep({rate:0},100,.05,2).notches)<=.9000001);
+  assert.equal(M.scrollStep({rate:100},0,1/60,2).notches,0);
+});
+
 test('every rim action remains reachable on small screens and macro-heavy layouts',()=>{
   for(const size of [1,8,40])for(const r of [187,320,366]){
     const ids=Array.from({length:size},(_,i)=>'a'+i),first=M.rimPage(ids,0,r,50),seen=[];

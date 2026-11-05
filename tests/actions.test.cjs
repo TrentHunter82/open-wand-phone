@@ -31,7 +31,7 @@ test('existing shortcuts and motion tuning survive migration', () => {
 });
 
 test('motion-scroll speed saves independently and invalid stored speeds are bounded',()=>{
-  for(const [stored,expected] of [[12,12],[1,6],[99,18],['fast',9],[null,9]]){
+  for(const [stored,expected] of [[2,2],[4,4],[6,6],[12,12],[1,2],[99,18],['fast',9],[null,9]]){
     const h=harness({motionScrollDeg:stored,reach:123});
     assert.equal(h.eval('S.motionScrollDeg'),expected);assert.equal(h.eval('S.reach'),123);
   }
