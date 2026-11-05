@@ -30,3 +30,18 @@ test('high-density animation stays within its pixel budget without changing CSS 
     const smaller=G.resolution(w,h,dpr,.7);assert.ok(smaller.width<size.width&&smaller.height<size.height);
   }
 });
+
+test('hand rotation stirs the material even when gravity is unchanged',()=>{
+  const rest=G.motionSample({accelerationIncludingGravity:{x:0,y:-9.81,z:0},rotationRate:{alpha:0,beta:0,gamma:0},interval:16});
+  const turn=G.motionSample({accelerationIncludingGravity:{x:0,y:-9.81,z:0},rotationRate:{alpha:95,beta:-45,gamma:0},interval:16});
+  assert.deepEqual(turn.tilt,rest.tilt);assert.equal(rest.energy,0);
+  assert.ok(turn.energy>1&&turn.push.x>0&&turn.push.y<0);
+});
+
+test('missing and invalid hand-motion readings stay finite and bounded',()=>{
+  for(const event of [{},{rotationRate:{alpha:Infinity,beta:NaN}},{rotationRate:{alpha:9999,gamma:-9999},accelerationIncludingGravity:{x:100,y:-100,z:100},interval:5000}]){
+    const sample=G.motionSample(event,90);
+    assert.ok([...Object.values(sample.tilt),...Object.values(sample.push),sample.energy,sample.dt].every(Number.isFinite));
+    assert.ok(sample.energy<=1.8&&Math.abs(sample.push.x)<=1&&Math.abs(sample.push.y)<=1&&sample.dt<=.05);
+  }
+});

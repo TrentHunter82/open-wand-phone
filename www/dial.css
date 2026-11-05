@@ -79,29 +79,45 @@ body.dial-view {background:#27282c;color:#f1ede5;}
 .dial-view .macro-card strong,.dial-view #macroList button {overflow-wrap:anywhere;}
 .dial-view #macroList button {max-width:calc(100% - 8px);}
 
-/* Clear optical edges sit above a separate, non-interactive liquid layer. */
-body.dial-view {background:#0e1722;color:#eef5f7;}
-#dialRoot {background:radial-gradient(ellipse at 18% 0%,#233442 0%,#121f2b 48%,#0b1420 100%);}
+/* Smoked charcoal glass: crisp edges, restrained highlights, physical contact shadows. */
+body.dial-view {background:#090909;color:#ededed;}
+#dialRoot {background:radial-gradient(ellipse at 18% 0%,#222 0%,#131313 48%,#090909 100%);}
 #dialLiquid {position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
 #dialStage {z-index:1;}
-#dialRoot.glass-ready .dial-surface {fill-opacity:.36;}
-#dialRoot.glass-ready .dial-press.active > .dial-surface {fill-opacity:.52;filter:brightness(1.10);}
-.dial-label {fill:#f0f6f7;}
-.dial-secondary {fill:#c1d2db;}
-.dial-connection {color:#b8ccd6;}
-#dialRoot button {background:linear-gradient(145deg,#354c5bba,#172a3cdd);box-shadow:3px 5px 12px #020b1470,inset 0 1px 1px #c4e9f04d,inset 0 -1px 1px #07121fd9,inset 0 0 0 1px #8fb5c31f;border:0;}
-#dialRoot .dial-mode {background:#0b1727d9!important;box-shadow:inset 2px 3px 7px #030b14a3,inset 0 -1px 1px #acd4e22b!important;}
-#dialRoot .dial-mode button {border-color:transparent;}
-#dialRoot .dial-mode button[aria-pressed=true] {background:linear-gradient(145deg,#526c7baa,#293e52c9);box-shadow:0 2px 7px #020a1480,inset 0 1px 1px #c4e5f05c;}
-#dialRoot #dialMenu {background:linear-gradient(145deg,#293f50f7,#122335f7);border-color:#97bac044;box-shadow:0 15px 40px #02070fc4,inset 0 1px 1px #b6dce142;}
-#dialRoot #dialMenu button {background:transparent;border-color:transparent;box-shadow:none;}
-#dialRoot #dialMenu button:hover,#dialRoot #dialMenu button:focus-visible {background:#69879633;}
-.dial-menu-feedback {border-color:#7ea1b538;}
-.dial-menu-feedback p,.dial-appearance p {color:#b9ccd5;}
-.dial-appearance {margin:10px 8px 3px;padding-top:12px;border-top:1px solid #7ea1b538;}
+#dialRoot.glass-ready .dial-surface {fill-opacity:.43;}
+#dialRoot.glass-ready .dial-press.active > .dial-surface {fill-opacity:.58;filter:brightness(.88);}
+.dial-label {fill:#efefef;}
+.dial-secondary {fill:#b6b6b6;}
+.dial-connection {color:#b7b7b7;}
+.dial-dot.connected,#dialMotion[aria-pressed=true] .dial-dot {background:#d0d0d0;}
+#dialRoot button {background:linear-gradient(160deg,#3a3a3ad9 0%,#252525ed 45%,#161616 100%);box-shadow:0 3px 0 #080808,0 7px 13px #0009,inset 0 1px 1px #ffffff30,inset 0 -1px 1px #000c,inset 0 0 0 1px #ffffff10;border:0;}
+#dialRoot button[aria-pressed=true] {background:linear-gradient(160deg,#414141,#262626);}
+#dialRoot:not(.editing) > :not(#dialMenu) button:active {transform:translateY(2px);box-shadow:0 1px 0 #080808,0 3px 7px #0009,inset 0 1px 3px #0008;}
+#dialRoot .dial-mode {background:#101010!important;box-shadow:inset 0 2px 5px #000b,inset 0 -1px 1px #ffffff12!important;}
+#dialRoot .dial-mode button {border:0;}
+#dialRoot .dial-mode button[aria-pressed=true] {background:linear-gradient(160deg,#484848,#292929 60%,#202020);box-shadow:0 2px 2px #0009,inset 0 1px 1px #ffffff38,inset 0 -1px 1px #111;}
+#dialRoot #dialMenu {background:linear-gradient(145deg,#272727fa,#141414fa);border-color:#ffffff20;box-shadow:0 15px 40px #000c,inset 0 1px 1px #ffffff1f;}
+#dialRoot #dialMenu button {background:transparent;border:0;box-shadow:none;}
+#dialRoot #dialMenu button:hover,#dialRoot #dialMenu button:focus-visible {background:#ffffff10;}
+.dial-menu-feedback {border-color:#ffffff20;}
+.dial-menu-feedback input {accent-color:#bfbfbf;}
+.dial-menu-feedback p,.dial-appearance p {color:#b5b5b5;}
+.dial-appearance {margin:10px 8px 3px;padding-top:12px;border-top:1px solid #ffffff20;}
 .dial-appearance label {display:block;font-size:13px;margin-bottom:8px;}
-#dialMaterial {width:100%;min-height:44px;border:1px solid #8fb5c340;border-radius:12px;background:#132638;color:#eff7fa;font:inherit;font-size:16px;padding:8px 12px;color-scheme:dark;}
+#dialMaterial {width:100%;min-height:44px;border:1px solid #ffffff26;border-radius:12px;background:#181818;color:#eee;font:inherit;font-size:16px;padding:8px 12px;color-scheme:dark;}
 .dial-appearance p {font-size:12px;line-height:1.5;margin:9px 0 4px;}
-#dialNotice {background:#0d2032ed;border-color:#8fb5c340;color:#e0edf2;}
-#dialRoot[data-material=smoke] {background:radial-gradient(ellipse at 15% 0%,#2b3445,#161e2d 55%,#101724);}
+#dialNotice {background:#131313f2;border-color:#ffffff24;color:#ddd;}
+#dialRoot[data-material=smoke] {background:radial-gradient(ellipse at 15% 0%,#222,#121212 55%,#090909);}
+.dial-handle {fill:#ccc;stroke:#191919;}
+.dial-edit-outline {stroke:#aaa;}
+#dialRoot .dial-control-grip {background:#bdbdbd;color:#222;}
+#dialRoot.detent .dial-index {filter:drop-shadow(0 0 5px #ddd);fill:#eee;}
+#dialRoot button:focus-visible,#dialStage [role=button]:focus-visible {outline-color:#ccc;}
+.dial-rim-key:focus-visible .dial-key-face {stroke:#ddd;}
+.dial-scroll-scale {pointer-events:none;}
+.dial-scroll-track {fill:none;stroke:#000;stroke-width:24;stroke-opacity:.30;}
+.dial-scroll-track-edge {fill:none;stroke:#fff;stroke-width:.6;stroke-opacity:.09;}
+.dial-tick-shadow {stroke:#000;stroke-width:1.5;stroke-opacity:.8;}
+.dial-tick {stroke:#d2d2d2;stroke-width:.8;stroke-opacity:.38;}
+.dial-tick.major {stroke-width:1.2;stroke-opacity:.65;}
 @media (prefers-reduced-motion:reduce) {#dialNotice {transition:none;}}

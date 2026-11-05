@@ -143,7 +143,10 @@ Mic. Only the innermost surface under your finger receives a press.
 **Menu > Under the glass** switches between Liquid, Smoke, and Still glass.
 Liquid has a moving waterline, refracted highlights, and touch ripples; phone tilt
 adds a damped slosh using the motion permission already granted at Start. Smoke
-uses flowing silver-blue wisps. Holding the Mic gives its material a warm tint.
+uses flowing silver wisps. Hand rotation stirs both materials, then the motion settles
+when the hand stops. Holding the Mic adds a soft silver highlight. The glass and
+controls use a dark charcoal palette. Scroll mode reveals engraved dial marks
+that follow the scroll gesture, with reduced motion keeping the marks stationary.
 These are decorative effects: they cannot send input or change saved grip geometry.
 The material choice saves separately from layouts and macros.
 

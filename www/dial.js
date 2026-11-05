@@ -5,7 +5,7 @@
   let data;try{data=M.normalize(JSON.parse(localStorage.getItem(STORAGE)));}catch{data=M.normalize();}
   let editing=false,draft=null,before=null,scroll=false,firstConnection=true,settingsOpen=false;
   const pointers=new Map();
-  let geometry=null,resizeFrame=0,noticeTimer=0,feedbackTimer=0,menuOpen=false,swallowMenuClick=false,rimPage=0,rimSlots=[],controlDrag=null;
+  let geometry=null,resizeFrame=0,noticeTimer=0,feedbackTimer=0,menuOpen=false,swallowMenuClick=false,rimPage=0,rimSlots=[],controlDrag=null,scrollTurn=0;
   const current=()=>editing?draft:data.presets[data.current];
   const orientation=()=>innerWidth>innerHeight?'landscape':'portrait';
   let editOrientation=orientation();
@@ -95,7 +95,7 @@
   function titleLines(text,size,width){
     const lines=[];let line='';
     for(const word of text.split(/\s+/)){
-      if(textWidth(word,size)>width){if(line){lines.push(line);line='';}let part='';for(const c of word){if(part&&textWidth(part+c,size)>width){lines.push(part);part='';}part+=c;}line=part;}
+      if(textWidth(word,size)>width){if(word.length<12)return ['','',''];if(line){lines.push(line);line='';}let part='';for(const c of word){if(part&&textWidth(part+c,size)>width){lines.push(part);part='';}part+=c;}line=part;}
       else if(line&&textWidth(line+' '+word,size)>width){lines.push(line);line=word;}
       else line+=(line?' ':'')+word;
     }
@@ -127,10 +127,10 @@
     for(const box of boxes)for(let size=Math.max(10,maxFont);size>=10;size-=.5){
       const lines=titleLines(title,size,box.w-4);if(lines.length>2)continue;
       for(const icon of (hasIcon?[true,false]:[false]))for(const hint of [true,false]){
-        const hs=10.5,iconH=icon?28:0,hh=hint&&a.hint?hs+7:0,total=iconH+(icon?7:0)+lines.length*size*1.13+hh;
+        const hs=10.5,iconH=icon?28:0,hh=hint&&a.hint&&textWidth(a.hint,hs)<=box.w-6?hs+7:0,total=iconH+(icon?7:0)+lines.length*size*1.13+hh;
         if(total>box.h-4)continue;
         const distance=Math.hypot(box.x+box.w/2-prefer.x,box.y+box.h/2-prefer.y);
-        const score=size*8-distance*.8+(icon?8:0)+(hint?3:0);
+        const score=size*8-distance*.8+(icon?8:0)+(hh?3:0);
         if(!best||score>best.score)best={box,lines,size,icon,hh,hs,total,score};
       }
     }
@@ -138,7 +138,7 @@
     if(!best)return '';
     const {box,lines,size,icon,hh,hs,total}=best,cx=box.x+box.w/2;let y=box.y+(box.h-total)/2;
     let out=`<g clip-path="url(#${clipId})" pointer-events="none"><title>${escape(a.name+' — '+a.hint)}</title>`;
-    if(icon){out+=`<g style="color:#eee6db">${micIcon(cx,y+13,.8)}</g>`;y+=35;}
+    if(icon){out+=`<g style="color:#eeeeee">${micIcon(cx,y+13,.8)}</g>`;y+=35;}
     out+=`<text class="dial-label" x="${cx}" y="${y+size*.83}" font-size="${size}" font-weight="650">`;
     for(let i=0;i<lines.length;i++)out+=`<tspan x="${cx}" dy="${i?size*1.13:0}">${escape(lines[i])}</tspan>`;
     out+='</text>';
@@ -146,6 +146,15 @@
     return out+'</g>';
   }
   function circlePath(c){return `M${c.x-c.r} ${c.y}a${c.r} ${c.r} 0 1 0 ${c.r*2} 0a${c.r} ${c.r} 0 1 0 ${-c.r*2} 0Z`;}
+  function scrollMarks(g){
+    const radius=g.clickR-9,long=Math.min(18,g.clickR*.08),short=long*.48;
+    let ticks='';
+    for(let i=0;i<72;i++){
+      const length=i%6===0?long:short;
+      ticks+=`<g transform="translate(${g.cx} ${g.cy}) rotate(${i*5})"><line class="dial-tick-shadow" x1=".8" x2=".8" y1="${-radius+1}" y2="${-radius+length+1}"/><line class="dial-tick ${i%6===0?'major':''}" x1="0" x2="0" y1="${-radius}" y2="${-radius+length}"/></g>`;
+    }
+    return `<g class="dial-scroll-scale" clip-path="url(#dialClipOuter)" pointer-events="none" aria-hidden="true"><circle class="dial-scroll-track" cx="${g.cx}" cy="${g.cy}" r="${g.clickR-16}"/><circle class="dial-scroll-track-edge" cx="${g.cx}" cy="${g.cy}" r="${g.clickR-28}"/><g id="dialScrollTicks" transform="rotate(${scrollTurn} ${g.cx} ${g.cy})">${ticks}</g></g>`;
+  }
   function render(){
     const focused=$('dialStage').contains(document.activeElement)?document.activeElement:null;
     const focusZone=focused?.dataset.zone,focusAction=focused?.dataset.action,focusPage=focused?.dataset.page;
@@ -182,17 +191,17 @@
     const obstacles=[...headerBlocks,...['dialMode','dialMotion','dialModeGrip','dialMotionGrip'].map(id=>$(id)).filter(el=>!el.hidden).map(rectFor)].map(b=>({x:b.x-3,y:b.y-3,w:b.w+6,h:b.h+6}));
     const outerCircle={x:g.cx,y:g.cy,r:ringR},innerCircle={x:g.mx,y:g.my,r:g.mr},rightCircle={x:g.rx,y:g.ry,r:g.rr};
     let svg=`<defs>
-      <radialGradient id="dialBg" cx="28%" cy="14%" r="95%"><stop stop-color="#8295a3"/><stop offset=".35" stop-color="#344b5b"/><stop offset=".85" stop-color="#162b39"/><stop offset="1" stop-color="#0e1c29"/></radialGradient>
-      <radialGradient id="dialInner" cx="30%" cy="15%" r="95%"><stop stop-color="#91a8b5"/><stop offset=".4" stop-color="#365263"/><stop offset="1" stop-color="#112632"/></radialGradient>
-      <linearGradient id="dialKey" x2=".25" y2="1"><stop stop-color="#435b6b"/><stop offset=".5" stop-color="#293e50"/><stop offset="1" stop-color="#142535"/></linearGradient>
-      <linearGradient id="dialBevel" x1="0" y1="0" x2=".65" y2="1"><stop stop-color="#d7edf5" stop-opacity=".78"/><stop offset=".45" stop-color="#89bccb" stop-opacity=".27"/><stop offset="1" stop-color="#060f1c" stop-opacity=".85"/></linearGradient>
-      <filter id="dialShadow" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="#080b10" flood-opacity=".6"/></filter>
-      <filter id="dialKeyShadow" x="-20%" y="-30%" width="140%" height="170%"><feDropShadow dx="1" dy="2" stdDeviation="1.5" flood-color="#080b10" flood-opacity=".6"/></filter>
+      <radialGradient id="dialBg" cx="28%" cy="14%" r="95%"><stop stop-color="#666666"/><stop offset=".35" stop-color="#2b2b2b"/><stop offset=".85" stop-color="#151515"/><stop offset="1" stop-color="#0b0b0b"/></radialGradient>
+      <radialGradient id="dialInner" cx="30%" cy="15%" r="95%"><stop stop-color="#737373"/><stop offset=".4" stop-color="#303030"/><stop offset="1" stop-color="#101010"/></radialGradient>
+      <linearGradient id="dialKey" x2=".25" y2="1"><stop stop-color="#414141"/><stop offset=".5" stop-color="#262626"/><stop offset="1" stop-color="#151515"/></linearGradient>
+      <linearGradient id="dialBevel" x1="0" y1="0" x2=".65" y2="1"><stop stop-color="#dedede" stop-opacity=".78"/><stop offset=".45" stop-color="#999999" stop-opacity=".27"/><stop offset="1" stop-color="#050505" stop-opacity=".85"/></linearGradient>
+      <filter id="dialShadow" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="0" dy="5" stdDeviation="3" flood-color="#000000" flood-opacity=".8"/></filter>
+      <filter id="dialKeyShadow" x="-20%" y="-30%" width="140%" height="170%"><feDropShadow dx="0" dy="3" stdDeviation="1.2" flood-color="#000000" flood-opacity=".8"/></filter>
       <clipPath id="dialClipOuter"><path clip-rule="evenodd" d="${circlePath(outerCircle)} ${circlePath(innerCircle)}"/></clipPath>
       <clipPath id="dialClipInner"><path clip-rule="evenodd" d="${circlePath(innerCircle)} ${circlePath(rightCircle)}"/></clipPath>
       <clipPath id="dialClipRight"><circle cx="${g.rx}" cy="${g.ry}" r="${g.rr}"/></clipPath>
     </defs>`;
-    svg+=`<g class="dial-bezel" data-zone="bezel"><path d="${circlePath({x:g.cx,y:g.cy,r:g.r})} ${circlePath(outerCircle)}" fill-rule="evenodd" fill="#15212d" stroke="#3c5262" stroke-width="1"/>`;
+    svg+=`<g class="dial-bezel" data-zone="bezel"><path d="${circlePath({x:g.cx,y:g.cy,r:g.r})} ${circlePath(outerCircle)}" fill-rule="evenodd" fill="#141414" stroke="#3b3b3b" stroke-width="1"/>`;
     const availableKeys=M.rimKeys(g,w,h,obstacles);
     const page=M.rimPage(ids,rimPage,g.r,g.bezelWidth,availableKeys.length);rimPage=page.index;rimSlots=[];
     const count=page.slots;
@@ -209,16 +218,17 @@
     }
     svg+='</g>';
     svg+=`<g data-zone="outer" class="dial-press" role="button" tabindex="0" aria-label="${escape(scroll?'Rotate to scroll':selected.name)}"><circle class="dial-surface" cx="${g.cx}" cy="${g.cy}" r="${ringR}" fill="url(#dialBg)" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
+    if(scroll)svg+=scrollMarks(g);
     const leftEdge=Math.max(8,g.cx-ringR),rightEdge=Math.min(w-8,g.cx+ringR);
     const leftGap=Math.max(0,g.mx-g.mr-leftEdge),rightGap=Math.max(0,rightEdge-g.mx-g.mr);
     const labelX=leftGap>=rightGap?(leftEdge+g.mx-g.mr)/2:(rightEdge+g.mx+g.mr)/2;
     const outerInfo=scroll?{id:'scroll',name:'Scroll',hint:'rotate the ring'}:{...selected,hint:selected.id==='left'?'hold to drag':selected.hint};
-    svg+=surfaceText(outerCircle,innerCircle,outerInfo,{x:labelX,y:g.cy},font,w,h,obstacles,'dialClipOuter')+'</g>';
+    svg+=surfaceText({...outerCircle,r:ringR-(scroll?Math.min(18,(ringR-g.mr)*.3):0)},innerCircle,outerInfo,{x:labelX,y:g.cy},font,w,h,obstacles,'dialClipOuter')+'</g>';
     svg+=`<g data-zone="inner" class="dial-press" role="button" tabindex="0" aria-label="${escape(inner.name)}"><circle class="dial-surface" cx="${g.mx}" cy="${g.my}" r="${g.mr}" fill="url(#dialInner)" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
     svg+=surfaceText(innerCircle,rightCircle,inner,{x:g.mx,y:g.my-g.mr*.3},Math.min(25,g.mr*.24),w,h,obstacles,'dialClipInner')+'</g>';
     svg+=`<g data-zone="right" class="dial-press" role="button" tabindex="0" aria-label="${escape(right.name)}"><circle class="dial-surface" cx="${g.rx}" cy="${g.ry}" r="${g.rr}" fill="url(#dialInner)" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
     svg+=surfaceText(rightCircle,null,{...right,hint:''},{x:g.rx,y:g.ry},Math.min(16,g.rr*.4),w,h,obstacles,'dialClipRight')+'</g>';
-    const ix=g.cx+(g.cx>w/2?-g.r+3:g.r-3);svg+=`<circle class="dial-index" cx="${ix}" cy="${g.cy}" r="4" fill="#f3977e" pointer-events="none"/>`;
+    const ix=g.cx+(g.cx>w/2?-g.r+3:g.r-3);svg+=`<circle class="dial-index" cx="${ix}" cy="${g.cy}" r="4" fill="#bfbfbf" pointer-events="none"/>`;
     if(editing)for(const [zone,x,y,r] of [['outer',g.cx,g.cy,g.r],['inner',g.mx,g.my,g.mr],['right',g.rx,g.ry,g.rr]]){
       svg+=`<circle class="dial-edit-outline" cx="${x}" cy="${y}" r="${r}"/><circle data-resize="${zone}" class="dial-handle" cx="${x-r*.82}" cy="${y-r*.57}" r="13"/>`;
     }
@@ -280,6 +290,7 @@
     }
     if(p.zone==='outer'&&scroll){
       const angle=Math.atan2(y-p.g.cy,x-p.g.cx),delta=M.delta(p.angle,angle);p.angle=angle;p.acc+=delta;
+      if(Math.abs(delta)<1&&!matchMedia('(prefers-reduced-motion: reduce)').matches){scrollTurn=(scrollTurn+delta*180/Math.PI)%360;$('dialScrollTicks')?.setAttribute('transform',`rotate(${scrollTurn} ${p.g.cx} ${p.g.cy})`);}
       if(Math.abs(delta)<1){B.wheel(delta*p.g.r/B.scrollPixels());if(Math.abs(p.acc)>.15){B.haptic();p.acc=0;}}
     }
   });
