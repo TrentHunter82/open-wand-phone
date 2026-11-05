@@ -126,21 +126,23 @@ Mic. Only the innermost surface under your finger receives a press.
   the screen is short, **Next** cycles through the remaining shortcut pages.
   Dragging off a shortcut cancels it. Keyboard users can Tab to a button and
   press Enter or Space.
-- **Scroll:** hold the smaller Scroll circle near the bottom of the wheel and
-  aim the phone up or down. Up scrolls up; down scrolls down. Sideways motion is
-  ignored. The pointer stays still while held, and release returns to its prior
-  motion preference with no accumulated jump. Release to reset your wrist, then
-  hold again. This replaces the Click/Scroll toggle and finger-rotation gesture;
-  the large pad keeps its own assignment. Engraved dial marks appear while held.
-  A short touch guard, tremor dead zone, smoothing, and a speed cap
-  keep the response controlled. The cap rises from 6 to 18 notches per second
-  at the faster settings, so it does not flatten their response. **Settings & calibration > Motion scroll** adjusts
-  the movement per notch (2 to 18 degrees; 9 by default; higher is slower).
-  Try 4 degrees for about 50% more speed than the previous fastest setting;
-  2 degrees gives three times that previous maximum response. Invert scroll
-  reverses direction independently of pointer inversion. Keyboard users can hold
-  Space or Enter while the Scroll button has focus. Menus, editing, lost capture,
-  hiding the page, or disconnecting cancel the hold; no scrolling continues afterward.
+- **Scroll:** hold the smaller Scroll circle to set your current pointing angle
+  as neutral. Tilt upward or downward to scroll; keep the phone at that angle to
+  keep scrolling, even when your hand is still. More tilt increases speed until
+  it reaches a cap. Return to the starting angle (within a 2-degree neutral zone)
+  or release Scroll to stop. Sideways movement is ignored. The pointer stays
+  still throughout the hold and returns to its prior motion preference on release.
+  Each fresh hold recenters at its current angle, so you can reset your wrist.
+  This replaces the Click/Scroll toggle and finger-rotation gesture; the large
+  pad keeps its own assignment. Engraved dial marks appear while held.
+  A short touch guard and smoothing keep the response controlled. **Settings &
+  calibration > Scroll sensitivity** retains your saved speed choice (2 to 18;
+  9 by default; lower is faster). The cap ranges from 6 to 18 notches per second,
+  with the faster choices retaining their extra headroom. Invert scroll reverses
+  direction independently of pointer inversion. Keyboard users can hold Space
+  or Enter while Scroll has focus. Menus, editing, lost capture, hiding the page,
+  or disconnecting cancel the hold. Missing motion data stops scrolling and
+  recenters when fresh data returns; canceled holds never resume themselves.
 - **Menu:** saved grips, Edit layout, Shortcuts & macros, and Settings & calibration.
   The old title and bottom navigation are removed. The existing wheel sizes and
   positions are retained when the separate Scroll button is added.

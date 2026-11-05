@@ -5,7 +5,7 @@
   let data;try{data=M.normalize(JSON.parse(localStorage.getItem(STORAGE)));}catch{data=M.normalize();}
   let editing=false,draft=null,before=null,scroll=false,firstConnection=true,settingsOpen=false;
   const pointers=new Map();
-  let geometry=null,resizeFrame=0,noticeTimer=0,feedbackTimer=0,menuOpen=false,swallowMenuClick=false,rimPage=0,rimSlots=[],controlDrag=null,scrollTurn=0,scrollGeometry=null,scrollFilter={rate:0},scrollStarted=0;
+  let geometry=null,resizeFrame=0,noticeTimer=0,feedbackTimer=0,menuOpen=false,swallowMenuClick=false,rimPage=0,rimSlots=[],controlDrag=null,scrollTurn=0,scrollGeometry=null,scrollFilter={angle:0},scrollStarted=0,scrollBaseline=null,scrollAxis=null,scrollFrame=0,scrollLastFrame=0;
   const current=()=>editing?draft:data.presets[data.current];
   const orientation=()=>innerWidth>innerHeight?'landscape':'portrait';
   let editOrientation=orientation();
@@ -83,28 +83,38 @@
     const wasScrolling=scroll;
     for(const p of pointers.values()){if(p.release)p.release();}pointers.clear();
     if(editing&&controlDrag)Object.assign(view(),controlDrag.before);controlDrag=null;
-    scroll=false;scrollFilter={rate:0};B.scrolling(false);
+    scroll=false;scrollFilter={angle:0};scrollBaseline=null;scrollAxis=null;if(scrollFrame)cancelAnimationFrame(scrollFrame);scrollFrame=0;scrollLastFrame=0;B.scrolling(false);
     $('dialStage').querySelectorAll('.active').forEach(el=>el.classList.remove('active'));
     if(wasScrolling)render();
   }
   function setScrollHeld(on){
     if(on){
       if(scroll)return;
-      releaseAll();B.stop();scroll=true;scrollFilter={rate:0};scrollStarted=performance.now();B.scrolling(true);B.haptic();
+      releaseAll();B.stop();scroll=true;scrollFilter={angle:0};scrollStarted=performance.now();const pose=B.motionScrollPose();scrollBaseline=pose&&scrollStarted-pose.t<=500?pose.pitch:null;scrollAxis=pose?.axis??null;B.scrolling(true);B.haptic();scrollFrame=requestAnimationFrame(scrollTick);
     }else{
       if(!scroll)return;
-      scroll=false;scrollFilter={rate:0};B.scrolling(false);
+      scroll=false;scrollFilter={angle:0};scrollBaseline=null;scrollAxis=null;if(scrollFrame)cancelAnimationFrame(scrollFrame);scrollFrame=0;scrollLastFrame=0;B.scrolling(false);
     }
     render();
   }
-  function scrollRate(upRate,dt){
-    if(!scroll)return;
+  function scrollTick(){
+    const now=performance.now();scrollFrame=0;if(!scroll)return;
     if(editing||menuOpen||B.busy()||!B.ready()){releaseAll();return;}
-    if(performance.now()-scrollStarted<90){scrollFilter={rate:0};return;}
-    const step=M.scrollStep(scrollFilter,upRate,dt,B.motionScrollDegrees());scrollFilter=step;
-    if(Math.abs(step.notches)<.0005)return;
-    B.wheel(step.notches);
-    if(!matchMedia('(prefers-reduced-motion: reduce)').matches){scrollTurn=(scrollTurn+step.notches*12)%360;$('dialScrollTicks')?.setAttribute('transform',`rotate(${scrollTurn} ${geometry.cx} ${geometry.cy})`);}
+    const dt=scrollLastFrame?Math.min(.05,Math.max(0,(now-scrollLastFrame)/1000)):0;scrollLastFrame=now;
+    const pose=B.motionScrollPose();
+    if(!pose||!Number.isFinite(pose.pitch)||now-pose.t>500||now<pose.t){
+      scrollBaseline=null;scrollAxis=null;scrollFilter={angle:0};
+    }else{
+      if(scrollBaseline===null||scrollAxis!==pose.axis){scrollBaseline=pose.pitch;scrollAxis=pose.axis;scrollFilter={angle:0};}
+      if(now-scrollStarted>=90){
+        const step=M.tiltScrollStep(scrollFilter,pose.pitch-scrollBaseline,dt,B.scrollSensitivity());scrollFilter=step;
+        if(Math.abs(step.notches)>=.0005){
+          B.wheel(step.notches);
+          if(!matchMedia('(prefers-reduced-motion: reduce)').matches){scrollTurn=(scrollTurn+step.notches*12)%360;$('dialScrollTicks')?.setAttribute('transform',`rotate(${scrollTurn} ${geometry.cx} ${geometry.cy})`);}
+        }
+      }
+    }
+    scrollFrame=requestAnimationFrame(scrollTick);
   }
   const textMeasure=document.createElement('canvas').getContext('2d'),textWidths=new Map();
   function textWidth(text,size){
@@ -247,7 +257,7 @@
     svg+=surfaceText(innerCircle,rightCircle,inner,{x:g.mx,y:g.my-g.mr*.3},Math.min(25,g.mr*.24),w,h,obstacles,'dialClipInner')+'</g>';
     svg+=`<g data-zone="right" class="dial-press" role="button" tabindex="0" aria-label="${escape(right.name)}"><circle class="dial-surface" cx="${g.rx}" cy="${g.ry}" r="${g.rr}" fill="url(#dialInner)" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
     svg+=surfaceText(rightCircle,null,{...right,hint:''},{x:g.rx,y:g.ry},Math.min(16,g.rr*.4),w,h,obstacles,'dialClipRight')+'</g>';
-    svg+=`<g data-zone="scroll" class="dial-press dial-scroll-button ${scroll?'active':''}" role="button" tabindex="0" aria-label="Hold Scroll and move the phone up or down" aria-pressed="${scroll}"><circle class="dial-surface" cx="${sb.x}" cy="${sb.y}" r="${sb.r}" fill="url(#dialInner)" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
+    svg+=`<g data-zone="scroll" class="dial-press dial-scroll-button ${scroll?'active':''}" role="button" tabindex="0" aria-label="Hold Scroll, tilt up or down, return to neutral to stop" aria-pressed="${scroll}"><circle class="dial-surface" cx="${sb.x}" cy="${sb.y}" r="${sb.r}" fill="url(#dialInner)" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
     svg+=surfaceText(scrollCircle,null,{id:'scroll',name:'Scroll',hint:'hold'},{x:sb.x,y:sb.y},Math.min(15,sb.r*.36),w,h,controlObstacles,'dialClipScroll')+'</g>';
     const ix=g.cx+(g.cx>w/2?-g.r+3:g.r-3);svg+=`<circle class="dial-index" cx="${ix}" cy="${g.cy}" r="4" fill="#bfbfbf" pointer-events="none"/>`;
     if(editing)for(const [zone,x,y,r] of [['outer',g.cx,g.cy,g.r],['inner',g.mx,g.my,g.mr],['right',g.rx,g.ry,g.rr],['scroll',sb.x,sb.y,sb.r]]){
@@ -431,7 +441,7 @@
   window.addEventListener('resize',resize);window.visualViewport?.addEventListener('resize',resize);
   window.addEventListener('pagehide',()=>{closeMenu();pause();});window.addEventListener('blur',pause);
   document.addEventListener('visibilitychange',()=>{if(document.hidden){closeMenu();pause();if(editing)finishEdit(false);}});
-  window.Dial={pause,scrollRate,refresh:()=>{if(!pointers.size)render();},
+  window.Dial={pause,refresh:()=>{if(!pointers.size)render();},
     macroPin(id,pinned){const key='macro:'+id;for(const preset of data.presets){preset.hidden=(preset.hidden||[]).filter(s=>s!==key);if(!pinned){preset.order=preset.order.filter(s=>s!==key);preset.hidden.push(key);}}persist();render();},
     connected:()=>{renderState();if(firstConnection){firstConnection=false;setMotion(true);}},disconnected:pause};
   render();

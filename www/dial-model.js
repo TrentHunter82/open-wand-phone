@@ -75,16 +75,23 @@
     // always find a clear position above.
     return {x:Math.max(32,Math.min(w-32,wanted.x)),y:Math.max(94,Math.min(h-40,wanted.y)),r:24,inside:false};
   }
-  function scrollStep(state,upRate,dt,degreesPerNotch=9) {
-    if(!Number.isFinite(upRate)||!Number.isFinite(dt)||dt<=0)return {rate:0,notches:0};
-    const seconds=Math.min(.05,dt),degrees=Math.max(-720,Math.min(720,upRate*180/Math.PI));
-    if(Math.abs(degrees)<=2.5)return {rate:0,notches:0};
-    const input=Math.sign(degrees)*(Math.abs(degrees)-2.5),previous=Number.isFinite(state?.rate)&&Math.sign(state.rate)===Math.sign(input)?state.rate:0;
-    const rate=previous+(input-previous)*(1-Math.exp(-seconds/.075));
-    const gain=clamp(degreesPerNotch,2,18,9),limit=6*Math.max(1,6/gain);
-    const speed=Math.max(-limit,Math.min(limit,rate/gain));
-    // The receivers use native wheel units: positive scrolls upward.
-    return {rate,notches:speed*seconds};
+  function scrollPitch(gravity,axis='top') {
+    if(!Array.isArray(gravity)||gravity.length!==3||!gravity.every(Number.isFinite))return null;
+    const length=Math.hypot(...gravity);if(length<.1)return null;
+    return Math.asin(Math.max(-1,Math.min(1,(axis==='back'?gravity[2]:-gravity[1])/length)));
+  }
+  function tiltScrollStep(state,offset,dt,sensitivity=9) {
+    if(!Number.isFinite(offset)||!Number.isFinite(dt)||dt<=0)return {angle:0,speed:0,notches:0};
+    const seconds=Math.min(.05,dt),degrees=Math.max(-180,Math.min(180,offset*180/Math.PI)),neutral=2;
+    if(Math.abs(degrees)<=neutral)return {angle:degrees,speed:0,notches:0};
+    const previous=Number.isFinite(state?.angle)&&Math.sign(state.angle)===Math.sign(degrees)?state.angle:0;
+    const angle=previous+(degrees-previous)*(1-Math.exp(-seconds/.08));
+    const gain=clamp(sensitivity,2,18,9),limit=6*Math.max(1,6/gain),fullTilt=Math.max(12,gain*2);
+    const amount=Math.max(0,Math.min(1,(Math.abs(angle)-neutral)/(fullTilt-neutral)));
+    const speed=Math.sign(angle)*amount*limit;
+    // Physical tilt is never clamped or integrated: coming back to neutral stops
+    // immediately even after holding far past the full-speed angle.
+    return {angle,speed,notches:speed*seconds};
   }
   function placeControl(rect,bounds,obstacles=[]) {
     const cx=x=>Math.max(bounds.left,Math.min(bounds.right-rect.w,x)),cy=y=>Math.max(bounds.top,Math.min(bounds.bottom-rect.h,y));
@@ -123,7 +130,7 @@
     const index=((page%pages)+pages)%pages;
     return {items:list.slice(index*size,(index+1)*size),index,pages,slots:pages>1?capacity:Math.max(1,list.length)};
   }
-  const api={defaults,baseOrder,view,preset,normalize,geometry,delta,reorder,rimPage,placeControl,rimKeys,scrollButton,scrollStep};
+  const api={defaults,baseOrder,view,preset,normalize,geometry,delta,reorder,rimPage,placeControl,rimKeys,scrollButton,scrollPitch,tiltScrollStep};
   if(typeof module!=='undefined' && module.exports) module.exports=api;
   else root.DialModel=api;
 })(typeof window==='undefined' ? globalThis : window);

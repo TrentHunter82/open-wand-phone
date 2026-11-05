@@ -46,11 +46,9 @@ test('free motion works without holding and pauses during held motion scrolling'
   assert.deepEqual(h.frames.map(f=>f.t),['m']);
 });
 
-test('held Scroll receives only the vertical rate and pointer motion resumes after release',()=>{
+test('pointer stays frozen while the tilt-scroll loop owns motion and resumes on release',()=>{
   const h=harness();
-  h.run('var scrollFrames=[];window.Dial={scrollRate:(up,dt)=>scrollFrames.push([up,dt])};freeMotion=true;dialScrolling=true;processRates(5,-.4,1/60)');
-  assert.equal(h.frames.length,0);
-  assert.equal(h.run('JSON.stringify(scrollFrames)'),JSON.stringify([[-.4,1/60]]));
+  h.run('freeMotion=true;dialScrolling=true;processRates(5,-.4,1/60)');assert.equal(h.frames.length,0);
   h.run('dialScrolling=false;processRates(.5,.1,1/60)');
   assert.equal(h.frames[0].t,'m');assert.equal(h.run('freeMotion'),true);
 });

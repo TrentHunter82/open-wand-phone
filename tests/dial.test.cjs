@@ -75,39 +75,46 @@ test('Scroll finds room in tight grips without changing saved wheels',()=>{
   assert.deepEqual(M.normalize(JSON.parse(JSON.stringify(d))),d);
 });
 
-test('motion scrolling ignores tremor, reverses promptly, and stops without a tail',()=>{
-  const radians=degrees=>degrees*Math.PI/180;
-  assert.equal(M.scrollStep({rate:100},radians(1),1/60).notches,0);
-  const up=M.scrollStep({rate:0},radians(40),1/60),down=M.scrollStep(up,radians(-40),1/60);
-  assert.ok(up.notches>0&&down.notches<0);
-  assert.equal(M.scrollStep(up,0,1/60).notches,0);
-  for(const [rate,dt] of [[NaN,1/60],[Infinity,1/60],[10,NaN],[10,-1]])assert.equal(M.scrollStep(up,rate,dt).notches,0);
+test('scroll pitch tracks aiming elevation and ignores roll for either grip',()=>{
+  const theta=20*Math.PI/180;
+  assert.ok(Math.abs(M.scrollPitch([0,-Math.sin(theta),-Math.cos(theta)])-theta)<1e-10);
+  assert.ok(Math.abs(M.scrollPitch([Math.cos(theta),-Math.sin(theta),0])-theta)<1e-10);
+  assert.ok(Math.abs(M.scrollPitch([0,Math.cos(theta),Math.sin(theta)],'back')-theta)<1e-10);
+  for(const gravity of [null,[],[0,0,0],[NaN,0,1],[0,null,1]])assert.equal(M.scrollPitch(gravity),null);
 });
 
-test('motion scrolling has a moderate speed cap and consistent travel across sensor rates',()=>{
+test('tilt scrolling sustains a stationary angle, reverses, and stops at neutral',()=>{
+  const radians=degrees=>degrees*Math.PI/180;let state={angle:0};
+  for(let i=0;i<180;i++)state=M.tiltScrollStep(state,radians(30),1/60,6);
+  assert.equal(state.speed,6);assert.ok(state.notches>0);
+  assert.equal(M.tiltScrollStep(state,0,1/60,6).notches,0);
+  assert.equal(M.tiltScrollStep(state,radians(1),1/60,6).notches,0);
+  assert.ok(M.tiltScrollStep(state,radians(-30),1/60,6).notches<0);
+  for(const [angle,dt] of [[NaN,1/60],[Infinity,1/60],[10,NaN],[10,-1]])assert.equal(M.tiltScrollStep(state,angle,dt).notches,0);
+});
+
+test('tilt scroll caps speed without losing the physical return to neutral',()=>{
   const totals=[];
   for(const hz of [30,60,120]){
-    let state={rate:0},sum=0;
-    for(let i=0;i<hz;i++){state=M.scrollStep(state,36*Math.PI/180,1/hz,9);sum+=state.notches;}
-    totals.push(sum);assert.ok(Math.abs(sum)>3&&Math.abs(sum)<4);
+    let state={angle:0},sum=0;
+    for(let i=0;i<hz;i++){state=M.tiltScrollStep(state,30*Math.PI/180,1/hz,9);sum+=state.notches;}
+    totals.push(sum);assert.ok(sum>5&&sum<=6);
+    assert.equal(M.tiltScrollStep(state,0,1/hz,9).speed,0);
   }
-  assert.ok(Math.max(...totals)-Math.min(...totals)<.06);
-  assert.ok(Math.abs(M.scrollStep({rate:0},100,10).notches)<=.3000001);
-  assert.ok(Math.abs(M.scrollStep({rate:0},.5,.02,6).notches)>Math.abs(M.scrollStep({rate:0},.5,.02,18).notches));
+  assert.ok(Math.max(...totals)-Math.min(...totals)<.08);
+  assert.ok(M.tiltScrollStep({angle:90},Math.PI/2,.05,9).notches<=.3000001);
 });
 
-test('faster scroll settings increase both fine movement and capped speed',()=>{
-  for(const degrees of [5,36,180])for(const hz of [30,60,120]){
-    let state={rate:0};const totals={2:0,4:0,6:0};
+test('saved faster settings retain threefold and 50 percent tilt speed headroom',()=>{
+  for(const degrees of [5,15,60])for(const hz of [30,60,120]){
+    let state={angle:0};const totals={2:0,4:0,6:0};
     for(let i=0;i<hz;i++){
-      for(const gain of [2,4,6])totals[gain]+=M.scrollStep(state,degrees*Math.PI/180,1/hz,gain).notches;
-      state=M.scrollStep(state,degrees*Math.PI/180,1/hz,6);
+      for(const gain of [2,4,6])totals[gain]+=M.tiltScrollStep(state,degrees*Math.PI/180,1/hz,gain).notches;
+      state=M.tiltScrollStep(state,degrees*Math.PI/180,1/hz,6);
     }
     assert.ok(Math.abs(totals[2]-totals[6]*3)<1e-8);
     assert.ok(Math.abs(totals[4]-totals[6]*1.5)<1e-8);
   }
-  assert.ok(Math.abs(M.scrollStep({rate:0},100,.05,2).notches)<=.9000001);
-  assert.equal(M.scrollStep({rate:100},0,1/60,2).notches,0);
 });
 
 test('every rim action remains reachable on small screens and macro-heavy layouts',()=>{
