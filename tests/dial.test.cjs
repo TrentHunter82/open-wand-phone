@@ -86,7 +86,7 @@ test('scroll pitch tracks aiming elevation and ignores roll for either grip',()=
 test('tilt scrolling sustains a stationary angle, reverses, and stops at neutral',()=>{
   const radians=degrees=>degrees*Math.PI/180;let state={angle:0};
   for(let i=0;i<180;i++)state=M.tiltScrollStep(state,radians(30),1/60,6);
-  assert.equal(state.speed,6);assert.ok(state.notches>0);
+  assert.equal(state.speed,24);assert.ok(state.notches>0);
   assert.equal(M.tiltScrollStep(state,0,1/60,6).notches,0);
   assert.equal(M.tiltScrollStep(state,radians(1),1/60,6).notches,0);
   assert.ok(M.tiltScrollStep(state,radians(-30),1/60,6).notches<0);
@@ -98,11 +98,11 @@ test('tilt scroll caps speed without losing the physical return to neutral',()=>
   for(const hz of [30,60,120]){
     let state={angle:0},sum=0;
     for(let i=0;i<hz;i++){state=M.tiltScrollStep(state,30*Math.PI/180,1/hz,9);sum+=state.notches;}
-    totals.push(sum);assert.ok(sum>5&&sum<=6);
+    totals.push(sum);assert.ok(sum>20&&sum<=24);
     assert.equal(M.tiltScrollStep(state,0,1/hz,9).speed,0);
   }
-  assert.ok(Math.max(...totals)-Math.min(...totals)<.08);
-  assert.ok(M.tiltScrollStep({angle:90},Math.PI/2,.05,9).notches<=.3000001);
+  assert.ok(Math.max(...totals)-Math.min(...totals)<.3);
+  assert.ok(M.tiltScrollStep({angle:90},Math.PI/2,.05,9).notches<=1.2000001);
 });
 
 test('saved faster settings retain threefold and 50 percent tilt speed headroom',()=>{
@@ -114,6 +114,17 @@ test('saved faster settings retain threefold and 50 percent tilt speed headroom'
     }
     assert.ok(Math.abs(totals[2]-totals[6]*3)<1e-8);
     assert.ok(Math.abs(totals[4]-totals[6]*1.5)<1e-8);
+  }
+});
+
+test('deep tilt is four times faster while light tilt and neutral retain fine control',()=>{
+  for(const [gain,small,slowSpeed,maximum] of [[2,4.5,4.5,72],[6,4.5,1.5,24],[9,6,1.5,24],[18,10.5,1.5,24]]){
+    const fine=M.tiltScrollStep({angle:small},small*Math.PI/180,1/60,gain);
+    assert.ok(Math.abs(fine.speed-slowSpeed)<1e-8);
+    const fast=M.tiltScrollStep({angle:60},Math.PI/3,.05,gain);
+    assert.equal(fast.speed,maximum);assert.ok(fast.notches<=3.6000001);
+    assert.equal(M.tiltScrollStep(fast,0,1/60,gain).notches,0);
+    assert.equal(M.tiltScrollStep({angle:-60},-Math.PI/3,.05,gain).speed,-maximum);
   }
 });
 

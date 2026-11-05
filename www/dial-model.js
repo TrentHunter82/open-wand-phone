@@ -88,7 +88,8 @@
     const angle=previous+(degrees-previous)*(1-Math.exp(-seconds/.08));
     const gain=clamp(sensitivity,2,18,9),limit=6*Math.max(1,6/gain),fullTilt=Math.max(12,gain*2);
     const amount=Math.max(0,Math.min(1,(Math.abs(angle)-neutral)/(fullTilt-neutral)));
-    const speed=Math.sign(angle)*amount*limit;
+    const boost=Math.max(0,(amount-.35)/.65);
+    const speed=Math.sign(angle)*amount*limit*(1+3*boost*boost);
     // Physical tilt is never clamped or integrated: coming back to neutral stops
     // immediately even after holding far past the full-speed angle.
     return {angle,speed,notches:speed*seconds};

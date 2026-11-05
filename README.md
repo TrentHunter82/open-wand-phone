@@ -137,8 +137,10 @@ Mic. Only the innermost surface under your finger receives a press.
   pad keeps its own assignment. Engraved dial marks appear while held.
   A short touch guard and smoothing keep the response controlled. **Settings &
   calibration > Scroll sensitivity** retains your saved speed choice (2 to 18;
-  9 by default; lower is faster). The cap ranges from 6 to 18 notches per second,
-  with the faster choices retaining their extra headroom. Invert scroll reverses
+  9 by default; lower is faster). The cap ranges from 24 to 72 notches per second,
+  with the faster choices retaining their extra headroom. Light tilts keep their
+  fine control; deeper tilts progressively accelerate to four times the earlier
+  top speed. Invert scroll reverses
   direction independently of pointer inversion. Keyboard users can hold Space
   or Enter while Scroll has focus. Menus, editing, lost capture, hiding the page,
   or disconnecting cancel the hold. Missing motion data stops scrolling and

@@ -24,7 +24,7 @@ function harness(){
 test('stationary tilted pose keeps scrolling at the cap, neutral stops, and downward tilt reverses',()=>{
   const h=harness();h.start();for(let i=0;i<8;i++)h.step();assert.equal(h.frames.length,0);
   h.pose(40);for(let i=0;i<60;i++)h.step();
-  assert.ok(h.frames.length>50);assert.ok(h.frames.slice(-10).every(v=>Math.abs(v-6*.033)<1e-8));
+  assert.ok(h.frames.length>50);assert.ok(h.frames.slice(-10).every(v=>Math.abs(v-24*.033)<1e-8));
   const count=h.frames.length;h.pose(10);for(let i=0;i<10;i++)h.step();assert.equal(h.frames.length,count);
   h.pose(-15);h.step();assert.ok(h.frames.at(-1)<0);
 });
