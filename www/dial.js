@@ -281,6 +281,11 @@
     if(editing||scroll||menuOpen||!B.ready()||B.busy())return;
     const a=action(id);if(!a)return;B.tap(a);notice(a.name+' sent.');detent();
   }
+  function holdRim(point){
+    const a=action(point.actionId);
+    if(a?.key!=='backspace'||!B.ready()||B.busy())return;
+    point.heldShortcut=true;point.release=B.press(a,false);detent();
+  }
   function nextPage(){rimPage++;render();}
   const stage=$('dialStage');
   stage.addEventListener('pointerdown',e=>{
@@ -291,6 +296,7 @@
     const g={...geometry},rect=stage.getBoundingClientRect(),x=e.clientX-rect.left,y=e.clientY-rect.top;
     const point={zone,actionId:target.dataset.action,transform:target.getAttribute('transform'),resize:!!target.dataset.resize,x,y,g,start:structuredClone(view()),sb:{...scrollGeometry},element:target,moved:false};
     if(editing){if(pointers.size||controlDrag)return;}
+    else if(zone==='shortcut')holdRim(point);
     else if(zone!=='bezel'&&zone!=='shortcut'&&zone!=='page'&&zone!=='scroll'){
       const a=assigned(zone);
       if(a)point.release=B.press(a);
@@ -307,7 +313,7 @@
       if(editing){
         const nearest=[...rimSlots].sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y))[0];
         p.dropId=nearest?.id;p.element.setAttribute('transform',`translate(${x-p.x} ${y-p.y}) ${p.transform}`);
-      }else if(p.moved)p.element.classList.remove('active');
+      }else if(p.moved){if(p.release)p.release();p.element.classList.remove('active');}
       return;
     }
     if(p.zone==='page')return;
@@ -329,7 +335,7 @@
     if(!p.scrolling||!scroll)p.element.classList.remove('active');
     if(p.zone==='shortcut'){
       if(editing){if(e.type==='pointerup'&&p.dropId)draft.order=M.reorder(draft.order,draft.order.indexOf(p.actionId),draft.order.indexOf(p.dropId));render();}
-      else if(e.type==='pointerup'&&!p.moved)fireRim(p.actionId);
+      else if(e.type==='pointerup'&&!p.moved&&!p.heldShortcut)fireRim(p.actionId);
     }else if(p.zone==='page'&&e.type==='pointerup'&&!p.moved)nextPage();
   }
   for(const name of ['pointerup','pointercancel','lostpointercapture'])stage.addEventListener(name,end);
@@ -338,7 +344,7 @@
     const el=e.target,zone=el.dataset.action?'shortcut':el.dataset.page?'page':el.dataset.zone;
     if(!zone||pointers.has('keyboard'))return;e.preventDefault();
     if(scroll&&zone!=='scroll'&&zone!=='page')return;
-    if(zone==='shortcut'||zone==='page'){pointers.set('keyboard',{zone,actionId:el.dataset.action,element:el,moved:false});return;}
+    if(zone==='shortcut'||zone==='page'){const point={zone,actionId:el.dataset.action,element:el,moved:false};if(zone==='shortcut')holdRim(point);pointers.set('keyboard',point);return;}
     if(zone==='scroll'){if(B.ready()&&!B.busy()){setScrollHeld(true);pointers.set('keyboard',{zone,scrolling:true,element:stage.querySelector('[data-zone=scroll]')});}return;}
     if(scroll)return;
     const a=assigned(zone);

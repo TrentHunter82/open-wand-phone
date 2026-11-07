@@ -2864,11 +2864,31 @@ $("startBtn").addEventListener("click", async () => {
 });
 
 // The dial uses the same authenticated connection and input protocol as the pads.
-const dialHeld = new Map(), dialTaps = new Set();
+const dialHeld = new Map(), dialTaps = new Set(), dialRepeats = new Map();
+function holdDialBackspace(socket) {
+  let hold=dialRepeats.get(socket);
+  if(!hold){
+    hold={refs:0,timer:0,stopped:false};
+    const key=s=>{if(socket.readyState===1)socket.send(JSON.stringify({t:"k",key:"backspace",s}));};
+    hold.stop=()=>{
+      if(hold.stopped)return;hold.stopped=true;clearTimeout(hold.timer);
+      dialRepeats.delete(socket);key(0);
+    };
+    const repeat=()=>{
+      if(hold.stopped)return;
+      if(socket!==ws||socket.readyState!==1||window.wandBridge.busy()){hold.stop();return;}
+      // Both receivers track held keys, so each repeat needs a fresh down/up cycle.
+      key(0);key(1);hold.timer=setTimeout(repeat,70);
+    };
+    dialRepeats.set(socket,hold);key(1);hold.timer=setTimeout(repeat,425);
+  }
+  hold.refs++;let released=false;
+  return ()=>{if(released)return;released=true;if(--hold.refs===0)hold.stop();};
+}
 window.wandBridge = {
   ready: () => !!ws && ws.readyState === 1,
   connection: () => ws?.readyState === 1 ? "Connected" : $("stateText").textContent,
-  stop() {cancelAction("Action stopped.");for(const release of dialTaps)release();dialTaps.clear();},
+  stop() {cancelAction("Action stopped.");for(const release of dialTaps)release();dialTaps.clear();for(const hold of dialRepeats.values())hold.stop();},
   scrollPixels: () => Math.max(5,S.scrollPx),
   scrollSensitivity: () => S.motionScrollDeg,
   motionScrollPose: () => scrollPose,
@@ -2883,7 +2903,7 @@ window.wandBridge = {
       {id:"mic",name:"Mic",hint:"hold to talk",key:"f8"},
       {id:"right",name:"Right click",hint:"tap · hold",button:"r"},
       ...builtinActions(agentPlatform,S.redoCombo).map(a=>({id:a.name.toLowerCase(),name:a.name,hint:"tap to send",steps:a.steps})),
-      ...[...new Set(["enter","space","backspace",...(S.hotkeys || [])])].filter(validCombo).map(key=>({id:"key:"+key,name:({enter:"Enter",space:"Space",backspace:"Backspace"})[key] || key.toUpperCase(),hint:"hold shortcut",key})),
+      ...[...new Set(["enter","space","backspace",...(S.hotkeys || [])])].filter(validCombo).map(key=>({id:"key:"+key,name:({enter:"Enter",space:"Space",backspace:"Backspace"})[key] || key.toUpperCase(),hint:key==="backspace"?"tap · hold to repeat":"hold shortcut",key})),
       ...S.macros.filter(m=>macroSteps(m.steps)).map(m=>({id:"macro:"+m.id,name:m.name || "Macro",hint:"tap to run macro",steps:macroSteps(m.steps),pinned:m.pinned})),
     ];
   },
@@ -2894,6 +2914,7 @@ window.wandBridge = {
     if(feedback)pressFeedback();engageT=performance.now();sentLog=[];fYaw.reset();fPitch.reset();
     const socket=ws;
     if(a.steps) return clicked => {if(clicked && socket===ws && socket.readyState===1)runAction(a.name,a.steps);};
+    if(a.key==="backspace")return holdDialBackspace(socket);
     const id=a.button ? "b:"+a.button : "k:"+a.key;
     const frame=a.button ? {t:"b",btn:a.button} : {t:"k",key:a.key};
     const count=dialHeld.get(id)||0;dialHeld.set(id,count+1);

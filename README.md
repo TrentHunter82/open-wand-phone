@@ -152,6 +152,9 @@ Mic. Only the innermost surface under your finger receives a press.
   Built-in shortcuts automatically use Command on Mac. Literal custom shortcuts
   keep their configured modifiers. A macro runs on a completed tap; canceling
   the gesture never starts it. Only one macro sequence runs at a time.
+- **Backspace:** tap to delete one character, or hold to keep deleting after a
+  short pause. Release or slide away from the rim button to stop. This also works
+  when Backspace is assigned to one of the larger circles.
 
 ### Glass materials
 
