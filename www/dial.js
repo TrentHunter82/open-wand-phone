@@ -5,7 +5,7 @@
   let data;try{data=M.normalize(JSON.parse(localStorage.getItem(STORAGE)));}catch{data=M.normalize();}
   let editing=false,draft=null,before=null,scroll=false,firstConnection=true,settingsOpen=false;
   const pointers=new Map();
-  let geometry=null,resizeFrame=0,noticeTimer=0,feedbackTimer=0,menuOpen=false,swallowMenuClick=false,rimPage=0,rimSlots=[],controlDrag=null,scrollTurn=0,scrollGeometry=null,scrollFilter={angle:0},scrollStarted=0,scrollBaseline=null,scrollAxis=null,scrollFrame=0,scrollLastFrame=0;
+  let geometry=null,resizeFrame=0,noticeTimer=0,feedbackTimer=0,menuOpen=false,swallowMenuClick=false,rimPage=0,rimSlots=[],controlDrag=null,scrollTurn=0,scrollGeometry=null,scrollFilter={speed:0},scrollInput=null,scrollFrame=0,scrollLastFrame=0;
   const current=()=>editing?draft:data.presets[data.current];
   const orientation=()=>innerWidth>innerHeight?'landscape':'portrait';
   let editOrientation=orientation();
@@ -28,6 +28,7 @@
     <div id="dialDock" aria-label="Pointer controls"><button id="dialMotion" aria-pressed="false" aria-label="Enable motion"><span class="dial-dot"></span><span id="dialMotionIcon" aria-hidden="true">&#9654;</span></button><button id="dialMotionGrip" class="dial-control-grip" hidden aria-label="Move Motion button" data-control="motion">&#10495;</button></div>
     <div id="dialEditbar" class="dial-editbar" hidden><button id="dialCancel">Cancel</button><button id="dialCustomize" aria-label="Sizes &amp; actions" title="Sizes &amp; actions">☷</button><button id="dialSave" aria-label="Save layout">Save</button></div>
     <div id="dialNotice" role="status" aria-live="polite"></div>
+    <div id="dialScrollOverlay" hidden aria-hidden="true"><div class="dial-scroll-scrim"></div><svg id="dialScrollPopup" xmlns="http://www.w3.org/2000/svg"></svg></div>
   </div>`;
   $('app').insertAdjacentHTML('beforeend',initialHTML);
   document.body.classList.add('dial-view');
@@ -79,40 +80,70 @@
     $('dialConnectionDot').classList.toggle('connected',B.ready());
     glass?.wake();
   }
+  function hideScrollPopup(){
+    $('dialRoot').classList.remove('scroll-focus');$('dialScrollOverlay').hidden=true;
+  }
   function releaseAll(){
     const wasScrolling=scroll;
     for(const p of pointers.values()){if(p.release)p.release();}pointers.clear();
     if(editing&&controlDrag)Object.assign(view(),controlDrag.before);controlDrag=null;
-    scroll=false;scrollFilter={angle:0};scrollBaseline=null;scrollAxis=null;if(scrollFrame)cancelAnimationFrame(scrollFrame);scrollFrame=0;scrollLastFrame=0;B.scrolling(false);
+    scroll=false;scrollFilter={speed:0};scrollInput=null;if(scrollFrame)cancelAnimationFrame(scrollFrame);scrollFrame=0;scrollLastFrame=0;B.scrolling(false);hideScrollPopup();
     $('dialStage').querySelectorAll('.active').forEach(el=>el.classList.remove('active'));
     if(wasScrolling)render();
   }
-  function setScrollHeld(on){
+  function showScrollPopup(){
+    const root=$('dialRoot'),w=root.clientWidth,h=root.clientHeight,p=scrollInput.popup;
+    $('dialScrollPopup').setAttribute('viewBox',`0 0 ${w} ${h}`);
+    $('dialScrollPopup').innerHTML=`<defs><linearGradient id="scrollFocusFace" x2=".7" y2="1"><stop stop-color="#393939"/><stop offset=".5" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient><linearGradient id="scrollThumbFace" x2=".6" y2="1"><stop stop-color="#626262"/><stop offset=".45" stop-color="#3d3d3d"/><stop offset="1" stop-color="#242424"/></linearGradient></defs>
+      <g transform="translate(${p.x} ${p.y}) scale(${p.height/328})">
+        <rect class="dial-scroll-popup-shadow" x="-66" y="-162" width="132" height="324" rx="48"/>
+        <rect class="dial-scroll-popup-face" x="-65" y="-163" width="130" height="324" rx="48" fill="url(#scrollFocusFace)"/>
+        <text class="dial-scroll-popup-title" x="0" y="-136">SCROLL</text>
+        <g id="dialScrollUp" class="dial-scroll-direction"><path d="M-8 -108L0 -116L8 -108"/><text x="0" y="-91">UP</text></g>
+        <rect class="dial-scroll-rail" x="-23" y="-82" width="46" height="164" rx="23"/>
+        ${Array.from({length:9},(_,i)=>`<path class="dial-scroll-engraving" d="M-34 ${-64+i*16}h7M27 ${-64+i*16}h7"/>`).join('')}
+        <path class="dial-scroll-neutral" d="M-38 0h12M26 0h12"/>
+        <g id="dialScrollThumb"><circle class="dial-scroll-thumb-shadow" cy="3" r="24"/><circle class="dial-scroll-thumb" r="23" fill="url(#scrollThumbFace)"/><path class="dial-scroll-thumb-grip" d="M-7 -5H7M-7 0H7M-7 5H7"/></g>
+        <g id="dialScrollDown" class="dial-scroll-direction"><path d="M-8 104L0 112L8 104"/><text x="0" y="129">DOWN</text></g>
+        <text id="dialScrollCaption" class="dial-scroll-popup-caption" x="0" y="149">Slide up or down</text>
+      </g>`;
+    $('dialScrollOverlay').hidden=false;root.classList.add('scroll-focus');updateScrollPopup();
+  }
+  function updateScrollPopup(){
+    if(!scrollInput)return;const offset=scrollInput.offset,moving=Math.abs(offset)>.1;
+    $('dialScrollThumb')?.setAttribute('transform',`translate(0 ${-offset*64})`);
+    $('dialScrollUp')?.classList.toggle('engaged',moving&&offset>0);$('dialScrollDown')?.classList.toggle('engaged',moving&&offset<0);
+    const caption=$('dialScrollCaption');if(caption)caption.textContent=moving?'Release to stop':'Slide up or down';
+  }
+  function moveScrollFinger(y){
+    if(!scrollInput||!Number.isFinite(y))return;
+    const delta=scrollInput.y-y,range=delta>0?scrollInput.popup.up:scrollInput.popup.down;
+    scrollInput.offset=Math.max(-1,Math.min(1,delta/range));updateScrollPopup();
+  }
+  function setScrollHeld(on,point){
     if(on){
       if(scroll)return;
-      releaseAll();B.stop();scroll=true;scrollFilter={angle:0};scrollStarted=performance.now();const pose=B.motionScrollPose();scrollBaseline=pose&&scrollStarted-pose.t<=500?pose.pitch:null;scrollAxis=pose?.axis??null;B.scrolling(true);B.haptic();scrollFrame=requestAnimationFrame(scrollTick);
+      releaseAll();B.stop();scroll=true;scrollFilter={speed:0};
+      const root=$('dialRoot'),style=getComputedStyle(root),top=parseFloat(style.getPropertyValue('--dial-safe-top'))||0,bottom=parseFloat(style.getPropertyValue('--dial-safe-bottom'))||0;
+      const x=point?.x??scrollGeometry.x,y=point?.y??scrollGeometry.y;
+      scrollInput={y,offset:0,popup:M.scrollPopup(x,y,root.clientWidth,root.clientHeight,top,bottom)};
+      B.scrolling(true);B.haptic();showScrollPopup();scrollFrame=requestAnimationFrame(scrollTick);
     }else{
       if(!scroll)return;
-      scroll=false;scrollFilter={angle:0};scrollBaseline=null;scrollAxis=null;if(scrollFrame)cancelAnimationFrame(scrollFrame);scrollFrame=0;scrollLastFrame=0;B.scrolling(false);
+      scroll=false;scrollFilter={speed:0};scrollInput=null;if(scrollFrame)cancelAnimationFrame(scrollFrame);scrollFrame=0;scrollLastFrame=0;B.scrolling(false);hideScrollPopup();
     }
     render();
   }
   function scrollTick(){
     const now=performance.now();scrollFrame=0;if(!scroll)return;
-    if(editing||menuOpen||B.busy()||!B.ready()){releaseAll();return;}
-    const dt=scrollLastFrame?Math.min(.05,Math.max(0,(now-scrollLastFrame)/1000)):0;scrollLastFrame=now;
-    const pose=B.motionScrollPose();
-    if(!pose||!Number.isFinite(pose.pitch)||now-pose.t>500||now<pose.t){
-      scrollBaseline=null;scrollAxis=null;scrollFilter={angle:0};
-    }else{
-      if(scrollBaseline===null||scrollAxis!==pose.axis){scrollBaseline=pose.pitch;scrollAxis=pose.axis;scrollFilter={angle:0};}
-      if(now-scrollStarted>=90){
-        const step=M.tiltScrollStep(scrollFilter,pose.pitch-scrollBaseline,dt,B.scrollSensitivity());scrollFilter=step;
-        if(Math.abs(step.notches)>=.0005){
-          B.wheel(step.notches);
-          if(!matchMedia('(prefers-reduced-motion: reduce)').matches){scrollTurn=(scrollTurn+step.notches*12)%360;$('dialScrollTicks')?.setAttribute('transform',`rotate(${scrollTurn} ${geometry.cx} ${geometry.cy})`);}
-        }
-      }
+    if(editing||menuOpen||settingsOpen||B.busy()||!B.ready()){releaseAll();return;}
+    const elapsed=scrollLastFrame?(now-scrollLastFrame)/1000:0;scrollLastFrame=now;
+    // A suspended frame loop must not resume a previous scrolling command.
+    if(elapsed>.25){scrollInput.offset=0;scrollFilter={speed:0};updateScrollPopup();}
+    const step=M.fingerScrollStep(scrollFilter,scrollInput.offset,Math.min(.05,Math.max(0,elapsed)),B.scrollSensitivity());scrollFilter=step;
+    if(Math.abs(step.notches)>=.0005){
+      B.wheel(step.notches);
+      if(!matchMedia('(prefers-reduced-motion: reduce)').matches){scrollTurn=(scrollTurn+step.notches*12)%360;$('dialScrollTicks')?.setAttribute('transform',`rotate(${scrollTurn} ${geometry.cx} ${geometry.cy})`);}
     }
     scrollFrame=requestAnimationFrame(scrollTick);
   }
@@ -257,7 +288,7 @@
     svg+=surfaceText(innerCircle,rightCircle,inner,{x:g.mx,y:g.my-g.mr*.3},Math.min(25,g.mr*.24),w,h,obstacles,'dialClipInner')+'</g>';
     svg+=`<g data-zone="right" class="dial-press" role="button" tabindex="0" aria-label="${escape(right.name)}"><circle class="dial-surface" cx="${g.rx}" cy="${g.ry}" r="${g.rr}" fill="url(#dialInner)" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
     svg+=surfaceText(rightCircle,null,{...right,hint:''},{x:g.rx,y:g.ry},Math.min(16,g.rr*.4),w,h,obstacles,'dialClipRight')+'</g>';
-    svg+=`<g data-zone="scroll" class="dial-press dial-scroll-button ${scroll?'active':''}" role="button" tabindex="0" aria-label="Hold Scroll, tilt up or down, return to neutral to stop" aria-pressed="${scroll}"><circle class="dial-surface" cx="${sb.x}" cy="${sb.y}" r="${sb.r}" fill="url(#dialInner)" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
+    svg+=`<g data-zone="scroll" class="dial-press dial-scroll-button ${scroll?'active':''}" role="button" tabindex="0" aria-label="Hold Scroll and slide your finger up or down; release to stop" aria-pressed="${scroll}"><circle class="dial-surface" cx="${sb.x}" cy="${sb.y}" r="${sb.r}" fill="url(#dialInner)" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
     svg+=surfaceText(scrollCircle,null,{id:'scroll',name:'Scroll',hint:'hold'},{x:sb.x,y:sb.y},Math.min(15,sb.r*.36),w,h,controlObstacles,'dialClipScroll')+'</g>';
     const ix=g.cx+(g.cx>w/2?-g.r+3:g.r-3);svg+=`<circle class="dial-index" cx="${ix}" cy="${g.cy}" r="4" fill="#bfbfbf" pointer-events="none"/>`;
     if(editing)for(const [zone,x,y,r] of [['outer',g.cx,g.cy,g.r],['inner',g.mx,g.my,g.mr],['right',g.rx,g.ry,g.rr],['scroll',sb.x,sb.y,sb.r]]){
@@ -292,7 +323,7 @@
     const target=e.target.closest('[data-action],[data-page],[data-zone],[data-resize]');if(!target || pointers.has(e.pointerId))return;
     const zone=target.dataset.action?'shortcut':target.dataset.page?'page':target.dataset.resize||target.dataset.zone;
     e.preventDefault();if(!editing && (menuOpen||B.busy()||(!B.ready()&&zone!=='page'))){notice('Connect to the computer first.');return;}
-    if(!editing&&scroll&&zone!=='scroll'&&zone!=='page')return;
+    if(!editing&&scroll)return;
     const g={...geometry},rect=stage.getBoundingClientRect(),x=e.clientX-rect.left,y=e.clientY-rect.top;
     const point={zone,actionId:target.dataset.action,transform:target.getAttribute('transform'),resize:!!target.dataset.resize,x,y,g,start:structuredClone(view()),sb:{...scrollGeometry},element:target,moved:false};
     if(editing){if(pointers.size||controlDrag)return;}
@@ -301,13 +332,14 @@
       const a=assigned(zone);
       if(a)point.release=B.press(a);
     }
-    if(!editing&&zone==='scroll'){point.scrolling=true;setScrollHeld(true);point.element=stage.querySelector('[data-zone=scroll]');}
+    if(!editing&&zone==='scroll'){point.scrolling=true;setScrollHeld(true,point);point.element=stage.querySelector('[data-zone=scroll]');}
     if(zone!=='bezel')point.element.classList.add('active');
     pointers.set(e.pointerId,point);try{stage.setPointerCapture(e.pointerId);}catch{}
   });
   stage.addEventListener('pointermove',e=>{
     const p=pointers.get(e.pointerId);if(!p)return;e.preventDefault();
     const rect=stage.getBoundingClientRect(),x=e.clientX-rect.left,y=e.clientY-rect.top;
+    if(p.scrolling){moveScrollFinger(y);return;}
     p.moved=p.moved||Math.hypot(x-p.x,y-p.y)>12;
     if(p.zone==='shortcut'){
       if(editing){
@@ -340,19 +372,25 @@
   }
   for(const name of ['pointerup','pointercancel','lostpointercapture'])stage.addEventListener(name,end);
   stage.addEventListener('keydown',e=>{
+    if(scroll&&pointers.get('keyboard')?.scrolling){
+      if(e.key==='Escape'){e.preventDefault();releaseAll();return;}
+      if(['ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();scrollInput.offset=(e.key==='ArrowUp'?1:-1)*(e.shiftKey?1:.4);updateScrollPopup();return;}
+    }
     if(editing||menuOpen||e.repeat||![' ','Enter'].includes(e.key))return;
     const el=e.target,zone=el.dataset.action?'shortcut':el.dataset.page?'page':el.dataset.zone;
     if(!zone||pointers.has('keyboard'))return;e.preventDefault();
-    if(scroll&&zone!=='scroll'&&zone!=='page')return;
+    if(scroll)return;
     if(zone==='shortcut'||zone==='page'){const point={zone,actionId:el.dataset.action,element:el,moved:false};if(zone==='shortcut')holdRim(point);pointers.set('keyboard',point);return;}
     if(zone==='scroll'){if(B.ready()&&!B.busy()){setScrollHeld(true);pointers.set('keyboard',{zone,scrolling:true,element:stage.querySelector('[data-zone=scroll]')});}return;}
-    if(scroll)return;
     const a=assigned(zone);
     if(B.ready()&&!B.busy()&&a)pointers.set('keyboard',{release:B.press(a),element:el});
   });
-  stage.addEventListener('keyup',e=>{if(e.key===' '||e.key==='Enter')end({pointerId:'keyboard',type:'pointerup'});});
+  stage.addEventListener('keyup',e=>{
+    if(scroll&&pointers.get('keyboard')?.scrolling&&['ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();scrollInput.offset=0;updateScrollPopup();}
+    if(e.key===' '||e.key==='Enter')end({pointerId:'keyboard',type:'pointerup'});
+  });
   stage.addEventListener('click',e=>{
-    if(e.detail!==0||editing||menuOpen)return;
+    if(e.detail!==0||editing||scroll||menuOpen)return;
     const el=e.target.closest('[data-action],[data-page]');if(!el)return;
     if(el.dataset.page)nextPage();else fireRim(el.dataset.action);
   });

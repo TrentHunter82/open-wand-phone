@@ -2,7 +2,7 @@
 body.dial-view {background:#27282c;color:#f1ede5;}
 .dial-view #app > :not(#dialRoot):not(#banner):not(#pressFlash) {display:none!important;}
 .dial-view #banner {position:fixed;top:100px;left:12px;right:12px;z-index:70;}
-#dialRoot {--dial-safe-top:env(safe-area-inset-top);position:absolute;inset:0;overflow:hidden;background:radial-gradient(ellipse at 20% 0%,#34353a,#28292d 65%);font-family:system-ui,-apple-system,sans-serif;}
+#dialRoot {--dial-safe-top:env(safe-area-inset-top);--dial-safe-bottom:env(safe-area-inset-bottom);position:absolute;inset:0;overflow:hidden;background:radial-gradient(ellipse at 20% 0%,#34353a,#28292d 65%);font-family:system-ui,-apple-system,sans-serif;}
 #dialRoot *, #dialEditor * {box-sizing:border-box;}
 #dialRoot [hidden] {display:none!important;}
 .dial-view #drawer [hidden] {display:none!important;}
@@ -115,3 +115,28 @@ body.dial-view {background:#090909;color:#ededed;}
 .dial-tick {stroke:#d2d2d2;stroke-width:.8;stroke-opacity:.38;}
 .dial-tick.major {stroke-width:1.2;stroke-opacity:.65;}
 @media (prefers-reduced-motion:reduce) {#dialNotice {transition:none;}}
+
+/* The captured Scroll gesture stays on the stage while its thumb control floats above it. */
+#dialStage,#dialLiquid,.dial-header,#dialDock {transition:opacity .16s ease;}
+#dialRoot.scroll-focus #dialStage,#dialRoot.scroll-focus #dialLiquid {opacity:.18;}
+#dialRoot.scroll-focus .dial-header,#dialRoot.scroll-focus #dialDock,#dialRoot.scroll-focus #dialNotice {opacity:.12;}
+#dialRoot.scroll-focus .dial-header *,#dialRoot.scroll-focus #dialDock * {pointer-events:none;}
+#dialScrollOverlay {position:absolute;inset:0;z-index:25;pointer-events:none;touch-action:none;}
+.dial-scroll-scrim {position:absolute;inset:0;background:#0006;}
+#dialScrollPopup {position:absolute;inset:0;width:100%;height:100%;overflow:visible;}
+.dial-scroll-popup-shadow {fill:#000;filter:drop-shadow(0 12px 18px #000b);}
+.dial-scroll-popup-face {stroke:#ffffff36;stroke-width:1;}
+#dialScrollPopup text {fill:#c8c8c8;text-anchor:middle;font-family:system-ui,-apple-system,sans-serif;}
+#dialScrollPopup .dial-scroll-popup-title {font-size:11px;font-weight:650;letter-spacing:1.6px;fill:#eee;}
+.dial-scroll-direction {color:#858585;}
+.dial-scroll-direction path {fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+#dialScrollPopup .dial-scroll-direction text {font-size:10px;letter-spacing:1px;fill:currentColor;}
+.dial-scroll-direction.engaged {color:#fff;}
+.dial-scroll-rail {fill:#080808;stroke:#ffffff12;stroke-width:1;}
+.dial-scroll-engraving {stroke:#626262;stroke-width:1;}
+.dial-scroll-neutral {stroke:#b8b8b8;stroke-width:1.5;}
+.dial-scroll-thumb-shadow {fill:#000;filter:drop-shadow(0 4px 4px #000a);}
+.dial-scroll-thumb {stroke:#ffffff60;stroke-width:1;}
+.dial-scroll-thumb-grip {fill:none;stroke:#d6d6d6;stroke-opacity:.7;stroke-width:1.2;stroke-linecap:round;}
+#dialScrollPopup .dial-scroll-popup-caption {font-size:9px;fill:#aaa;}
+@media (prefers-reduced-motion:reduce) {#dialStage,#dialLiquid,.dial-header,#dialDock {transition:none;}}

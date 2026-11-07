@@ -75,56 +75,45 @@ test('Scroll finds room in tight grips without changing saved wheels',()=>{
   assert.deepEqual(M.normalize(JSON.parse(JSON.stringify(d))),d);
 });
 
-test('scroll pitch tracks aiming elevation and ignores roll for either grip',()=>{
-  const theta=20*Math.PI/180;
-  assert.ok(Math.abs(M.scrollPitch([0,-Math.sin(theta),-Math.cos(theta)])-theta)<1e-10);
-  assert.ok(Math.abs(M.scrollPitch([Math.cos(theta),-Math.sin(theta),0])-theta)<1e-10);
-  assert.ok(Math.abs(M.scrollPitch([0,Math.cos(theta),Math.sin(theta)],'back')-theta)<1e-10);
-  for(const gravity of [null,[],[0,0,0],[NaN,0,1],[0,null,1]])assert.equal(M.scrollPitch(gravity),null);
+test('scroll popup fits phone viewports and shortens travel near the screen edges',()=>{
+  for(const [w,h] of [[320,568],[390,844],[844,390],[320,300]])for(const y of [60,h/2,h-40])for(const x of [24,w/2,w-24]){
+    const p=M.scrollPopup(x,y,w,h,20,16);
+    assert.ok(p.x-66>=8&&p.x+66<=w-8);
+    assert.ok(p.y-p.height/2>=32-1e-8&&p.y+p.height/2<=h-28+1e-8);
+    assert.ok(p.up>=24&&p.up<=64&&p.down>=24&&p.down<=64);
+  }
+  assert.equal(M.scrollPopup(100,804,390,844).down,28);
 });
 
-test('tilt scrolling sustains a stationary angle, reverses, and stops at neutral',()=>{
-  const radians=degrees=>degrees*Math.PI/180;let state={angle:0};
-  for(let i=0;i<180;i++)state=M.tiltScrollStep(state,radians(30),1/60,6);
-  assert.equal(state.speed,24);assert.ok(state.notches>0);
-  assert.equal(M.tiltScrollStep(state,0,1/60,6).notches,0);
-  assert.equal(M.tiltScrollStep(state,radians(1),1/60,6).notches,0);
-  assert.ok(M.tiltScrollStep(state,radians(-30),1/60,6).notches<0);
-  for(const [angle,dt] of [[NaN,1/60],[Infinity,1/60],[10,NaN],[10,-1]])assert.equal(M.tiltScrollStep(state,angle,dt).notches,0);
+test('finger scrolling sustains an offset, stops immediately in the center, and reverses',()=>{
+  let state={speed:0};
+  for(let i=0;i<180;i++)state=M.fingerScrollStep(state,1,1/60,6);
+  assert.ok(Math.abs(state.speed-24)<1e-8);assert.ok(state.notches>0);
+  for(const center of [0,.09,-.1])assert.equal(M.fingerScrollStep(state,center,1/60,6).notches,0);
+  assert.ok(M.fingerScrollStep(state,-1,1/60,6).notches<0);
+  for(const [offset,dt] of [[NaN,1/60],[Infinity,1/60],[1,NaN],[1,-1]])assert.equal(M.fingerScrollStep(state,offset,dt).notches,0);
 });
 
-test('tilt scroll caps speed without losing the physical return to neutral',()=>{
+test('finger scrolling is frame-rate independent and a resumed frame cannot send a large burst',()=>{
   const totals=[];
   for(const hz of [30,60,120]){
-    let state={angle:0},sum=0;
-    for(let i=0;i<hz;i++){state=M.tiltScrollStep(state,30*Math.PI/180,1/hz,9);sum+=state.notches;}
-    totals.push(sum);assert.ok(sum>20&&sum<=24);
-    assert.equal(M.tiltScrollStep(state,0,1/hz,9).speed,0);
+    let state={speed:0},sum=0;
+    for(let i=0;i<hz;i++){state=M.fingerScrollStep(state,1,1/hz,9);sum+=state.notches;}
+    totals.push(sum);assert.ok(sum>22&&sum<=24);
+    assert.equal(M.fingerScrollStep(state,0,1/hz,9).speed,0);
   }
   assert.ok(Math.max(...totals)-Math.min(...totals)<.3);
-  assert.ok(M.tiltScrollStep({angle:90},Math.PI/2,.05,9).notches<=1.2000001);
+  assert.ok(M.fingerScrollStep({speed:72},5,10,2).notches<=3.6000001);
 });
 
-test('saved faster settings retain threefold and 50 percent tilt speed headroom',()=>{
-  for(const degrees of [5,15,60])for(const hz of [30,60,120]){
-    let state={angle:0};const totals={2:0,4:0,6:0};
-    for(let i=0;i<hz;i++){
-      for(const gain of [2,4,6])totals[gain]+=M.tiltScrollStep(state,degrees*Math.PI/180,1/hz,gain).notches;
-      state=M.tiltScrollStep(state,degrees*Math.PI/180,1/hz,6);
-    }
-    assert.ok(Math.abs(totals[2]-totals[6]*3)<1e-8);
-    assert.ok(Math.abs(totals[4]-totals[6]*1.5)<1e-8);
-  }
-});
-
-test('deep tilt is four times faster while light tilt and neutral retain fine control',()=>{
-  for(const [gain,small,slowSpeed,maximum] of [[2,4.5,4.5,72],[6,4.5,1.5,24],[9,6,1.5,24],[18,10.5,1.5,24]]){
-    const fine=M.tiltScrollStep({angle:small},small*Math.PI/180,1/60,gain);
-    assert.ok(Math.abs(fine.speed-slowSpeed)<1e-8);
-    const fast=M.tiltScrollStep({angle:60},Math.PI/3,.05,gain);
+test('saved scroll speed retains its cap and fine finger movements stay controlled',()=>{
+  for(const [gain,maximum] of [[2,72],[4,36],[6,24],[9,24],[18,24]]){
+    const fast=M.fingerScrollStep({speed:maximum},1,.05,gain);
     assert.equal(fast.speed,maximum);assert.ok(fast.notches<=3.6000001);
-    assert.equal(M.tiltScrollStep(fast,0,1/60,gain).notches,0);
-    assert.equal(M.tiltScrollStep({angle:-60},-Math.PI/3,.05,gain).speed,-maximum);
+    const fine=M.fingerScrollStep({speed:0},.2,.05,gain);
+    assert.ok(fine.speed>0&&fine.speed<maximum*.06);
+    assert.equal(M.fingerScrollStep(fast,0,1/60,gain).notches,0);
+    assert.equal(M.fingerScrollStep({speed:-maximum},-1,.05,gain).speed,-maximum);
   }
 });
 

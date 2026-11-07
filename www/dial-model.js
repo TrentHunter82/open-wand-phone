@@ -75,24 +75,20 @@
     // always find a clear position above.
     return {x:Math.max(32,Math.min(w-32,wanted.x)),y:Math.max(94,Math.min(h-40,wanted.y)),r:24,inside:false};
   }
-  function scrollPitch(gravity,axis='top') {
-    if(!Array.isArray(gravity)||gravity.length!==3||!gravity.every(Number.isFinite))return null;
-    const length=Math.hypot(...gravity);if(length<.1)return null;
-    return Math.asin(Math.max(-1,Math.min(1,(axis==='back'?gravity[2]:-gravity[1])/length)));
+  function scrollPopup(x,y,w,h,top=0,bottom=0) {
+    const height=Math.max(200,Math.min(328,h-top-bottom-24)),half=height/2;
+    return {x:clamp(x,76,w-76,w/2),y:clamp(y,top+half+12,h-bottom-half-12,h/2),height,
+      up:Math.max(24,Math.min(64,y-top-12)),down:Math.max(24,Math.min(64,h-bottom-y-12))};
   }
-  function tiltScrollStep(state,offset,dt,sensitivity=9) {
-    if(!Number.isFinite(offset)||!Number.isFinite(dt)||dt<=0)return {angle:0,speed:0,notches:0};
-    const seconds=Math.min(.05,dt),degrees=Math.max(-180,Math.min(180,offset*180/Math.PI)),neutral=2;
-    if(Math.abs(degrees)<=neutral)return {angle:degrees,speed:0,notches:0};
-    const previous=Number.isFinite(state?.angle)&&Math.sign(state.angle)===Math.sign(degrees)?state.angle:0;
-    const angle=previous+(degrees-previous)*(1-Math.exp(-seconds/.08));
-    const gain=clamp(sensitivity,2,18,9),limit=6*Math.max(1,6/gain),fullTilt=Math.max(12,gain*2);
-    const amount=Math.max(0,Math.min(1,(Math.abs(angle)-neutral)/(fullTilt-neutral)));
-    const boost=Math.max(0,(amount-.35)/.65);
-    const speed=Math.sign(angle)*amount*limit*(1+3*boost*boost);
-    // Physical tilt is never clamped or integrated: coming back to neutral stops
-    // immediately even after holding far past the full-speed angle.
-    return {angle,speed,notches:speed*seconds};
+  function fingerScrollStep(state,offset,dt,sensitivity=9) {
+    if(!Number.isFinite(offset)||!Number.isFinite(dt)||dt<=0)return {speed:0,notches:0};
+    const seconds=Math.min(.05,dt),position=Math.max(-1,Math.min(1,offset)),neutral=.1;
+    if(Math.abs(position)<=neutral)return {speed:0,notches:0};
+    const amount=(Math.abs(position)-neutral)/(1-neutral),gain=clamp(sensitivity,2,18,9);
+    const target=Math.sign(position)*Math.pow(amount,1.4+gain/20)*24*Math.max(1,6/gain);
+    const previous=Number.isFinite(state?.speed)&&Math.sign(state.speed)===Math.sign(target)?state.speed:0;
+    const speed=previous+(target-previous)*(1-Math.exp(-seconds/.045));
+    return {speed,notches:speed*seconds};
   }
   function placeControl(rect,bounds,obstacles=[]) {
     const cx=x=>Math.max(bounds.left,Math.min(bounds.right-rect.w,x)),cy=y=>Math.max(bounds.top,Math.min(bounds.bottom-rect.h,y));
@@ -131,7 +127,7 @@
     const index=((page%pages)+pages)%pages;
     return {items:list.slice(index*size,(index+1)*size),index,pages,slots:pages>1?capacity:Math.max(1,list.length)};
   }
-  const api={defaults,baseOrder,view,preset,normalize,geometry,delta,reorder,rimPage,placeControl,rimKeys,scrollButton,scrollPitch,tiltScrollStep};
+  const api={defaults,baseOrder,view,preset,normalize,geometry,delta,reorder,rimPage,placeControl,rimKeys,scrollButton,scrollPopup,fingerScrollStep};
   if(typeof module!=='undefined' && module.exports) module.exports=api;
   else root.DialModel=api;
 })(typeof window==='undefined' ? globalThis : window);

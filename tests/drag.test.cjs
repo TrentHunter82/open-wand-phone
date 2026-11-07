@@ -40,13 +40,13 @@ test('cancellation clears dragging; offline and layout editing cannot start it',
   assert.equal(h.run('leftHeld'),false);
 });
 
-test('free motion works without holding and pauses during held motion scrolling',()=>{
+test('free motion works without holding and pauses during held finger scrolling',()=>{
   const h=harness();
   h.run('freeMotion=true;processRates(1,0,1/60);dialScrolling=true;processRates(1,0,1/60);dialScrolling=false;freeMotion=false;processRates(1,0,1/60)');
   assert.deepEqual(h.frames.map(f=>f.t),['m']);
 });
 
-test('pointer stays frozen while the tilt-scroll loop owns motion and resumes on release',()=>{
+test('pointer stays frozen while the finger-scroll loop owns motion and resumes on release',()=>{
   const h=harness();
   h.run('freeMotion=true;dialScrolling=true;processRates(5,-.4,1/60)');assert.equal(h.frames.length,0);
   h.run('dialScrolling=false;processRates(.5,.1,1/60)');

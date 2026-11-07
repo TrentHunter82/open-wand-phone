@@ -692,7 +692,7 @@
     <label for="sMotionScroll">Scroll sensitivity, lower = faster <b id="vMotionScroll"></b></label>
     <input type="range" id="sMotionScroll" min="2" max="18" step="1">
   </div>
-  <div class="hint">Hold Scroll to set a neutral angle. Tilt up or down and hold that angle to keep scrolling. Return to neutral or release to stop. Sideways movement is ignored.</div>
+  <div class="hint">Hold Scroll to open the thumb control. Slide up or down to scroll; farther is faster. Keep your finger off-center to continue, return to the middle to pause, or release to close. The mouse stays still while scrolling.</div>
   <div class="row">
     <label>Drag px per notch, lower = faster <b id="vScrollPx"></b></label>
     <input type="range" id="sScrollPx" min="10" max="80" step="2">
@@ -928,7 +928,6 @@ const SIM = qsParams.get("sim") === "1";
 let ws = null;
 let freeMotion = false;
 let dialScrolling = false;
-let scrollPose = null;
 let agentPlatform = "win32";
 let started = false;
 let lastClose = "";      // code and reason of the last socket close, for the About line
@@ -1142,12 +1141,6 @@ function onMotion(e) {
   const a = e.accelerationIncludingGravity;
   if (a && a.x !== null) updateGravity(a, dt);
 
-  const linear=e.acceleration;
-  const gravityForScroll=a&&[a.x,a.y,a.z].every(Number.isFinite)?[a.x,a.y,a.z]:null;
-  if(gravityForScroll&&linear&&[linear.x,linear.y,linear.z].every(Number.isFinite)){gravityForScroll[0]-=linear.x;gravityForScroll[1]-=linear.y;gravityForScroll[2]-=linear.z;}
-  const pitch=window.DialModel?.scrollPitch?.(gravityForScroll,S.pointAxis);
-  scrollPose=Number.isFinite(pitch)?{pitch,t:now,axis:S.pointAxis}:null;
-
   const rr = e.rotationRate;
   if (!rr || rr.alpha === null || g === null) return;
 
@@ -1187,7 +1180,7 @@ function deadzone(rate) {
 
 function processRates(rightRate, upRate, dt) {
   if (CAL.on && !CAL.preview) return;
-  if (dialScrolling) return;                                       // tilt-scroll loop owns the wheel
+  if (dialScrolling) return;                                       // finger-scroll loop owns the wheel
   if (scrollId !== null) return;                                    // touch scrolling freezes the cursor
   const live = (clutched || leftHeld || freeMotion) && ws && ws.readyState === 1;
   if (!live && !traceOn) return;                     // the trace watches the filter too
@@ -2128,7 +2121,7 @@ $("copyBtn").addEventListener("click", async () => {
     gravity_tau_s: 0.2,
     deadzone_dps: S.deadzone,
     touch_guard_ms: S.guard,
-    tilt_scroll_sensitivity: S.motionScrollDeg,
+    finger_scroll_sensitivity: S.motionScrollDeg,
     scroll_px_per_notch: S.scrollPx,
     scroll_invert: S.scrollInvert,
     scroll_strip: S.scrollStrip,
@@ -2891,7 +2884,6 @@ window.wandBridge = {
   stop() {cancelAction("Action stopped.");for(const release of dialTaps)release();dialTaps.clear();for(const hold of dialRepeats.values())hold.stop();},
   scrollPixels: () => Math.max(5,S.scrollPx),
   scrollSensitivity: () => S.motionScrollDeg,
-  motionScrollPose: () => scrollPose,
   motionEnabled: () => freeMotion,
   scrolling(on) {dialScrolling=on;engageT=performance.now();fYaw.reset();fPitch.reset();},
   motion(on) { freeMotion=on; sentLog=[]; engageT=performance.now();fYaw.reset();fPitch.reset(); },
