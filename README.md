@@ -154,6 +154,16 @@ Mic. Only the innermost surface under your finger receives a press.
 - **Backspace:** tap to delete one character, or hold to keep deleting after a
   short pause. Release or slide away from the rim button to stop. This also works
   when Backspace is assigned to one of the larger circles.
+- **Shift:** hold for a normal momentary Shift press. Keep holding for one second
+  to lock it on, then lift your finger and use other controls. The Shift button
+  lights up and a **Shift locked** indicator appears; tap either to release it.
+  A dial macro containing only `shift` gets this behavior automatically, keeping its
+  existing name and layout position. Longer macros and `shift+...` shortcuts keep
+  their normal behavior. Built-in **Shift** is also available under **Menu > Edit
+  layout > Sizes & actions > Add a shortcut or macro**. Opening menus, pausing
+  motion, leaving the page, or disconnecting releases Shift. Its lock state is
+  never saved. Keyboard users hold Space or Enter for the same one-second lock;
+  assistive activation toggles it directly.
 
 ### Glass materials
 

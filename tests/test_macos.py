@@ -83,6 +83,19 @@ class MacInputTests(unittest.TestCase):
         self.assertEqual(self.injector.key_refs, {})
         self.assertEqual(self.q.events[-1], dict(code=55, down=False, flags=0))
 
+    def test_sticky_shift_survives_command_shift_shortcuts_and_mouse_clicks(self):
+        self.injector.key('shift', 1)
+        self.injector.key('cmd+shift+z', 1)
+        self.injector.key('cmd+shift+z', 0)
+        self.assertEqual(self.injector.key_refs[56], 1)
+        self.assertFalse(any(e.get('code') == 56 and not e['down'] for e in self.q.events))
+        with patch.object(mac, 'cursor_pos', return_value=(30, 40)):
+            self.injector.button('l', 1)
+            self.injector.button('l', 0)
+        self.assertEqual(self.q.events[-1]['flags'], self.q.kCGEventFlagMaskShift)
+        self.injector.release_all()
+        self.assertEqual(self.q.events[-1], dict(code=56, down=False, flags=0))
+
     def test_drag_movement_and_disconnect_release(self):
         with patch.object(mac, 'cursor_pos', return_value=(30, 40)), \
              patch.object(mac, 'monitor_rects', return_value=[dict(x=0, y=0, w=100, h=100)]):

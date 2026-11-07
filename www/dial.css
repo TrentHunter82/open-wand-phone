@@ -140,3 +140,9 @@ body.dial-view {background:#090909;color:#ededed;}
 .dial-scroll-thumb-grip {fill:none;stroke:#d6d6d6;stroke-opacity:.7;stroke-width:1.2;stroke-linecap:round;}
 #dialScrollPopup .dial-scroll-popup-caption {font-size:9px;fill:#aaa;}
 @media (prefers-reduced-motion:reduce) {#dialStage,#dialLiquid,.dial-header,#dialDock {transition:none;}}
+
+#dialRoot #dialShiftStatus {flex:none;min-height:36px;padding:7px 9px;font-size:11px;border-radius:12px;background:linear-gradient(150deg,#575757,#2c2c2c);border:1px solid #ffffff45;white-space:nowrap;}
+.dial-rim-key.shift-on .dial-key-face {stroke:#eee;stroke-width:1.7;fill:#454545;}
+.dial-rim-key.shift-locked .dial-key-face {filter:drop-shadow(0 0 4px #ffffff40);}
+.dial-press.shift-on > .dial-surface {stroke:#eee;stroke-width:2.5;}
+.dial-press.shift-locked > .dial-surface {fill-opacity:.7;}

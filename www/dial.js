@@ -23,7 +23,7 @@
     return result.length?result:['left'];}
   const initialHTML=`<div id="dialRoot">
     <svg id="dialStage" xmlns="http://www.w3.org/2000/svg" aria-label="Air mouse dial"></svg>
-    <header class="dial-header"><div class="dial-connection"><span id="dialConnectionDot" class="dial-dot"></span><span id="dialConnection">Offline</span></div><button id="dialMenuToggle" aria-expanded="false" aria-controls="dialMenu">Menu <span aria-hidden="true">⌄</span></button></header>
+    <header class="dial-header"><div class="dial-connection"><span id="dialConnectionDot" class="dial-dot"></span><span id="dialConnection">Offline</span></div><button id="dialShiftStatus" hidden aria-label="Shift locked, tap to release">&#8679; Shift locked &#215;</button><button id="dialMenuToggle" aria-expanded="false" aria-controls="dialMenu">Menu <span aria-hidden="true">⌄</span></button></header>
     <nav id="dialMenu" hidden aria-label="Remote menu"><button id="dialEdit">Edit layout</button><button id="dialPreset" aria-label="Choose saved grip">Saved grips</button><button id="dialMore">Shortcuts & macros</button><button id="dialSettings">Settings & calibration</button><div class="dial-menu-feedback"><label><input id="dialRingHaptics" type="checkbox"> Ring haptics</label><label><input id="dialRingSound" type="checkbox"> Ring tick sound</label><p id="dialFeedbackHint"></p></div></nav>
     <div id="dialDock" aria-label="Pointer controls"><button id="dialMotion" aria-pressed="false" aria-label="Enable motion"><span class="dial-dot"></span><span id="dialMotionIcon" aria-hidden="true">&#9654;</span></button><button id="dialMotionGrip" class="dial-control-grip" hidden aria-label="Move Motion button" data-control="motion">&#10495;</button></div>
     <div id="dialEditbar" class="dial-editbar" hidden><button id="dialCancel">Cancel</button><button id="dialCustomize" aria-label="Sizes &amp; actions" title="Sizes &amp; actions">☷</button><button id="dialSave" aria-label="Save layout">Save</button></div>
@@ -66,10 +66,10 @@
   });
   function setMotion(on){
     if(on && (!B.ready() || editing || settingsOpen || menuOpen || B.busy())) {notice('Connect and close menus before enabling motion.');return;}
-    if(!on) {releaseAll();B.stop();}
+    if(!on) {releaseAll();B.stop(true);}
     B.motion(!!on);renderState();
   }
-  function pause(){releaseAll();B.stop();B.motion(false);renderState();}
+  function pause(){releaseAll();B.stop(true);B.motion(false);renderState();}
   function renderState(){
     const live=B.motionEnabled();
     $('dialMotion').setAttribute('aria-pressed',String(live));
@@ -236,7 +236,7 @@
     $('dialMenuToggle').hidden=editing;$('dialEditbar').hidden=!editing;
     const rootRect=root.getBoundingClientRect();
     const rectFor=el=>{const b=el.getBoundingClientRect();return {x:b.x-rootRect.x,y:b.y-rootRect.y,w:b.width,h:b.height};};
-    const headerBlocks=['dialMenuToggle','dialEditbar','dialConnection'].map(id=>$(id)).filter(el=>!el.hidden).map(rectFor);
+    const headerBlocks=['dialMenuToggle','dialEditbar','dialConnection','dialShiftStatus'].map(id=>$(id)).filter(el=>!el.hidden).map(rectFor);
     const motion=$('dialMotion');
     const bounds={left:10,top:editing?Math.max(safeTop+74,rectFor($('dialEditbar')).y+$('dialEditbar').offsetHeight+18):safeTop+42,right:w-10,bottom:h-20};
     // Preserve the former dock's Motion position when loading an older saved grip.
@@ -301,7 +301,17 @@
     else if(focusPage)$('dialStage').querySelector('[data-page]')?.focus({preventScroll:true});
     $('dialPreset').textContent='Saved grips · '+p.name;
     $('dialMenuToggle').hidden=editing;
-    $('dialEditbar').hidden=!editing;renderState();
+    $('dialEditbar').hidden=!editing;renderState();shiftChanged();
+  }
+  function shiftChanged(){
+    const state=B.shiftState?.()||'off',on=!editing&&state!=='off',locked=on&&state==='locked';
+    $('dialShiftStatus').hidden=!locked;
+    for(const el of $('dialStage').querySelectorAll('[data-action],[data-zone]')){
+      const a=el.dataset.action?action(el.dataset.action):['outer','inner','right'].includes(el.dataset.zone)?assigned(el.dataset.zone):null;
+      if(!B.isShift?.(a))continue;
+      el.classList.toggle('shift-on',on);el.classList.toggle('shift-locked',locked);el.setAttribute('aria-pressed',String(on));
+      el.setAttribute('aria-label',a.name+(locked?', locked; tap to release':on?', held':'; hold one second to lock'));
+    }
   }
   function detent(){
     B.detent();clearTimeout(feedbackTimer);$('dialRoot').classList.remove('detent');
@@ -314,8 +324,8 @@
   }
   function holdRim(point){
     const a=action(point.actionId);
-    if(a?.key!=='backspace'||!B.ready()||B.busy())return;
-    point.heldShortcut=true;point.release=B.press(a,false);detent();
+    const shift=B.isShift?.(a);if((a?.key!=='backspace'&&!shift)||!B.ready()||B.busy())return;
+    point.shift=!!shift;point.heldShortcut=true;point.release=B.press(a,false);detent();
   }
   function nextPage(){rimPage++;render();}
   const stage=$('dialStage');
@@ -330,7 +340,7 @@
     else if(zone==='shortcut')holdRim(point);
     else if(zone!=='bezel'&&zone!=='shortcut'&&zone!=='page'&&zone!=='scroll'){
       const a=assigned(zone);
-      if(a)point.release=B.press(a);
+      if(a){point.shift=!!B.isShift?.(a);point.release=B.press(a);}
     }
     if(!editing&&zone==='scroll'){point.scrolling=true;setScrollHeld(true,point);point.element=stage.querySelector('[data-zone=scroll]');}
     if(zone!=='bezel')point.element.classList.add('active');
@@ -369,6 +379,7 @@
       if(editing){if(e.type==='pointerup'&&p.dropId)draft.order=M.reorder(draft.order,draft.order.indexOf(p.actionId),draft.order.indexOf(p.dropId));render();}
       else if(e.type==='pointerup'&&!p.moved&&!p.heldShortcut)fireRim(p.actionId);
     }else if(p.zone==='page'&&e.type==='pointerup'&&!p.moved)nextPage();
+    if(p.shift&&!pointers.size)render();
   }
   for(const name of ['pointerup','pointercancel','lostpointercapture'])stage.addEventListener(name,end);
   stage.addEventListener('keydown',e=>{
@@ -383,12 +394,13 @@
     if(zone==='shortcut'||zone==='page'){const point={zone,actionId:el.dataset.action,element:el,moved:false};if(zone==='shortcut')holdRim(point);pointers.set('keyboard',point);return;}
     if(zone==='scroll'){if(B.ready()&&!B.busy()){setScrollHeld(true);pointers.set('keyboard',{zone,scrolling:true,element:stage.querySelector('[data-zone=scroll]')});}return;}
     const a=assigned(zone);
-    if(B.ready()&&!B.busy()&&a)pointers.set('keyboard',{release:B.press(a),element:el});
+    if(B.ready()&&!B.busy()&&a)pointers.set('keyboard',{release:B.press(a),shift:!!B.isShift?.(a),element:el});
   });
   stage.addEventListener('keyup',e=>{
     if(scroll&&pointers.get('keyboard')?.scrolling&&['ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();scrollInput.offset=0;updateScrollPopup();}
     if(e.key===' '||e.key==='Enter')end({pointerId:'keyboard',type:'pointerup'});
   });
+  stage.addEventListener('focusout',e=>{if(pointers.has('keyboard')&&!stage.contains(e.relatedTarget))end({pointerId:'keyboard',type:'pointercancel'});});
   stage.addEventListener('click',e=>{
     if(e.detail!==0||editing||scroll||menuOpen)return;
     const el=e.target.closest('[data-action],[data-page]');if(!el)return;
@@ -454,6 +466,7 @@
   $('dialEditorBack').onclick=()=>{settingsOpen=false;$('dialEditor').hidden=true;render();};
   $('dialCustomize').onclick=customize;$('dialEdit').onclick=()=>{closeMenu();beginEdit();};
   $('dialSave').onclick=()=>finishEdit(true);$('dialCancel').onclick=()=>finishEdit(false);
+  $('dialShiftStatus').onclick=()=>{B.releaseShift();render();};
   $('dialMotion').onclick=()=>{if(!editing)setMotion(!B.motionEnabled());};
   $('dialMore').onclick=()=>{closeMenu();pause();B.more();};
   $('dialSettings').onclick=()=>{closeMenu();pause();B.settings();};
@@ -485,7 +498,7 @@
   window.addEventListener('resize',resize);window.visualViewport?.addEventListener('resize',resize);
   window.addEventListener('pagehide',()=>{closeMenu();pause();});window.addEventListener('blur',pause);
   document.addEventListener('visibilitychange',()=>{if(document.hidden){closeMenu();pause();if(editing)finishEdit(false);}});
-  window.Dial={pause,refresh:()=>{if(!pointers.size)render();},
+  window.Dial={pause,shiftChanged,refresh:()=>{if(!pointers.size)render();},
     macroPin(id,pinned){const key='macro:'+id;for(const preset of data.presets){preset.hidden=(preset.hidden||[]).filter(s=>s!==key);if(!pinned){preset.order=preset.order.filter(s=>s!==key);preset.hidden.push(key);}}persist();render();},
     connected:()=>{renderState();if(firstConnection){firstConnection=false;setMotion(true);}},disconnected:pause};
   render();

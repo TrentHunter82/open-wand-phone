@@ -2858,6 +2858,39 @@ $("startBtn").addEventListener("click", async () => {
 
 // The dial uses the same authenticated connection and input protocol as the pads.
 const dialHeld = new Map(), dialTaps = new Set(), dialRepeats = new Map();
+let dialShiftHold = null;
+function isDialShift(action) {
+  return action?.key?.trim().toLowerCase()==="shift" ||
+    (action?.steps?.length===1 && action.steps[0].trim().toLowerCase()==="shift");
+}
+function dialShiftState() {return dialShiftHold ? (dialShiftHold.locked ? "locked" : "held") : "off";}
+function notifyDialShift() {window.Dial?.shiftChanged();}
+function holdDialShift(socket) {
+  if(dialShiftHold && dialShiftHold.socket!==socket)dialShiftHold.stop();
+  if(dialShiftHold?.locked){dialShiftHold.stop();return ()=>{};}
+  let hold=dialShiftHold;
+  if(!hold){
+    hold={socket,locked:false,contacts:new Set()};
+    hold.stop=()=>{
+      if(dialShiftHold!==hold)return;
+      for(const contact of hold.contacts){contact.active=false;clearTimeout(contact.timer);}hold.contacts.clear();
+      dialShiftHold=null;if(socket.readyState===1)socket.send(JSON.stringify({t:"k",key:"shift",s:0}));notifyDialShift();
+    };
+    dialShiftHold=hold;socket.send(JSON.stringify({t:"k",key:"shift",s:1}));
+  }
+  const contact={active:true,latched:false,timer:0};hold.contacts.add(contact);
+  contact.timer=setTimeout(()=>{
+    if(!contact.active||dialShiftHold!==hold)return;
+    if(socket!==ws||socket.readyState!==1||window.wandBridge.busy()){hold.stop();return;}
+    if(!hold.locked){hold.locked=true;contact.latched=true;haptic();notifyDialShift();}
+  },1000);
+  notifyDialShift();
+  return completed=>{
+    if(!contact.active)return;contact.active=false;clearTimeout(contact.timer);hold.contacts.delete(contact);
+    if(!completed&&contact.latched)hold.locked=false;
+    if(!hold.locked&&!hold.contacts.size)hold.stop();else notifyDialShift();
+  };
+}
 function holdDialBackspace(socket) {
   let hold=dialRepeats.get(socket);
   if(!hold){
@@ -2881,7 +2914,10 @@ function holdDialBackspace(socket) {
 window.wandBridge = {
   ready: () => !!ws && ws.readyState === 1,
   connection: () => ws?.readyState === 1 ? "Connected" : $("stateText").textContent,
-  stop() {cancelAction("Action stopped.");for(const release of dialTaps)release();dialTaps.clear();for(const hold of dialRepeats.values())hold.stop();},
+  stop(releaseModifiers=false) {cancelAction("Action stopped.");for(const release of dialTaps)release();dialTaps.clear();for(const hold of dialRepeats.values())hold.stop();if(releaseModifiers)dialShiftHold?.stop();},
+  isShift: isDialShift,
+  shiftState: dialShiftState,
+  releaseShift() {dialShiftHold?.stop();},
   scrollPixels: () => Math.max(5,S.scrollPx),
   scrollSensitivity: () => S.motionScrollDeg,
   motionEnabled: () => freeMotion,
@@ -2895,8 +2931,8 @@ window.wandBridge = {
       {id:"mic",name:"Mic",hint:"hold to talk",key:"f8"},
       {id:"right",name:"Right click",hint:"tap · hold",button:"r"},
       ...builtinActions(agentPlatform,S.redoCombo).map(a=>({id:a.name.toLowerCase(),name:a.name,hint:"tap to send",steps:a.steps})),
-      ...[...new Set(["enter","space","backspace",...(S.hotkeys || [])])].filter(validCombo).map(key=>({id:"key:"+key,name:({enter:"Enter",space:"Space",backspace:"Backspace"})[key] || key.toUpperCase(),hint:key==="backspace"?"tap · hold to repeat":"hold shortcut",key})),
-      ...S.macros.filter(m=>macroSteps(m.steps)).map(m=>({id:"macro:"+m.id,name:m.name || "Macro",hint:"tap to run macro",steps:macroSteps(m.steps),pinned:m.pinned})),
+      ...[...new Set(["enter","space","backspace","shift",...(S.hotkeys || [])])].filter(validCombo).map(key=>({id:"key:"+key,name:({enter:"Enter",space:"Space",backspace:"Backspace",shift:"Shift"})[key] || key.toUpperCase(),hint:key==="shift"?"hold 1s to lock":key==="backspace"?"tap · hold to repeat":"hold shortcut",key})),
+      ...S.macros.filter(m=>macroSteps(m.steps)).map(m=>({id:"macro:"+m.id,name:m.name || "Macro",hint:isDialShift({steps:macroSteps(m.steps)})?"hold 1s to lock":"tap to run macro",steps:macroSteps(m.steps),pinned:m.pinned})),
     ];
   },
   press(a, feedback = true) {
@@ -2905,6 +2941,7 @@ window.wandBridge = {
     for (const release of dialTaps) release();
     if(feedback)pressFeedback();engageT=performance.now();sentLog=[];fYaw.reset();fPitch.reset();
     const socket=ws;
+    if(isDialShift(a))return holdDialShift(socket);
     if(a.steps) return clicked => {if(clicked && socket===ws && socket.readyState===1)runAction(a.name,a.steps);};
     if(a.key==="backspace")return holdDialBackspace(socket);
     const id=a.button ? "b:"+a.button : "k:"+a.key;
@@ -2923,6 +2960,10 @@ window.wandBridge = {
   tap(a) {
     if (!ws || ws.readyState !== 1 || this.busy()) return;
     this.stop();
+    if(isDialShift(a)){
+      const release=this.press(a,false);
+      if(dialShiftHold){dialShiftHold.locked=true;notifyDialShift();}release(true);return;
+    }
     if (a.steps || (a.key && a.key.includes("+"))) {runAction(a.name,a.steps || [a.key]);return;}
     for (const release of dialTaps) release();
     const release=this.press(a,false);

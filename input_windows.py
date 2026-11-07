@@ -230,6 +230,7 @@ class Injector:
         self.carry_w = 0.0
         self.held = set()
         self.keys_down = {}
+        self.key_refs = {}
         self.stats = stats
         self.absolute = absolute
         self.verbose = verbose
@@ -329,14 +330,21 @@ class Injector:
                     print("[key] unknown key spec: %r" % spec)
                 return
             for scan, vk, ext in combo:
-                self._emit(_key_input(scan, vk, ext, keyup=False))
+                key = (scan, vk, ext)
+                self.key_refs[key] = self.key_refs.get(key, 0) + 1
+                if self.key_refs[key] == 1:
+                    self._emit(_key_input(scan, vk, ext, keyup=False))
             self.keys_down[spec] = combo
         else:
             combo = self.keys_down.pop(spec, None)
             if combo is None:
                 return
             for scan, vk, ext in reversed(combo):
-                self._emit(_key_input(scan, vk, ext, keyup=True))
+                key = (scan, vk, ext)
+                self.key_refs[key] -= 1
+                if not self.key_refs[key]:
+                    del self.key_refs[key]
+                    self._emit(_key_input(scan, vk, ext, keyup=True))
 
     async def tap(self, spec):
         self.key(spec, 1)
