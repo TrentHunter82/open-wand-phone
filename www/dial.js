@@ -3,7 +3,7 @@
   const M=window.DialModel, B=window.wandBridge, $=id=>document.getElementById(id);
   const STORAGE='wand.dial.v1';
   let data;try{data=M.normalize(JSON.parse(localStorage.getItem(STORAGE)));}catch{data=M.normalize();}
-  let editing=false,draft=null,before=null,scroll=false,firstConnection=true,settingsOpen=false;
+  let editing=false,draft=null,before=null,scroll=false,settingsOpen=false;
   const pointers=new Map();
   let geometry=null,resizeFrame=0,noticeTimer=0,feedbackTimer=0,menuOpen=false,swallowMenuClick=false,rimPage=0,rimSlots=[],controlDrag=null,scrollTurn=0,scrollGeometry=null,scrollFilter={speed:0},scrollInput=null,scrollFrame=0,scrollLastFrame=0;
   const current=()=>editing?draft:data.presets[data.current];
@@ -17,7 +17,7 @@
   const micIcon=(x,y,s=1)=>`<g transform="translate(${x} ${y}) scale(${s})" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" pointer-events="none"><rect x="-5" y="-15" width="10" height="20" rx="5" fill="currentColor" stroke="none"/><path d="M-10 -3v3a10 10 0 0 0 20 0v-3M0 10v8M-6 18H6"/></g>`;
   function actions(){return B.actions();}
   function action(id){return actions().find(a=>a.id===id);}
-  function assigned(zone){return action(current()[zone==='outer'?'outer':zone==='inner'?'inner':'right'])||action(zone==='outer'?'left':zone==='inner'?'mic':'right');}
+  function assigned(zone){return action(current()[zone==='left'?'outer':zone==='inner'?'inner':'right'])||action(zone==='left'?'left':zone==='inner'?'mic':'right');}
   function order(){const p=current(),all=actions(),ids=new Set(all.map(a=>a.id));
     const result=[...p.order.filter(id=>ids.has(id)),...all.filter(a=>a.pinned && !p.order.includes(a.id) && !p.hidden?.includes(a.id)).map(a=>a.id)];
     return result.length?result:['left'];}
@@ -49,13 +49,14 @@
   }
   document.body.insertAdjacentHTML('beforeend',`<section id="dialEditor" hidden aria-label="Customize dial"><div class="dial-editor-head"><h2>Customize dial</h2><button id="dialEditorBack">Back to dial</button></div><p class="dial-hint">Move each circle on the dial, or use the controls below. Each orientation saves its own positions. Changes take effect when you save the layout.</p>
     <label for="dialName">Grip name</label><input id="dialName" type="text" maxlength="24">
-    <div id="dialSliders"></div><label for="dialOuterAction">Large pad assignment</label><select id="dialOuterAction"></select><label for="dialInnerAction">Mic circle assignment</label><select id="dialInnerAction"></select><label for="dialRightAction">Small circle assignment</label><select id="dialRightAction"></select>
-    <h3>Rim shortcuts</h3><p class="dial-hint">Tap a rim button to run it immediately. The large pad keeps its own assignment. Drag the rim buttons in Edit or reorder them here.</p><ol id="dialOrder"></ol>
+    <div id="dialSliders"></div><label for="dialOuterAction">Click bubble assignment</label><select id="dialOuterAction"></select><label for="dialInnerAction">Mic circle assignment</label><select id="dialInnerAction"></select><label for="dialRightAction">Small circle assignment</label><select id="dialRightAction"></select>
+    <h3>Rim shortcuts</h3><p class="dial-hint">Tap a rim button to run it immediately. Drag the rim buttons in Edit or reorder them here.</p><ol id="dialOrder"></ol>
     <label for="dialAddAction">Add a shortcut or macro</label><select id="dialAddAction"></select><button id="dialAdd">Add action</button><button id="dialReset">Reset this orientation</button>
     <p class="dial-hint">Create custom macros in Menu → Shortcuts & macros. Save this grip, then use Menu → Saved grips to save a copy (up to eight presets).</p>
   </section><section id="dialPresets" hidden aria-label="Saved grips"><h2>Saved grips</h2><div id="dialPresetList"></div><button id="dialPresetCopy">Save a copy of current grip</button><button id="dialPresetClose">Back</button></section>`);
   const glass=window.DialGlass?.mount($('dialRoot'));
   const sliders=[['r','Outer wheel size',.5,1.3],['bw','Function selector thickness',.1,.25],['mr','Mic circle size',.25,.65],['rr','Right Click size',.25,.55],
+    ['lr','Click bubble size',.08,.22],['lx','Click bubble horizontal offset',-1,1],['ly','Click bubble vertical offset',-1,1],
     ['x','Wheel horizontal position',.25,1.25],['y','Wheel vertical position',.28,.75],
     ['mx','Mic horizontal offset',-.6,.6],['my','Mic vertical offset',-.6,.6],
     ['rx','Right Click horizontal offset',-.6,.6],['ry','Right Click vertical offset',-.6,.6],
@@ -74,8 +75,8 @@
     const live=B.motionEnabled();
     $('dialMotion').setAttribute('aria-pressed',String(live));
     $('dialMotionIcon').textContent=live?'Ⅱ':'▶';
-    $('dialMotion').setAttribute('aria-label',live?'Pause motion':'Enable motion');
-    $('dialMotion').title=live?'Motion on — tap to pause':'Motion paused — tap to resume';
+    $('dialMotion').setAttribute('aria-label',live?'Turn off continuous motion':'Turn on continuous motion');
+    $('dialMotion').title=live?'Continuous motion on':'Hold to move';
     $('dialConnection').textContent=B.connection();
     $('dialConnectionDot').classList.toggle('connected',B.ready());
     glass?.wake();
@@ -88,7 +89,10 @@
     for(const p of pointers.values()){if(p.release)p.release();}pointers.clear();
     if(editing&&controlDrag)Object.assign(view(),controlDrag.before);controlDrag=null;
     scroll=false;scrollFilter={speed:0};scrollInput=null;if(scrollFrame)cancelAnimationFrame(scrollFrame);scrollFrame=0;scrollLastFrame=0;B.scrolling(false);hideScrollPopup();
-    $('dialStage').querySelectorAll('.active').forEach(el=>el.classList.remove('active'));
+    $('dialStage').querySelectorAll('.active').forEach(el=>{
+      el.classList.remove('active');
+      if(el.dataset.zone==='outer')el.setAttribute('aria-pressed','false');
+    });
     if(wasScrolling)render();
   }
   function showScrollPopup(){
@@ -229,7 +233,7 @@
     root.classList.toggle('editing',editing);
     geometry=M.geometry(v,w,h);const g=geometry;
     const ids=order();
-    const selected=assigned('outer'),inner=assigned('inner'),right=assigned('right');
+    const left=assigned('left'),inner=assigned('inner'),right=assigned('right');
     const font=Math.max(14,Math.min(25,w*.055));
     const ringR=g.clickR;
     const safeTop=parseFloat(getComputedStyle(root).getPropertyValue('--dial-safe-top'))||0;
@@ -247,7 +251,9 @@
     const controlObstacles=[...headerBlocks,...[motion,grip].filter(el=>!el.hidden).map(rectFor)].map(b=>({x:b.x-3,y:b.y-3,w:b.w+6,h:b.h+6}));
     scrollGeometry=M.scrollButton(v,g,w,h,controlObstacles);
     const sb=scrollGeometry,scrollCircle={x:sb.x,y:sb.y,r:sb.r};
-    const obstacles=[...controlObstacles,{x:sb.x-sb.r-5,y:sb.y-sb.r-5,w:sb.r*2+10,h:sb.r*2+10}];
+    const leftBubble = M.clickBubble(v,g,w,h,sb,controlObstacles);
+    g.left = leftBubble;
+    const obstacles = [...controlObstacles, ...[sb,leftBubble].map(b=>({x:b.x-b.r-5,y:b.y-b.r-5,w:b.r*2+10,h:b.r*2+10}))];
     const outerCircle={x:g.cx,y:g.cy,r:ringR},innerCircle={x:g.mx,y:g.my,r:g.mr},rightCircle={x:g.rx,y:g.ry,r:g.rr};
     let svg=`<defs>
       <radialGradient id="dialBg" cx="28%" cy="14%" r="95%"><stop stop-color="#666666"/><stop offset=".35" stop-color="#2b2b2b"/><stop offset=".85" stop-color="#151515"/><stop offset="1" stop-color="#0b0b0b"/></radialGradient>
@@ -256,10 +262,11 @@
       <linearGradient id="dialBevel" x1="0" y1="0" x2=".65" y2="1"><stop stop-color="#dedede" stop-opacity=".78"/><stop offset=".45" stop-color="#999999" stop-opacity=".27"/><stop offset="1" stop-color="#050505" stop-opacity=".85"/></linearGradient>
       <filter id="dialShadow" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="0" dy="5" stdDeviation="3" flood-color="#000000" flood-opacity=".8"/></filter>
       <filter id="dialKeyShadow" x="-20%" y="-30%" width="140%" height="170%"><feDropShadow dx="0" dy="3" stdDeviation="1.2" flood-color="#000000" flood-opacity=".8"/></filter>
-      <clipPath id="dialClipOuter"><path clip-rule="evenodd" d="${circlePath(outerCircle)} ${circlePath(innerCircle)} ${circlePath(scrollCircle)}"/></clipPath>
+      <clipPath id="dialClipOuter"><path clip-rule="evenodd" d="${circlePath(outerCircle)} ${circlePath(innerCircle)} ${circlePath(scrollCircle)} ${circlePath(leftBubble)}"/></clipPath>
       <clipPath id="dialClipInner"><path clip-rule="evenodd" d="${circlePath(innerCircle)} ${circlePath(rightCircle)}"/></clipPath>
       <clipPath id="dialClipRight"><circle cx="${g.rx}" cy="${g.ry}" r="${g.rr}"/></clipPath>
       <clipPath id="dialClipScroll"><circle cx="${sb.x}" cy="${sb.y}" r="${sb.r}"/></clipPath>
+      <clipPath id="dialClipLeft"><circle cx="${leftBubble.x}" cy="${leftBubble.y}" r="${leftBubble.r}"/></clipPath>
     </defs>`;
     svg+=`<g class="dial-bezel" data-zone="bezel"><path d="${circlePath({x:g.cx,y:g.cy,r:g.r})} ${circlePath(outerCircle)}" fill-rule="evenodd" fill="#141414" stroke="#3b3b3b" stroke-width="1"/>`;
     const availableKeys=M.rimKeys(g,w,h,obstacles);
@@ -277,12 +284,13 @@
       if(!key.next)rimSlots.push({id:key.id,x,y});
     }
     svg+='</g>';
-    svg+=`<g data-zone="outer" class="dial-press" role="button" tabindex="0" aria-label="${escape(selected.name)}"><circle class="dial-surface" cx="${g.cx}" cy="${g.cy}" r="${ringR}" fill="url(#dialBg)" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
+    const moveHeld = !editing && [...pointers.values()].some(point=>point.zone==='outer');
+    svg+=`<g data-zone="outer" class="dial-press${moveHeld?' active':''}" role="button" tabindex="0" aria-label="Hold to move cursor" aria-pressed="${moveHeld}"><circle class="dial-surface" cx="${g.cx}" cy="${g.cy}" r="${ringR}" fill="url(#dialBg)" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
     if(scroll)svg+=scrollMarks(g);
     const leftEdge=Math.max(8,g.cx-ringR),rightEdge=Math.min(w-8,g.cx+ringR);
     const leftGap=Math.max(0,g.mx-g.mr-leftEdge),rightGap=Math.max(0,rightEdge-g.mx-g.mr);
     const labelX=leftGap>=rightGap?(leftEdge+g.mx-g.mr)/2:(rightEdge+g.mx+g.mr)/2;
-    const outerInfo={...selected,hint:selected.id==='left'?'hold to drag':selected.hint};
+    const outerInfo={id:'move',name:'Move',hint:'hold'};
     svg+=surfaceText({...outerCircle,r:ringR-(scroll?Math.min(18,(ringR-g.mr)*.3):0)},innerCircle,outerInfo,{x:labelX,y:g.cy},font,w,h,obstacles,'dialClipOuter')+'</g>';
     svg+=`<g data-zone="inner" class="dial-press" role="button" tabindex="0" aria-label="${escape(inner.name)}"><circle class="dial-surface" cx="${g.mx}" cy="${g.my}" r="${g.mr}" fill="url(#dialInner)" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
     svg+=surfaceText(innerCircle,rightCircle,inner,{x:g.mx,y:g.my-g.mr*.3},Math.min(25,g.mr*.24),w,h,obstacles,'dialClipInner')+'</g>';
@@ -290,8 +298,10 @@
     svg+=surfaceText(rightCircle,null,{...right,hint:''},{x:g.rx,y:g.ry},Math.min(16,g.rr*.4),w,h,obstacles,'dialClipRight')+'</g>';
     svg+=`<g data-zone="scroll" class="dial-press dial-scroll-button ${scroll?'active':''}" role="button" tabindex="0" aria-label="Hold Scroll and slide your finger up or down; release to stop" aria-pressed="${scroll}"><circle class="dial-surface" cx="${sb.x}" cy="${sb.y}" r="${sb.r}" fill="url(#dialInner)" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
     svg+=surfaceText(scrollCircle,null,{id:'scroll',name:'Scroll',hint:'hold'},{x:sb.x,y:sb.y},Math.min(15,sb.r*.36),w,h,controlObstacles,'dialClipScroll')+'</g>';
+    svg+=`<g data-zone="left" class="dial-press" role="button" tabindex="0" aria-label="${escape(left.name)}"><circle class="dial-surface" cx="${leftBubble.x}" cy="${leftBubble.y}" r="${leftBubble.r}" fill="url(#dialInner)" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
+    svg+=surfaceText(leftBubble,null,{...left,hint:left.id==='left'?'':left.hint},leftBubble,Math.min(17,leftBubble.r*.39),w,h,controlObstacles,'dialClipLeft')+'</g>';
     const ix=g.cx+(g.cx>w/2?-g.r+3:g.r-3);svg+=`<circle class="dial-index" cx="${ix}" cy="${g.cy}" r="4" fill="#bfbfbf" pointer-events="none"/>`;
-    if(editing)for(const [zone,x,y,r] of [['outer',g.cx,g.cy,g.r],['inner',g.mx,g.my,g.mr],['right',g.rx,g.ry,g.rr],['scroll',sb.x,sb.y,sb.r]]){
+    if(editing)for(const [zone,x,y,r] of [['outer',g.cx,g.cy,g.r],['inner',g.mx,g.my,g.mr],['right',g.rx,g.ry,g.rr],['scroll',sb.x,sb.y,sb.r],['left',leftBubble.x,leftBubble.y,leftBubble.r]]){
       svg+=`<circle class="dial-edit-outline" cx="${x}" cy="${y}" r="${r}"/><circle data-resize="${zone}" class="dial-handle" cx="${x-r*.82}" cy="${y-r*.57}" r="13"/>`;
     }
     $('dialStage').setAttribute('viewBox',`0 0 ${w} ${h}`);$('dialStage').innerHTML=svg;
@@ -307,7 +317,7 @@
     const state=B.shiftState?.()||'off',on=!editing&&state!=='off',locked=on&&state==='locked';
     $('dialShiftStatus').hidden=!locked;
     for(const el of $('dialStage').querySelectorAll('[data-action],[data-zone]')){
-      const a=el.dataset.action?action(el.dataset.action):['outer','inner','right'].includes(el.dataset.zone)?assigned(el.dataset.zone):null;
+      const a=el.dataset.action?action(el.dataset.action):['left','inner','right'].includes(el.dataset.zone)?assigned(el.dataset.zone):null;
       if(!B.isShift?.(a))continue;
       el.classList.toggle('shift-on',on);el.classList.toggle('shift-locked',locked);el.setAttribute('aria-pressed',String(on));
       el.setAttribute('aria-label',a.name+(locked?', locked; tap to release':on?', held':'; hold one second to lock'));
@@ -327,6 +337,17 @@
     const shift=B.isShift?.(a);if((a?.key!=='backspace'&&!shift)||!B.ready()||B.busy())return;
     point.shift=!!shift;point.heldShortcut=true;point.release=B.press(a,false);detent();
   }
+  function pressPad(point) {
+    if (point.zone === 'outer') {
+      point.release = B.holdMotion();
+      point.element.setAttribute('aria-pressed', 'true');
+      return;
+    }
+    const a = assigned(point.zone);
+    if (!a) return;
+    point.shift = !!B.isShift?.(a);
+    point.release = B.press(a);
+  }
   function nextPage(){rimPage++;render();}
   const stage=$('dialStage');
   stage.addEventListener('pointerdown',e=>{
@@ -338,10 +359,7 @@
     const point={zone,actionId:target.dataset.action,transform:target.getAttribute('transform'),resize:!!target.dataset.resize,x,y,g,start:structuredClone(view()),sb:{...scrollGeometry},element:target,moved:false};
     if(editing){if(pointers.size||controlDrag)return;}
     else if(zone==='shortcut')holdRim(point);
-    else if(zone!=='bezel'&&zone!=='shortcut'&&zone!=='page'&&zone!=='scroll'){
-      const a=assigned(zone);
-      if(a){point.shift=!!B.isShift?.(a);point.release=B.press(a);}
-    }
+    else if(['outer','left','inner','right'].includes(zone))pressPad(point);
     if(!editing&&zone==='scroll'){point.scrolling=true;setScrollHeld(true,point);point.element=stage.querySelector('[data-zone=scroll]');}
     if(zone!=='bezel')point.element.classList.add('active');
     pointers.set(e.pointerId,point);try{stage.setPointerCapture(e.pointerId);}catch{}
@@ -360,11 +378,21 @@
     }
     if(p.zone==='page')return;
     if(editing){const v=view(),dx=x-p.x,dy=y-p.y,g=p.g,s=p.start;
-      if(p.resize){const [cx,cy,key,scale]=p.zone==='outer'?[g.cx,g.cy,'r',rect.width]:p.zone==='inner'?[g.mx,g.my,'mr',g.r]:p.zone==='scroll'?[p.sb.x,p.sb.y,'sr',g.r]:[g.rx,g.ry,'rr',g.mr];
-        v[key]=(p.zone==='scroll'?p.sb.r/g.r:s[key])+(Math.hypot(x-cx,y-cy)-Math.hypot(p.x-cx,p.y-cy))/scale;
+      if(p.resize){
+        const targets = {
+          outer: [g.cx,g.cy,'r',rect.width,s.r],
+          inner: [g.mx,g.my,'mr',g.r,s.mr],
+          right: [g.rx,g.ry,'rr',g.mr,s.rr],
+          scroll: [p.sb.x,p.sb.y,'sr',g.r,p.sb.r/g.r],
+          left: [g.left.x,g.left.y,'lr',g.r,g.left.r/g.r],
+        };
+        const [cx,cy,key,scale,radius] = targets[p.zone];
+        const distance = Math.hypot(x-cx,y-cy) - Math.hypot(p.x-cx,p.y-cy);
+        v[key] = radius + distance/scale;
       }else if(p.zone==='outer'||p.zone==='bezel'){v.x=s.x+dx/rect.width;v.y=s.y+dy/rect.height;}
       else if(p.zone==='inner'){v.mx=s.mx+dx/g.r;v.my=s.my+dy/g.r;}
       else if(p.zone==='scroll'){v.sx=(p.sb.x+dx-g.cx)/g.clickR;v.sy=(p.sb.y+dy-g.cy)/g.clickR;}
+      else if(p.zone==='left'){v.lx=(g.left.x+dx-g.cx)/g.clickR;v.ly=(g.left.y+dy-g.cy)/g.clickR;}
       else{v.rx=s.rx+dx/g.mr;v.ry=s.ry+dy/g.mr;}
       Object.assign(v,M.view(v));render();return;
     }
@@ -373,8 +401,14 @@
   function end(e){
     const p=pointers.get(e.pointerId);if(!p)return;pointers.delete(e.pointerId);
     if(p.release)p.release(e.type==='pointerup');
-    if(p.scrolling&&!Array.from(pointers.values()).some(p=>p.scrolling))setScrollHeld(false);
-    if(!p.scrolling||!scroll)p.element.classList.remove('active');
+    const remaining = [...pointers.values()];
+    if(p.scrolling&&!remaining.some(point=>point.scrolling))setScrollHeld(false);
+    if(!remaining.some(point=>point.element===p.element))p.element.classList.remove('active');
+    if(p.zone==='outer'&&!remaining.some(point=>point.zone==='outer')){
+      const move = stage.querySelector('[data-zone="outer"]');
+      move?.classList.remove('active');
+      move?.setAttribute('aria-pressed','false');
+    }
     if(p.zone==='shortcut'){
       if(editing){if(e.type==='pointerup'&&p.dropId)draft.order=M.reorder(draft.order,draft.order.indexOf(p.actionId),draft.order.indexOf(p.dropId));render();}
       else if(e.type==='pointerup'&&!p.moved&&!p.heldShortcut)fireRim(p.actionId);
@@ -393,8 +427,10 @@
     if(scroll)return;
     if(zone==='shortcut'||zone==='page'){const point={zone,actionId:el.dataset.action,element:el,moved:false};if(zone==='shortcut')holdRim(point);pointers.set('keyboard',point);return;}
     if(zone==='scroll'){if(B.ready()&&!B.busy()){setScrollHeld(true);pointers.set('keyboard',{zone,scrolling:true,element:stage.querySelector('[data-zone=scroll]')});}return;}
-    const a=assigned(zone);
-    if(B.ready()&&!B.busy()&&a)pointers.set('keyboard',{release:B.press(a),shift:!!B.isShift?.(a),element:el});
+    if(B.ready()&&!B.busy()&&['outer','left','inner','right'].includes(zone)){
+      const point={zone,element:el};
+      pressPad(point);el.classList.add('active');pointers.set('keyboard',point);
+    }
   });
   stage.addEventListener('keyup',e=>{
     if(scroll&&pointers.get('keyboard')?.scrolling&&['ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();scrollInput.offset=0;updateScrollPopup();}
@@ -438,14 +474,14 @@
     el.addEventListener('pointermove',moveControl);
     for(const event of ['pointerup','pointercancel','lostpointercapture'])el.addEventListener(event,endControl);
   }
-  function beginEdit(){pause();editing=true;editOrientation=orientation();before=structuredClone(data);draft=structuredClone(data.presets[data.current]);draft.order=order();detachMotion();notice('Drag circles, Scroll, rim keys, or the Motion grip. Light circle handles resize.');render();}
+  function beginEdit(){pause();editing=true;editOrientation=orientation();before=structuredClone(data);draft=structuredClone(data.presets[data.current]);draft.order=order();detachMotion();notice('Drag the circles to move them. Drag a light handle to resize.');render();}
   function finishEdit(save){releaseAll();if(save){data.presets[data.current]=draft;persist();}else data=before;
     editing=false;draft=null;settingsOpen=false;$('dialEditor').hidden=true;notice(save?'Layout saved on this phone.':'Layout changes canceled.');render();}
   function customize(){settingsOpen=true;releaseAll();$('dialEditor').hidden=false;$('dialName').value=current().name;
     for(const [key] of sliders)$('dialRange_'+key).value=view()[key];
     const all=actions(),options=all.map(a=>`<option value="${escape(a.id)}">${escape(a.name)}</option>`).join('');
     for(const id of ['dialOuterAction','dialInnerAction','dialRightAction','dialAddAction'])$(id).innerHTML=options;
-    $('dialOuterAction').value=assigned('outer').id;$('dialInnerAction').value=assigned('inner').id;$('dialRightAction').value=assigned('right').id;renderOrder();
+    $('dialOuterAction').value=assigned('left').id;$('dialInnerAction').value=assigned('inner').id;$('dialRightAction').value=assigned('right').id;renderOrder();
   }
   function renderOrder(){const ids=order();draft.order=ids;
     $('dialOrder').innerHTML=ids.map((id,i)=>`<li class="dial-order-row" data-index="${i}"><span>${escape(action(id)?.name||id)}</span><button type="button" data-move="-1" aria-label="Move ${escape(action(id)?.name)} earlier" ${i===0?'disabled':''}>↑</button><button type="button" data-move="1" aria-label="Move ${escape(action(id)?.name)} later" ${i===ids.length-1?'disabled':''}>↓</button><button type="button" data-remove="1" aria-label="Remove ${escape(action(id)?.name)} from dial" ${ids.length===1?'disabled':''}>×</button></li>`).join('');
@@ -500,6 +536,6 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden){closeMenu();pause();if(editing)finishEdit(false);}});
   window.Dial={pause,shiftChanged,refresh:()=>{if(!pointers.size)render();},
     macroPin(id,pinned){const key='macro:'+id;for(const preset of data.presets){preset.hidden=(preset.hidden||[]).filter(s=>s!==key);if(!pinned){preset.order=preset.order.filter(s=>s!==key);preset.hidden.push(key);}}persist();render();},
-    connected:()=>{renderState();if(firstConnection){firstConnection=false;setMotion(true);}},disconnected:pause};
+    connected:renderState,disconnected:pause};
   render();
 })();

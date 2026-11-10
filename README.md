@@ -106,23 +106,21 @@ bar that tells you to scan the new QR code.
 
 ## Use
 
-The main interface is a graphite rotary dial. Left Click has the largest touch
-surface; Mic is the large inner circle; Right Click is the smaller circle inside
-Mic. Only the innermost surface under your finger receives a press.
+The large **Move** pad surrounds the Left Click, Mic, and Scroll bubbles. Right
+Click sits inside Mic. Each bubble has its own touch target.
 
-- **Motion button (pause/play icon):** after START and the first connection, the cursor follows
-  your hand without a held move button. Tap Motion to pause, reposition your
-  hand, then resume. Resuming resets the motion filter to prevent a jump.
-  Disconnecting, leaving the page, editing, or opening menus pauses motion;
-  reconnecting does not silently resume it. Tap Motion to resume.
-- **Left Click:** tap anywhere on its broad surface to click. Hold while moving
-  your hand to drag, then release to drop. Motion must be enabled to move the
-  cursor. The nested Mic and Right Click regions have their own separate inputs.
+- **Move:** hold the large pad while moving your hand. Release to stop the cursor.
+  The dial opens in this mode.
+- **Motion button (pause/play icon):** tap to turn continuous motion on or return
+  to hold-to-move. Disconnecting, leaving the page, editing, or opening menus
+  returns to hold-to-move.
+- **Left Click:** tap the bubble to click. To drag in hold-to-move mode, hold
+  the bubble and Move pad together, then release Left Click to drop. With
+  continuous motion on, hold Left Click and move your hand.
 - **Mic:** hold to send F8, release to stop your existing dictation workflow.
 - **Right Click:** tap or hold the smaller nested circle.
 - **Rim shortcut buttons:** tap Enter, Space, Backspace, Copy, Paste, Undo,
-  Redo or a macro to run it immediately. The large pad stays Left Click by
-  default; these buttons never change its assignment. If the list is long or
+  Redo or a macro to run it immediately. If the list is long or
   the screen is short, **Next** cycles through the remaining shortcut pages.
   Dragging off a shortcut cancels it. Keyboard users can Tab to a button and
   press Enter or Space.
@@ -194,21 +192,17 @@ for every main-button press. Feedback choices save with the phone settings.
 
 ### Customize and save your grip
 
-Tap **Menu > Edit layout**. Drag the large wheel, Mic circle, or Right Click circle to position
-it; drag its light resize handle to change its size. All computer input is paused
-while editing. The circles remain nested and the small button stays on screen.
-Drag Scroll directly and resize it with its light handle. Move Motion by its
-dotted handle or body; moving either control does not move the other wheels.
-Scroll stays outside Mic and Right Click. In unusually tight custom grips, it
-uses the nearest clear space beside the wheel if it cannot fit inside. You can also
+Tap **Menu > Edit layout**. Drag the large wheel or any of the circles to move it.
+Drag its light handle to resize. All computer input is paused while editing.
+Move Motion by its dotted handle or body. In tight custom grips, the Click and
+Scroll bubbles can use clear space beside the wheel. You can also
 drag rim keys onto one another to reorder them right on the dial. Save layout
 keeps all these changes; Cancel restores the previous grip.
 
-**Sizes & actions** provides independent size and position sliders, positions for
-Scroll and Motion, a grip name, independent assignments for the three main circle
-surfaces, and the rim shortcut list. Drag action rows or use the up/down arrows to reorder them. Remove
-unwanted actions or add any available shortcut or macro. **Large pad assignment** defaults to
-Left Click and can be customized independently of the rim keys. **Back to dial** returns
+**Sizes & actions** provides size and position sliders, a grip name, bubble
+assignments, and the rim shortcut list. Drag action rows or use the up/down arrows to reorder them. Remove
+unwanted actions or add any available shortcut or macro. **Click bubble assignment** defaults to
+Left Click and inherits any saved assignment from the former large pad. **Back to dial** returns
 to the preview; **Save layout** commits the whole edit, and **Cancel** discards it.
 **Function selector thickness** adjusts the width of the rim shortcut band.
 It starts wider for easier thumb access and saves separately for each orientation.

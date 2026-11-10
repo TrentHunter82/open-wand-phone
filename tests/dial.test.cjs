@@ -48,9 +48,23 @@ test('adding or moving the control dock preserves an existing custom wheel layou
   assert.deepEqual(M.geometry(p.views.portrait,375,667),M.geometry({...p.views.portrait,dockX:.4,dockY:.4},375,667));
 });
 
-test('large pad defaults to Left Click independently of the old rotary selection',()=>{
+test('the click bubble inherits the previous large pad assignment',()=>{
   const d=M.normalize({presets:[{selected:'copy'}]});assert.equal(d.presets[0].outer,'left');
   d.presets[0].outer='key:enter';assert.equal(M.normalize(d).presets[0].outer,'key:enter');
+});
+
+test('the click bubble fits inside Move without covering Mic or Scroll at phone sizes',()=>{
+  for(const [w,h] of [[320,568],[390,844],[430,932],[844,390]]){
+    const v=M.defaults(w>h?'landscape':'portrait'),g=M.geometry(v,w,h);
+    const scroll=M.scrollButton(v,g,w,h),bubble=M.clickBubble(v,g,w,h,scroll);
+    assert.ok(bubble.inside&&bubble.r>=24);
+    assert.ok(Math.hypot(bubble.x-g.cx,bubble.y-g.cy)+bubble.r<=g.clickR);
+    for(const other of [scroll,{x:g.mx,y:g.my,r:g.mr}]){
+      assert.ok(Math.hypot(bubble.x-other.x,bubble.y-other.y)>=bubble.r+other.r+8);
+    }
+  }
+  const v=M.view({lx:-.82,ly:.3,lr:.16});
+  assert.deepEqual([v.lx,v.ly,v.lr],[-.82,.3,.16]);
 });
 
 test('Scroll is inside the wheel and outside Mic for normal phone layouts',()=>{

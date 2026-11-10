@@ -927,6 +927,7 @@ const SIM = qsParams.get("sim") === "1";
 
 let ws = null;
 let freeMotion = false;
+const dialMotionHolds = new Set();
 let dialScrolling = false;
 let agentPlatform = "win32";
 let started = false;
@@ -1182,7 +1183,7 @@ function processRates(rightRate, upRate, dt) {
   if (CAL.on && !CAL.preview) return;
   if (dialScrolling) return;                                       // finger-scroll loop owns the wheel
   if (scrollId !== null) return;                                    // touch scrolling freezes the cursor
-  const live = (clutched || leftHeld || freeMotion) && ws && ws.readyState === 1;
+  const live = (clutched || leftHeld || freeMotion || dialMotionHolds.size > 0) && ws && ws.readyState === 1;
   if (!live && !traceOn) return;                     // the trace watches the filter too
   const now = performance.now();
   const xf = deadzone(fYaw.filter(rightRate, dt));   // filters warm up during the guard
@@ -2921,6 +2922,18 @@ window.wandBridge = {
   scrollPixels: () => Math.max(5,S.scrollPx),
   scrollSensitivity: () => S.motionScrollDeg,
   motionEnabled: () => freeMotion,
+  holdMotion() {
+    if (!this.ready() || this.busy() || dialScrolling) return () => {};
+    if (!dialMotionHolds.size && !freeMotion) {
+      sentLog = [];
+      engageT = performance.now();
+      fYaw.reset();
+      fPitch.reset();
+    }
+    const contact = {};
+    dialMotionHolds.add(contact);
+    return () => { dialMotionHolds.delete(contact); };
+  },
   scrolling(on) {dialScrolling=on;engageT=performance.now();fYaw.reset();fPitch.reset();},
   motion(on) { freeMotion=on; sentLog=[]; engageT=performance.now();fYaw.reset();fPitch.reset(); },
   busy: () => CAL.on || LAYOUT.editing || document.hidden || !$("actionsPanel").hidden || drawer.classList.contains("open"),
