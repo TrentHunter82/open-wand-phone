@@ -1183,7 +1183,8 @@ function processRates(rightRate, upRate, dt) {
   if (CAL.on && !CAL.preview) return;
   if (dialScrolling) return;                                       // finger-scroll loop owns the wheel
   if (scrollId !== null) return;                                    // touch scrolling freezes the cursor
-  const live = (clutched || leftHeld || freeMotion || dialMotionHolds.size > 0) && ws && ws.readyState === 1;
+  let moving = clutched || leftHeld || freeMotion;
+  const live = (moving || dialMotionHolds.size > 0) && ws && ws.readyState === 1;
   if (!live && !traceOn) return;                     // the trace watches the filter too
   const now = performance.now();
   const xf = deadzone(fYaw.filter(rightRate, dt));   // filters warm up during the guard
@@ -1191,6 +1192,15 @@ function processRates(rightRate, upRate, dt) {
   traceAdd(rightRate, xf);
   if (!live) return;
   if (now - engageT < S.guard) return;               // touch-down settle window
+  if (!moving) {
+    for (const hold of dialMotionHolds) {
+      if (now >= hold.readyAt) {
+        moving = true;
+        break;
+      }
+    }
+    if (!moving) return;
+  }
   const tuning = CAL.on && CAL.preview ? CAL.out : S;
   const k = screenW / (tuning.reach * Math.PI / 180);     // px per rad
   // Shape the rate at the reference frame time, then scale by the real dt.
@@ -2922,15 +2932,16 @@ window.wandBridge = {
   scrollPixels: () => Math.max(5,S.scrollPx),
   scrollSensitivity: () => S.motionScrollDeg,
   motionEnabled: () => freeMotion,
-  holdMotion() {
+  holdMotion(delayMs = 0) {
     if (!this.ready() || this.busy() || dialScrolling) return () => {};
+    const now = performance.now();
     if (!dialMotionHolds.size && !freeMotion) {
       sentLog = [];
-      engageT = performance.now();
+      engageT = now;
       fYaw.reset();
       fPitch.reset();
     }
-    const contact = {};
+    const contact = {readyAt: now + delayMs};
     dialMotionHolds.add(contact);
     return () => { dialMotionHolds.delete(contact); };
   },

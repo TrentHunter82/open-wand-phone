@@ -3,12 +3,14 @@ const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
 const script=fs.readFileSync(require('node:path').join(__dirname,'../www/index.html'),'utf8');
+const dial=fs.readFileSync(require('node:path').join(__dirname,'../www/dial.js'),'utf8');
 function harness() {
   const frames=[];
+  let now=1000;
   const c=vm.createContext({window:{},leftHeld:false,clutched:false,freeMotion:false,dialScrolling:false,dialMotionHolds:new Set(),
     ws:{readyState:1,send:message=>frames.push(JSON.parse(message))},document:{hidden:false},drawer:{classList:{contains:()=>false}},
     LAYOUT:{editing:false},CAL:{on:false},dragTimer:0,dragLatched:false,lastTapEndT:0,
-    sentLog:[],engageT:0,performance:{now:()=>1000},
+    sentLog:[],engageT:0,performance:{now:()=>now},
     fYaw:{reset(){},filter:x=>x},fPitch:{reset(){},filter:x=>x},
     send:f=>frames.push(f),setClutchLabel(){},IDLE_LABEL:'Idle',
     $:()=>({hidden:true,classList:{remove(){}}}),undoRecent(){},scrollId:null,traceOn:false,
@@ -21,8 +23,25 @@ function harness() {
   vm.runInContext(script.slice(script.indexOf('function releaseClutch()'),script.indexOf('function endScroll()')),c);
   const bridgeStart=script.indexOf('const dialHeld =');
   vm.runInContext(script.slice(bridgeStart,script.indexOf('</script>',bridgeStart)),c);
-  return {frames,run:s=>vm.runInContext(s,c)};
+  vm.runInContext(dial.slice(dial.indexOf('  function pressPad('),dial.indexOf('  function nextPage()')),c);
+  return {frames,advance:ms=>{now+=ms;},run:s=>vm.runInContext(s,c)};
 }
+
+test('a quick tap on Left Click stays still and a held tap drags until release',()=>{
+  const h=harness();
+  h.run(`const B=window.wandBridge, assigned=()=>({button:'l'}), bubble={zone:'left'};
+    pressPad(bubble);`);
+  h.advance(100);
+  h.run('processRates(1,0,1/60);bubble.release(true);');
+  h.advance(200);
+  h.run('processRates(1,0,1/60);pressPad(bubble);');
+  h.advance(159);
+  h.run('processRates(1,0,1/60);');
+  assert.deepEqual(h.frames.map(f=>[f.t,f.s]),[['b',1],['b',0],['b',1]]);
+  h.advance(1);
+  h.run('processRates(1,0,1/60);bubble.release(false);processRates(1,0,1/60);');
+  assert.deepEqual(h.frames.map(f=>[f.t,f.s]),[['b',1],['b',0],['b',1],['m',undefined],['b',0]]);
+});
 
 test('the dial click bubble and movement trigger can be held and released independently',()=>{
   const h=harness();

@@ -347,6 +347,14 @@
     if (!a) return;
     point.shift = !!B.isShift?.(a);
     point.release = B.press(a);
+    if (point.zone === 'left' && a.button === 'l') {
+      const releaseClick = point.release;
+      const releaseMotion = B.holdMotion(160); // Give a quick tap time to finish before moving.
+      point.release = () => {
+        releaseMotion();
+        releaseClick();
+      };
+    }
   }
   function nextPage(){rimPage++;render();}
   const stage=$('dialStage');

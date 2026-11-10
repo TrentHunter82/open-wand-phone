@@ -114,9 +114,9 @@ Click sits inside Mic. Each bubble has its own touch target.
 - **Motion button (pause/play icon):** tap to turn continuous motion on or return
   to hold-to-move. Disconnecting, leaving the page, editing, or opening menus
   returns to hold-to-move.
-- **Left Click:** tap the bubble to click. To drag in hold-to-move mode, hold
-  the bubble and Move pad together, then release Left Click to drop. With
-  continuous motion on, hold Left Click and move your hand.
+- **Left Click:** tap the bubble to click. Hold it and move your hand to drag
+  with one finger. In hold-to-move mode, the cursor starts moving after a short
+  pause to keep quick taps steady. Release the bubble to drop.
 - **Mic:** hold to send F8, release to stop your existing dictation workflow.
 - **Right Click:** tap or hold the smaller nested circle.
 - **Rim shortcut buttons:** tap Enter, Space, Backspace, Copy, Paste, Undo,
