@@ -1,474 +1,214 @@
-# open-wand-phone
+# Open Wand phone remote
 
-Turn an iPhone into a gyro air-mouse and hotkey pad for a Windows PC or Mac.
-The phone needs only Safari. The computer runs one Python agent.
+Use an iPhone as an air mouse, shortcut pad, and dictation trigger for a Windows PC or Mac. The phone runs the controls in Safari. A small Python program on the computer receives movements and button presses over your local network.
 
-## Requirements
+[Download the latest project](https://github.com/TrentHunter82/open-wand-phone/archive/refs/heads/main.zip) · [Set up dictation](docs/DICTATION.md) · [Developer notes](HANDOFF.md)
 
-- Windows 11 PC or Mac running macOS 13 or newer
-- Python 3.11 or newer
-- iPhone with iOS 17 or newer
-- The computer and the phone on the same Wi-Fi LAN
+## What you need
 
-## Setup (Windows)
+- An iPhone with iOS 17 or newer and Safari.
+- A Windows 11 PC or a Mac running macOS 13 or newer.
+- Python 3.11 or newer on the computer.
+- Both devices on the same local network. A wired computer and a Wi-Fi phone can work together when the network allows devices to communicate.
+- For voice typing, a separate desktop dictation app configured for F8. Its microphone records your voice.
 
-Easy way: double-click **`start.bat`**.
+## Start on Windows
 
-- The first run installs the dependencies.
-- The window shows the QR code. Keep the window open.
-- To stop: close the window, or double-click `start.bat` again.
-- To add agent options, edit the `WAND_ARGS` line at the top of
-  `start.bat`. Example: `set "WAND_ARGS=--absolute"`.
+1. Download the project using the link above, or **Code > Download ZIP** on GitHub. Extract the ZIP and open the extracted folder.
+2. Install Python from [python.org](https://www.python.org/downloads/). Open a new terminal and check `python --version`. It must report 3.11 or newer. If you used a traditional Python installer, enable its **Add Python to PATH** option. See the [official Windows installation guide](https://docs.python.org/3/using/windows.html).
+3. Double-click **start.bat**. The first run installs the required Python packages, then shows a QR code and connection link.
+4. If Windows Firewall asks, allow the app on your private home network.
+5. Keep the launcher window open and [connect your iPhone](#connect-your-iphone).
 
-Manual way:
+Close the launcher window to stop. Double-clicking `start.bat` while an agent is running also stops it. Double-click again to start it.
 
-1. Open a terminal in this folder.
-2. Run: `pip install -r requirements.txt`
-3. Run: `python agent.py`
+The Windows launcher enables absolute pointer mode to avoid Windows mouse acceleration. To change agent options, edit the `WAND_ARGS` line in `start.bat`.
 
-If Windows Firewall asks, allow access on **private** networks.
+For a manual start, open a terminal in the extracted folder and run these commands.
 
-The agent prints a QR code and a URL. The URL contains a session token
-(`?k=...`). The agent stores that token in `wand-token.txt` and reuses
-it, so **the same link keeps working after a restart**. Scan the QR
-once. Use `--new-token` to make a new one.
+```powershell
+python -m pip install -r requirements.txt
+python agent.py --absolute
+```
 
-Flags:
+## Start on Mac
 
-- `--port 8443` — change the HTTPS port.
-- `--absolute` — place the pointer directly. See "Pointer mode" below.
-- `--new-token` — make a new token. Old phone links stop working.
-- `--no-qr` — do not print the QR code.
-- `--verbose` — log frame rates, injection counts, and blocked events.
-
-## Setup (Mac)
-
-1. Download this repository from GitHub using **Code → Download ZIP**, and unzip it,
-   or clone it with Git. Keep all the files together.
-2. Install Python 3.11 or newer from [python.org](https://www.python.org/downloads/macos/).
-3. Open Terminal in the extracted project folder and run:
+1. Download and extract the same project, then install Python 3.11 or newer from [python.org](https://www.python.org/downloads/macos/).
+2. Open Terminal, type `cd ` including the space, drag the extracted project folder into the Terminal window, and press Return.
+3. Run the Mac launcher.
 
    ```sh
    bash start-mac.command
    ```
 
-   The launcher creates a local Python environment and installs dependencies on
-   its first run. Use the same command for subsequent starts. Keep Terminal open;
-   press **Control+C** to stop. Optional arguments go after the command.
-4. Allow Terminal (or the Python launcher named by macOS) in **System Settings →
-   Privacy & Security → Accessibility**, then run the launcher again. If macOS
-   asks for local-network or incoming-network access, allow it so the iPhone can connect.
-5. Scan the QR code on the Mac and follow the iPhone connection steps below.
-   The Windows link controls the Windows computer; the Mac has its own link.
+4. Allow the Terminal app or Python process named by macOS under **System Settings > Privacy & Security > Accessibility**, then run the launcher again. Apple's [Accessibility permission guide](https://support.apple.com/guide/mac-help/mh43185/mac) explains this permission.
+5. Allow local-network or incoming-network access if macOS prompts for it.
+6. Keep Terminal open and scan the QR code shown on the Mac. Press **Control+C** in Terminal to stop the agent.
 
-The Mac backend uses [Quartz through PyObjC](https://pyobjc.readthedocs.io/en/latest/apinotes/Quartz.html)
-and checks Apple's [input-posting permission](https://developer.apple.com/documentation/coregraphics/cgpreflightposteventaccess%28%29).
-No screen recording is required. Mouse movement, held-button dragging, scrolling,
-and calibration use the Mac's logical desktop coordinates, including Retina and
-external displays. Movement places the pointer directly; `--absolute` is accepted
-but is already the Mac behavior.
+The launcher creates `.venv-mac` and installs its dependencies on first use. Run the same command each time you want to start it. The Mac has its own connection link and QR code.
 
-**Copy, Paste, Undo, and Redo automatically use Command on Mac.** Custom hotkeys
-and macros remain literal: use `cmd+c` or `cmd+a, cmd+c` for Mac shortcuts, and
-`ctrl` when you actually want Control. `alt` means Option; `win` and `meta` are
-aliases for Command. The Windows redo preference does not override Mac's
-Command+Shift+Z. The microphone still holds **F8**, so keep your Mac dictation
-app running with that binding.
+The Mac implementation supports Retina displays, multiple monitors, held-button dragging, scrolling, F8, and shared modifiers such as Shift. Built-in Copy, Paste, Undo, and Redo use Command automatically. Custom macros use the literal keys you enter, such as `cmd+c` on Mac and `ctrl+c` on Windows.
 
-Mac key names describe physical US keyboard positions. Non-US layouts can produce
-different punctuation/letters. F1–F20 are supported; F21–F24, Insert, and Print
-Screen have no mapping and are ignored as a complete shortcut. Use macOS shortcut
-combinations for screenshots instead.
+Mac input is covered by automated tests with simulated Quartz events. A live MacBook hardware check is still pending. Mac key names use physical US keyboard positions. F1–F20 are mapped. F21–F24, Insert, and Print Screen are unsupported.
 
-The Mac backend has automated tests with simulated Quartz events. It still needs
-a first hardware check on a Mac: connect, move and scroll, hold L to drag, test
-copy/paste and F8 dictation, then disconnect while holding a button to confirm release.
+## Connect your iPhone
 
-## Connect the iPhone
+1. Scan the computer's QR code with the iPhone Camera and open the link in Safari.
+2. This project creates its own HTTPS certificate. For your own computer's connection, tap **Show Details > Visit This Website**, then confirm **Visit Website** when Safari displays its certificate warning. The exact wording can vary by iOS version.
+3. Tap **START**, then **Allow** when Safari asks for motion access.
+4. Hold **Move** and move your hand. Release it to stop the cursor.
 
-1. Scan the QR code with the iPhone camera. Safari opens the URL.
-2. Safari shows "This Connection Is Not Private". Do these steps:
-   1. Tap **Show Details**.
-   2. Tap **Visit This Website**.
-   3. Tap **Visit Website** to confirm.
-3. Tap the big **START** button.
-4. Tap **Allow** when Safari asks for motion access.
+Use a regular Safari tab and keep it in the foreground. The launcher window must remain open on the computer. Keep the tab or bookmark its link. The connection token persists across agent restarts, so that link can reconnect later.
 
-The certificate is self-signed. The tap-through is expected. The
-WebSocket connection uses the same exception.
+## Set up voice typing
 
-Use a normal Safari tab. Do not add the page to the Home Screen.
-Standalone mode does not work well with self-signed certificates.
+Open **Menu > Dictation setup** on the phone for the three-step walkthrough, or read the [full dictation guide](docs/DICTATION.md). Configure your desktop dictation app to record while **F8 is held**, transcribe when F8 is released, and insert the text into the focused app.
 
-Keep the tab. The token survives an agent restart, so the same tab
-reconnects by itself. If the token changes, the page shows an amber
-bar that tells you to scan the new QR code.
+First test F8 on the computer keyboard. Then focus a text field and hold the phone's **Mic** bubble while speaking. Release it to finish.
 
-## Use
+If you already use **CM7 Dictation**, its default F8 hold/release behavior matches the Mic bubble. Open its desktop shortcut, keep the widget running, and follow the [CM7 quick check](docs/DICTATION.md#already-using-cm7-dictation).
 
-The large **Move** pad surrounds the Left Click, Mic, and Scroll bubbles. Right
-Click sits inside Mic. Each bubble has its own touch target.
+The phone sends F8 down and F8 up. The desktop dictation app handles recording, transcription, and text insertion. Its own settings determine whether transcription runs locally or uses a service such as a Whisper API.
 
-- **Move:** hold the large pad while moving your hand. Release to stop the cursor.
-  The dial opens in this mode.
-- **Motion button (pause/play icon):** tap to turn continuous motion on or return
-  to hold-to-move. Disconnecting, leaving the page, editing, or opening menus
-  returns to hold-to-move.
-- **Left Click:** tap the bubble to click. Hold it and move your hand to drag
-  with one finger. In hold-to-move mode, the cursor starts moving after a short
-  pause to keep quick taps steady. Release the bubble to drop.
-- **Mic:** hold to send F8, release to stop your existing dictation workflow.
-- **Right Click:** tap or hold the smaller nested circle.
-- **Rim shortcut buttons:** tap Enter, Space, Backspace, Copy, Paste, Undo,
-  Redo or a macro to run it immediately. If the list is long or
-  the screen is short, **Next** cycles through the remaining shortcut pages.
-  Dragging off a shortcut cancels it. Keyboard users can Tab to a button and
-  press Enter or Space.
-- **Scroll:** hold the smaller Scroll circle to open a floating up/down thumb
-  control. The rest of the interface fades back. Slide your finger up or down;
-  farther from where you first touched is faster. Keep your finger off-center
-  to continue scrolling without more movement. Return to the middle to pause,
-  or lift your finger to close the control. Small movements around the middle
-  do nothing, and sideways movement is ignored. Phone tilt never controls scrolling.
-  The mouse pointer stays still for the entire hold and returns to its previous
-  motion preference on release. Other buttons are blocked during the gesture.
-  The pop-up stays on screen, and travel shortens near an edge so both directions
-  remain reachable. Your saved Scroll circle position and size are unchanged.
-  Engraved dial marks appear while held. **Settings & calibration > Scroll
-  sensitivity** keeps your saved speed choice (2 to 18; 9 by default; lower is
-  faster), including the 24 to 72 notches-per-second cap. Invert scroll reverses
-  direction independently of pointer inversion. Keyboard users can hold Space
-  or Enter on Scroll, then use Up/Down (Shift for full speed); releasing an arrow
-  pauses, and releasing Space/Enter or pressing Escape closes the control.
-  Menus, editing, lost capture, hiding the page, or disconnecting cancel the hold.
-  Canceled holds never resume themselves.
-- **Menu:** saved grips, Edit layout, Shortcuts & macros, and Settings & calibration.
-  The old title and bottom navigation are removed. The existing wheel sizes and
-  positions are retained when the separate Scroll button is added.
-  Shortcuts & macros contains Copy/Paste/Undo/Redo and up to 32 macros.
-  Built-in shortcuts automatically use Command on Mac. Literal custom shortcuts
-  keep their configured modifiers. A macro runs on a completed tap; canceling
-  the gesture never starts it. Only one macro sequence runs at a time.
-- **Backspace:** tap to delete one character, or hold to keep deleting after a
-  short pause. Release or slide away from the rim button to stop. This also works
-  when Backspace is assigned to one of the larger circles.
-- **Shift:** hold for a normal momentary Shift press. Keep holding for one second
-  to lock it on, then lift your finger and use other controls. The Shift button
-  lights up and a **Shift locked** indicator appears; tap either to release it.
-  A dial macro containing only `shift` gets this behavior automatically, keeping its
-  existing name and layout position. Longer macros and `shift+...` shortcuts keep
-  their normal behavior. Built-in **Shift** is also available under **Menu > Edit
-  layout > Sizes & actions > Add a shortcut or macro**. Opening menus, pausing
-  motion, leaving the page, or disconnecting releases Shift. Its lock state is
-  never saved. Keyboard users hold Space or Enter for the same one-second lock;
-  assistive activation toggles it directly.
+## Main controls
 
-### Glass materials
+| Control | How it works |
+| --- | --- |
+| **Move** | Hold the large pad and move your hand to move the cursor. Release to stop. This is the startup mode. |
+| **Left Click** | Tap for one click. Hold for about 160 ms to engage movement and drag with one finger, then release to drop. A higher Touch guard setting can delay movement further. |
+| **Motion play/pause button** | Turn continuous motion on, or return to hold-to-move. Opening menus, editing, leaving the page, and disconnecting return to hold-to-move. |
+| **Mic** | Hold F8 while touched and release F8 when lifted. Match the desktop dictation app's shortcut mode to this behavior. |
+| **Right Click** | Tap or hold the smaller circle inside Mic. |
+| **Scroll** | Hold to open the up/down thumb control. Slide up or down, farther for faster. An off-center hold keeps scrolling. Return to the center to pause or release to close. The pointer stays still throughout. |
+| **Rim shortcuts** | Tap a word to send its shortcut immediately. Slide away to cancel a pending tap. **Next** shows more shortcuts when the current page is full. |
+| **Backspace** | Tap to delete once. Hold to repeat after a short pause, then release or slide away to stop. |
+| **Shift** | Hold normally, or hold for one second to lock it. Tap Shift or the **Shift locked** indicator to release. A dial macro containing only `shift` gets the same behavior. |
 
-**Menu > Under the glass** switches between Liquid, Smoke, and Still glass.
-Liquid has a moving waterline, refracted highlights, and touch ripples; phone tilt
-adds a damped slosh using the motion permission already granted at Start. Smoke
-uses flowing silver wisps. Hand rotation stirs both materials, then the motion settles
-when the hand stops. Holding the Mic adds a soft silver highlight. The glass and
-controls use a dark charcoal palette. Holding Scroll reveals engraved dial marks
-that follow the scroll output, with reduced motion keeping the marks stationary.
-These are decorative effects: they cannot send input or change saved grip geometry.
-The material choice saves separately from layouts and macros.
+Keyboard users can Tab to a dial control and hold Space or Enter. On Scroll, hold Space or Enter and use Up/Down to choose direction. Hold Shift with an arrow for full speed. Release the arrow to pause. Release Space/Enter or press Escape to close.
 
-Animation runs at up to 30 frames per second with a capped pixel budget and adaptive
-resolution. It pauses behind menus, while editing, and when the page is hidden.
-The phone's Reduce Motion setting freezes animated materials. If WebGL is unavailable
-or lost, the controls retain their static glass lighting and remain usable.
+Shift is released when menus open, motion is paused, the page loses focus, or the connection closes. Its lock state is temporary.
 
-### Ring feedback
+## Make the layout comfortable
 
-Menu has independent **Ring haptics** and **Ring tick sound** options. Each
-rim shortcut press produces a short visual pulse. Vibration is requested where the
-browser supports it; a native WebKit switch is also tried during an active user
-gesture when vibration is unavailable. This is best effort: newer Safari versions
-can suppress scripted switch haptics, and automated tests cannot confirm physical
-vibration. Optional tick sound supplies audible feedback without enabling sounds
-for every main-button press. Feedback choices save with the phone settings.
+Open **Menu > Edit layout**. Drag a circle to move it and drag its light handle to resize it. You can move the large wheel, Left Click, Mic, Right Click, Scroll, and the Motion button. Drag rim shortcuts onto one another to reorder them. Computer input is paused while editing.
 
-### Customize and save your grip
+Tap **Sizes & actions**, the **☷** button between Cancel and Save, for sliders and action assignments. **Function selector thickness** makes the outside shortcut ring wider or narrower. **Click bubble assignment** controls the small click bubble and inherits an older large-pad assignment when loading an existing grip.
 
-Tap **Menu > Edit layout**. Drag the large wheel or any of the circles to move it.
-Drag its light handle to resize. All computer input is paused while editing.
-Move Motion by its dotted handle or body. In tight custom grips, the Click and
-Scroll bubbles can use clear space beside the wheel. You can also
-drag rim keys onto one another to reorder them right on the dial. Save layout
-keeps all these changes; Cancel restores the previous grip.
+Tap **Back to dial** to preview, then **Save** to keep your edits. **Cancel** restores the previous grip. Rotating the phone or leaving the page cancels unfinished edits. In unusually tight layouts, Click and Scroll can use nearby clear space beside the wheel.
 
-**Sizes & actions** provides size and position sliders, a grip name, bubble
-assignments, and the rim shortcut list. Drag action rows or use the up/down arrows to reorder them. Remove
-unwanted actions or add any available shortcut or macro. **Click bubble assignment** defaults to
-Left Click and inherits any saved assignment from the former large pad. **Back to dial** returns
-to the preview; **Save layout** commits the whole edit, and **Cancel** discards it.
-**Function selector thickness** adjusts the width of the rim shortcut band.
-It starts wider for easier thumb access and saves separately for each orientation.
-Labels fit their surfaces, wrap or shorten long action names, and avoid the nested
-circles and floating controls. Full action names remain available to screen readers.
-The floating controls stay clear of each other and the header. Rim buttons use the
-available arc without covering controls; additional actions remain reachable with Next.
+**Menu > Saved grips** supports up to eight named presets. Each preset stores its own portrait and landscape geometry. Layouts, shortcuts, macros, and appearance settings save in this phone's browser. Clearing its website data removes them. They do not sync between browsers or computers.
 
-**Menu > Saved grips** opens saved presets. Save a copy to create another grip, then edit
-and rename it. Up to eight presets are supported. Each preset keeps separate
-portrait and landscape positions and sizes. These presets, action choices, and
-macro definitions are saved in this phone browser and survive reloads. Clearing
-website data removes them. They are not synced between computers or browsers.
-The earlier pad layout remains stored separately; it does not override the dial.
+### Shortcuts and macros
 
-Changing orientation or leaving the page while editing cancels unfinished edits.
-Saved positions adapt to the visible viewport. A short, separate hold-to-move pad
-still appears inside calibration so reach measurements remain controlled.
+Open **Menu > Shortcuts & macros > Create macro button**. Enter a name and comma-separated shortcuts, such as `ctrl+a, ctrl+c` on Windows or `cmd+a, cmd+c` on Mac. Enable **Show on rim** and save.
 
-### Macros
+You can create up to 32 macros with up to 12 shortcuts each. Each shortcut is held for 80 ms, released, and followed by a 120 ms pause. Macros target the focused computer app. They cannot wait for windows to open or type free-form text. Use **Edit layout > Sizes & actions** to arrange their rim buttons.
 
-In **Menu > Shortcuts & macros > Create macro button**, enter a name and a comma-separated sequence,
-for example `ctrl+a, ctrl+c` on Windows or `cmd+a, cmd+c` on Mac. Check **Show on
-rim** to add it to the rim shortcuts, then **Save macro**. That panel also lets you edit,
-run, delete, pin or unpin macros. Edit > Sizes & actions controls their dial order.
-Existing macros and hotkey assignments are retained.
+A new manual press interrupts an active sequence. Closing the panel, opening an editor, hiding the page, pausing, or disconnecting cancels it and releases held keys. Already-sent steps remain applied.
 
-Macros support up to 12 shortcuts. Each shortcut is held for 80 ms, released,
-then followed by a 120 ms pause. They target the focused computer app; they do
-not wait for dialogs and cannot run arbitrary scripts or type free-form text.
-A new rim shortcut or manual press interrupts an earlier sequence safely.
-Closing the panel, pausing motion, opening an editor, hiding the page or losing
-the connection cancels any active sequence and releases held input. Already-sent
-steps are not undone, and canceled sequences never replay on reconnection.
+### Appearance and feedback
 
-Developer checks: `node --test tests/*.test.cjs` tests dial settings, geometry,
-keyboard/mouse releases, macros, motion gating, and calibration. With Python
-requirements installed, `python -m unittest discover -s tests -p "test_*.py" -v`
-checks the server, assets and native backends without injecting real input.
-Browser checks use a simulated receiver; a real iPhone remains the final check
-for hand comfort and motion feel.
+**Menu > Under the glass** offers Liquid, Smoke, and Still glass. Touches and hand movements animate the liquid or smoke. The scroll pad shows engraved marks while scrolling. The phone's Reduce Motion preference freezes decorative animation. Unsupported WebGL falls back to static glass.
 
-## Connection status
+**Ring haptics** requests vibration where the browser supports it. Safari can suppress it. **Ring tick sound** adds an optional audible response. The ringer switch and Bluetooth audio can affect sound.
 
-The header reports the connection. Operating-system input blocks and stale links
-appear in the warning banner. Settings > About reports agent version and pointer
-mode. Motion is always paused after a lost connection, even if the link reconnects.
+## Adjust movement and scroll speed
 
-## Calibration
+Open **Menu > Settings & calibration**. Changes apply immediately and save on the phone.
 
-**Calibrate reach** in Settings learns your comfortable wrist range. It
-never moves the cursor automatically. Restart the PC agent after updating
-and reload your existing Safari tab to enable cursor feedback.
+| Setting | Effect |
+| --- | --- |
+| **Reach** | Higher values slow pointer motion. Default 135 degrees across the full virtual desktop. |
+| **Curve** | Higher values create more difference between small movements and fast flicks. Default 1.0. |
+| **min_cutoff** | Lower values smooth resting motion more, with more lag. Default 4.0 Hz. |
+| **beta** | Higher values open the motion filter sooner as your hand moves faster. |
+| **Deadzone** | Ignore small hand tremors. Default 2.5 degrees per second. |
+| **Touch guard** | Wait after pressing a control to absorb thumb movement. Default 130 ms. The Left Click bubble also has a minimum 160 ms hold before it enables motion. |
+| **Scroll sensitivity** | Lower numbers scroll faster. Range 2–18, default 9. The maximum ranges from 24 to 72 notches per second. |
+| **Invert scroll** | Reverse scrolling independently of pointer direction. |
+| **Point with** | Choose the phone's top edge or its back as the pointing direction. |
+| **Invert X / Y** | Reverse either pointer axis. |
 
-1. **Choose the display.** Pick the projected screen by its resolution and
-   desktop coordinates. The display currently containing the cursor is selected
-   initially. Displays to the left or above the primary can have negative coordinates.
-2. **Hold still for two seconds.** Measures sensor drift for the range measurement.
-3. **Mark your comfortable left aim, then right aim.** Aim with a comfortable
-   wrist position, mark left, sweep right, hold steady, and mark right. The
-   cursor stays where it is. Repeat once; inconsistent sweeps must be repeated.
-4. **Try it with the calibration hold-to-move pad.** The proposed reach is
-   temporary. Move the cursor yourself to the selected display's left edge,
-   lift to re-aim, then sweep right. The phone reports the actual cursor reaching
-   or crossing each edge, including boundaries shared with another display.
-   Repeat once. Click and drag gestures are paused during this trial.
-5. **Adjust and apply.** Slower/Faster lets you refine the trial speed and resets
-   the edge checks. After two successful passes, tap **Apply reach** if it feels
-   comfortable, or Cancel to keep the old settings.
+Reach covers the entire virtual desktop. A wide multi-monitor desktop can need a higher Reach value for comfortable control of one display. **Copy constants** exports the current settings as JSON.
 
-The agent reports cursor position at the phone's request, about ten times per
-second during calibration. Stale feedback, a disconnect, a display-layout
-change, leaving Safari, or Cancel stops the trial without saving. No canceled
-measurement or cursor command resumes later. The cursor remains wherever you
-moved it during the trial.
+Some internal settings still support the earlier pad interface and calibration pad. The current dial uses its own saved geometry and direct button gestures.
 
-Reach is stored in degrees per full desktop width, so the comfortable angle
-is scaled by desktop width divided by the selected display width. The slider
-supports up to 1080 degrees to accommodate wide multi-monitor desktops.
-This calibrates sensitivity for the chosen display; it does not confine the
-cursor to that display. All existing filter, deadzone, touch-guard, scroll,
-vertical direction, and F8 settings remain unchanged. **Undo calibration**
-restores the previous reach, horizontal direction, and calibration width.
-Notices like these clear themselves after six seconds, or tap one to dismiss
-it. Warnings about a stale link, blocked input, or another copy of the page
-stay until the problem is gone.
+### Calibrate your reach
 
-Absolute pointer mode gives the most predictable result (already enabled in
-start.bat). Relative-mode Windows acceleration and your existing curve,
-filtering, and deadzone can affect feel, which is why the live trial is required.
-Synthetic demo mode cannot calibrate a real wrist range.
+Open **Settings & calibration > Calibrate reach**.
 
-## Tuning
+1. Choose the projected display.
+2. Hold still for the drift measurement.
+3. Mark your comfortable left and right aim, then repeat.
+4. Use the calibration hold-to-move pad to move the cursor yourself to the display's left and right edges twice. The phone reports when the cursor reaches them.
+5. Adjust Slower/Faster if needed, repeat the edge checks, and tap **Apply reach** when comfortable.
 
-All sliders apply immediately and persist on the phone.
+Cancel discards the trial. **Undo calibration** restores the previous reach and calibration settings. The cursor moves only under your control. Disconnecting, changing display layout, stale feedback, or leaving Safari cancels the trial.
 
-Note: Reach spans the FULL virtual desktop. With three monitors,
-7680 px wide, reach 60 means only 20 degrees per monitor. Raise the
-reach for a calmer cursor.
+### Pointer mode
 
-The defaults are the owner's tuned daily-driver values.
+`start.bat` enables **absolute** movement on Windows, avoiding Windows mouse acceleration. A manual `python agent.py` start uses relative movement unless you add `--absolute`. For relative movement, turn off **Enhance pointer precision** in Windows mouse settings for more predictable reach.
 
-- **Reach:** degrees of wrist swing for the full desktop width.
-  Higher = slower. Default 135.
-- **Curve exponent:** higher = more difference between slow precise
-  moves and fast flicks. 1.0 = linear. Default 1.0. The curve is
-  shaped at a 60 Hz reference and then scaled by the real frame time,
-  so the feel stays the same if the sensor rate changes.
-- **min_cutoff:** LOWER = steadier at rest, but laggier slow moves.
-  Default 4.0 (light smoothing; the deadzone handles the tremor).
-- **beta:** Hz added to the filter cutoff for every 100 deg/s of hand
-  speed. Higher = the filter opens sooner on fast moves.
+Mac movement places the cursor directly using Quartz. Retina and external displays use the Mac's logical desktop coordinates. The physical mouse can still reposition the cursor.
 
-  **This was broken until 2026-08-21.** The code fed the speed term in
-  rad/s while the slider range was chosen for deg/s, so it was 57 times
-  too small. Across the whole old slider, a 400 deg/s flick moved the
-  cutoff from 4.000 Hz to 4.349 Hz, and the time to reach 90 percent of
-  a flick did not change at all. The filter was a fixed 4 Hz lowpass and
-  the deadzone was doing all the work.
+## Updating
 
-  Stored values convert to the same behaviour, so nothing changed on the
-  day of the fix. That lands near zero. Try 3 to 6 for what the setting
-  was always meant to do. The export key is now
-  `beta_hz_per_100dps`, with `beta_formula` beside it.
-- **Deadzone:** filtered rates below this speed (deg/s) do nothing.
-  Raise it until a resting hand holds the cursor dead-still. Default
-  2.5.
-- **Show trace:** plots the yaw rate live. Dim = raw, bright =
-  filtered, grey band = the deadzone. Hold the clutch, keep the hand
-  still, and raise the deadzone until the bright line sits inside the
-  band. The trace runs only while the drawer is open.
-- **Touch guard:** absorbs the twitch from the thumb itself. After
-  touch-down, motion is ignored for this many ms. On lift, the motion
-  sent in the last window is undone, so the cursor lands where you
-  aimed. Default 130. Raise it if taps still shove the cursor; set 0
-  to disable.
-- **Scroll:** pixels of drag for one wheel notch. This sets the speed
-  of the scroll strip and of the two-finger drag. Lower = faster.
-  Default 30.
-- **Clutch height:** the share of the free space the clutch zone takes.
-  Default 55%. The rest of the space sits above it, so the pads stay on
-  the bottom edge, under the thumb. Set 100% for the old full-height
-  clutch zone.
-- **Scroll strip:** show or hide the one-finger scroll bar. Default on.
-- **Two-finger scroll:** the old two-finger gesture. Default off.
-- **Reset page size / Reload the page:** in the LAYOUT section. Use
-  them if the page changes size.
-- **Tap-hold to drag:** turn the drag latch on or off. Default on. The
-  second touch must start within 320 ms of the tap, and you must hold
-  it for 170 ms.
-- **Point with:** the pointing axis. **Top edge** = hold the phone like
-  a remote (default). **Back** = hold the phone upright, screen toward
-  you, and aim the back camera at the screen.
-- **Invert X / Y:** flip an axis to taste.
-- **Hotkey pads:** three fields, one per pad. Leave a field empty to
-  drop that pad. Each takes up to four key names, joined by `+`. Names:
-  ctrl,
-  alt, shift, win, f1-f24, a-z, 0-9, esc, tab, space, enter,
-  backspace, delete, insert, home, end, pageup, pagedown, up, down,
-  left, right, and the punctuation names (minus, equals, comma,
-  period, slash, backslash, semicolon, quote, backtick, lbracket,
-  rbracket). The field turns red on an unknown name and does not save.
+Stop the agent, pull the latest `main` or replace your extracted project with a fresh download, then start it again. Refresh the existing Safari tab.
 
-**Copy constants** puts the live values on the clipboard as a JSON
-blob. Paste that blob into the ESP32 firmware later. This blob is the
-main artifact of the build. `curve_ref_hz` tells the firmware which
-rate the curve exponent was tuned at.
+For a ZIP replacement, keep your local `wand-token.txt`, `wand-cert.pem`, and `wand-key.pem` together in the updated project folder if you want the same connection link. Keep those files private. A changed computer IP address can still require rescanning the QR code and accepting a refreshed certificate.
 
-## Pointer mode (important)
-
-**Relative mode (default).** The agent sends relative moves. Windows
-passes them through the **Enhance pointer precision** setting, which
-distorts the 1:1 feel. On this PC, with that setting on, a 40 px frame
-moved the cursor 302 px. Turn it off:
-
-1. Open **Settings → Bluetooth & devices → Mouse**.
-2. Open **Additional mouse settings**.
-3. Open the **Pointer Options** tab.
-4. Clear **Enhance pointer precision**.
-5. Click **OK**.
-
-**Absolute mode (`--absolute`).** The agent tracks the pointer itself
-and places it directly on the virtual desktop. Windows acceleration
-never touches it, so reach is exact whatever the mouse settings say. A
-40 px frame moves 40 px.
-
-Pick absolute if you want an exact laser-pointer feel and you do not
-play games that read raw mouse input. **Re-tune the reach after you
-switch.** Absolute mode removes the acceleration boost, so the cursor
-feels slower at first. Lower the reach until it feels right.
-
-The agent resyncs to the real pointer whenever anything else moves it,
-so the physical mouse keeps working at the same time.
-
-## Test without a phone (sim mode)
-
-Open the printed URL in desktop Chrome and add `&sim=1`. Accept the
-certificate warning (`Advanced → Proceed`). Tap START, then hold the
-mouse button in the clutch zone. A synthetic figure-eight motion moves
-the cursor. This tests the full path: page → WebSocket → agent →
-SendInput.
+Phone layouts stay in Safari's website data for that address. Using a different computer or connection address can use a different set of saved browser settings.
 
 ## Troubleshooting
 
-- **No cursor motion:** check that the clutch zone shows "MOVING"
-  (green) while touched, and that the status dot is green.
-- **BLOCKED chip and an amber bar:** Windows refused the input. An
-  elevated window (a UAC prompt, Task Manager, some games) holds the
-  focus, and a normal process can not reach it. Run the agent as
-  administrator, or click a normal window first.
-- **Amber bar, "This link is out of date":** the token changed. Scan
-  the new QR code on the PC.
-- **The pads are hidden behind Safari's toolbar:** the page now sizes
-  itself to the visible box, so the toolbar cannot cover it. If the
-  pads still feel tight, lower **Clutch height** in the drawer.
-- **The page got too big for the screen:** Safari has two kinds of
-  zoom, and the amber bar names which one.
-  1. **Pinch zoom.** The bar reports the scale and shows a **Fit to
-     screen** button. Tap it. It resets the scale, and it reloads the
-     page if that fails. A two-finger pinch out also works.
-  2. **Page zoom.** The bar reports a percentage above 100%. This one
-     comes from Safari's own menu, and only Safari can clear it. Tap
-     **aA** at the address bar, then set the zoom to 100%.
+| Problem | What to try |
+| --- | --- |
+| **No movement** | Check Connected, allow motion access, and hold Move. The cursor also moves while holding Left Click after its brief delay. |
+| **Mic does nothing** | Test F8 on the computer first, then follow the [dictation checks](docs/DICTATION.md#when-something-doesnt-work). |
+| **Mac blocks input** | Allow the Terminal or Python process under Accessibility and restart the launcher. |
+| **Windows blocks input** | Try a normal, non-elevated app window. An elevated target may require running the agent as administrator. |
+| **Phone cannot connect** | Confirm the computer launcher is running and both devices can reach each other. Guest Wi-Fi and client isolation can block local connections. |
+| **Link is out of date** | Scan the current QR code. A new token invalidates the old link. |
+| **Another device took control** | Close extra remote tabs. The server accepts one active client. Tap the banner to take control back. |
+| **Page looks zoomed** | Use Safari's page controls to set 100%, or use Settings > Reset page size / Reload the page. |
+| **Wrong movement direction** | Check Point with and Invert X / Y. |
+| **Scroll is too slow** | Lower Scroll sensitivity, then slide farther from the pop-up's center. |
+| **New network or computer IP** | Restart the agent, scan its new QR code, and accept its certificate. |
+| **Held input seems stuck** | Close the remote tab or restart the agent. Disconnecting releases held keys and buttons. |
+| **Port 8443 is busy** | Stop the other agent, or start with `--port 8444`. |
 
-  The page now refuses every gesture that makes Safari zoom: the second
-  tap of a double tap, and any two-finger gesture on the control
-  surface. The hotkey field is 16 px, so a tap on it does not zoom
-  either. The drawer stays pinchable, and the LAYOUT section holds
-  **Reset page size** and **Reload the page**, so there is always a way
-  back.
+## Security and privacy
 
-  If the size changed by itself during normal use, that was a second
-  finger on the control surface. The clutch zone plus a pad is two
-  fingers, and so is the old two-finger scroll. Safari read that as a
-  pinch and changed its per-site page zoom, which sticks. Both paths
-  are blocked now, and the two-finger scroll is off by default.
-- **Motion permission denied:** in Safari, tap **aA → Website
-  Settings**, allow **Motion & Orientation**, then reload.
-- **The status flips between "connected" and "offline" about twice a
-  second, and the cursor cuts in and out:** two copies of the page are
-  open on the phone, for example two Safari tabs, or a tab plus a Home
-  Screen copy. The agent allows one client, so each copy replaces the
-  other, and the replaced one reconnects 400 ms later. The agent log
-  shows `replaces the previous client` on every line. Close every copy
-  but one, then pull the tab down to reload it. A replaced copy now
-  shows "Another tab or device took control" and waits; tap the bar
-  to take the PC back.
-- **Phone slept and does not reconnect:** the page reconnects with
-  backoff within about 3 s after wake. If not, pull the tab to reload.
-- **Cursor moves in wrong direction:** use the Invert X / Invert Y
-  toggles in the tuning drawer.
-- **New LAN IP (different network):** the agent detects the IP on each
-  run and regenerates the certificate when needed. Re-scan the QR and
-  tap through the certificate warning again.
-- **Stuck mouse button:** the agent releases all held buttons and keys
-  on any disconnect. Reconnect or restart the agent.
-- **"Port 8443 is busy":** another agent is already running. Close its
-  window, or start this one with `--port 8444`.
+The agent listens on the computer's LAN address and localhost. Its control connection requires the random token in the full URL. Someone who can reach the computer and has that token can send mouse and keyboard input while the agent runs.
 
-## Security notes
+Keep the full URL, QR code, `wand-token.txt`, and `wand-key.pem` private. Hide the address bar and QR code in public recordings. Publishing this source code does not publish locally generated credentials. Keep the agent on a trusted local network.
 
-- The agent binds to the LAN IP and localhost only.
-- The WebSocket requires the session token.
-- The token lives in `wand-token.txt` next to the script, in plain
-  text, and it persists across restarts. Anyone with the full URL can
-  control the cursor while the agent runs. Do not share the QR code.
-  Run `python agent.py --new-token` to invalidate old links.
-- The phone can send any key combo the hotkey pad holds. Treat the
-  token like a password.
+To invalidate a shared link, stop the running agent and start it with a new token.
+
+```sh
+python agent.py --new-token
+```
+
+On Mac, use `bash start-mac.command --new-token`. On Windows, add `--new-token` to `WAND_ARGS` for one launch, then remove it so later restarts keep the replacement link.
+
+The phone's Mic button sends a keyboard shortcut. Audio collection, transcription, service credentials, and audio retention belong to your chosen desktop dictation app. See its privacy settings before using sensitive speech.
+
+## Developer checks
+
+Run the front-end checks with Node.js.
+
+```sh
+node --test tests/*.test.cjs
+```
+
+With the Python requirements installed, run the server and input tests.
+
+```sh
+python -m unittest discover -s tests -p "test_*.py" -v
+```
+
+On Mac, use `.venv-mac/bin/python` after running the launcher. Native input tests replace injection with stubs. Browser checks use a simulated connection. Physical iPhone haptics and Mac hardware behavior need device checks.
+
+For a desktop motion demo, append `&sim=1` to the computer's printed connection URL, tap START, then hold Move or Left Click. The synthetic motion goes through the real receiver and can move its computer's cursor.
+
+See [HANDOFF.md](HANDOFF.md) for modules, protocol, storage, and maintenance details.

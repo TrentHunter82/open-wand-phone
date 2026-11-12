@@ -134,7 +134,7 @@
     }
     function blocked(){
       return document.hidden||root.classList.contains('editing')||!menu.hidden||
-        ['dialEditor','dialPresets','actionsPanel'].some(id=>!document.getElementById(id).hidden)||
+        ['dialEditor','dialPresets','dialDictation','actionsPanel'].some(id=>!document.getElementById(id).hidden)||
         document.getElementById('drawer').classList.contains('open')||document.getElementById('startOverlay').style.display!=='none';
     }
     function animated(){return mode!=='still'&&!reduced.matches&&!blocked();}
@@ -201,7 +201,7 @@
     canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();lost=true;available=false;cancel();root.classList.remove('glass-ready');canvas.hidden=true;setHint();});
     canvas.addEventListener('webglcontextrestored',init);
     const observer=new MutationObserver(wake);
-    for(const el of [root,menu,...['dialEditor','dialPresets','actionsPanel','drawer','startOverlay'].map(id=>document.getElementById(id))].filter(Boolean))observer.observe(el,{attributes:true,attributeFilter:['class','hidden','style']});
+    for(const el of [root,menu,...['dialEditor','dialPresets','dialDictation','actionsPanel','drawer','startOverlay'].map(id=>document.getElementById(id))].filter(Boolean))observer.observe(el,{attributes:true,attributeFilter:['class','hidden','style']});
     init();
     return {layout(g,w,h,scroll){geometry={g,w,h,scroll};wake();},wake};
   }

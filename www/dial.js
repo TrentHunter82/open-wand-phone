@@ -24,7 +24,7 @@
   const initialHTML=`<div id="dialRoot">
     <svg id="dialStage" xmlns="http://www.w3.org/2000/svg" aria-label="Air mouse dial"></svg>
     <header class="dial-header"><div class="dial-connection"><span id="dialConnectionDot" class="dial-dot"></span><span id="dialConnection">Offline</span></div><button id="dialShiftStatus" hidden aria-label="Shift locked, tap to release">&#8679; Shift locked &#215;</button><button id="dialMenuToggle" aria-expanded="false" aria-controls="dialMenu">Menu <span aria-hidden="true">⌄</span></button></header>
-    <nav id="dialMenu" hidden aria-label="Remote menu"><button id="dialEdit">Edit layout</button><button id="dialPreset" aria-label="Choose saved grip">Saved grips</button><button id="dialMore">Shortcuts & macros</button><button id="dialSettings">Settings & calibration</button><div class="dial-menu-feedback"><label><input id="dialRingHaptics" type="checkbox"> Ring haptics</label><label><input id="dialRingSound" type="checkbox"> Ring tick sound</label><p id="dialFeedbackHint"></p></div></nav>
+    <nav id="dialMenu" hidden aria-label="Remote menu"><button id="dialEdit">Edit layout</button><button id="dialPreset" aria-label="Choose saved grip">Saved grips</button><button id="dialMore">Shortcuts & macros</button><button id="dialSettings">Settings & calibration</button><button id="dialDictationOpen">Dictation setup</button><div class="dial-menu-feedback"><label><input id="dialRingHaptics" type="checkbox"> Ring haptics</label><label><input id="dialRingSound" type="checkbox"> Ring tick sound</label><p id="dialFeedbackHint"></p></div></nav>
     <div id="dialDock" aria-label="Pointer controls"><button id="dialMotion" aria-pressed="false" aria-label="Enable motion"><span class="dial-dot"></span><span id="dialMotionIcon" aria-hidden="true">&#9654;</span></button><button id="dialMotionGrip" class="dial-control-grip" hidden aria-label="Move Motion button" data-control="motion">&#10495;</button></div>
     <div id="dialEditbar" class="dial-editbar" hidden><button id="dialCancel">Cancel</button><button id="dialCustomize" aria-label="Sizes &amp; actions" title="Sizes &amp; actions">☷</button><button id="dialSave" aria-label="Save layout">Save</button></div>
     <div id="dialNotice" role="status" aria-live="polite"></div>
@@ -54,6 +54,18 @@
     <label for="dialAddAction">Add a shortcut or macro</label><select id="dialAddAction"></select><button id="dialAdd">Add action</button><button id="dialReset">Reset this orientation</button>
     <p class="dial-hint">Create custom macros in Menu → Shortcuts & macros. Save this grip, then use Menu → Saved grips to save a copy (up to eight presets).</p>
   </section><section id="dialPresets" hidden aria-label="Saved grips"><h2>Saved grips</h2><div id="dialPresetList"></div><button id="dialPresetCopy">Save a copy of current grip</button><button id="dialPresetClose">Back</button></section>`);
+  document.body.insertAdjacentHTML('beforeend',`<section id="dialDictation" hidden role="dialog" aria-modal="true" aria-labelledby="dialDictationTitle">
+    <div class="dial-help-head"><h2 id="dialDictationTitle">Set up dictation</h2><button id="dialDictationClose">Back to dial</button></div>
+    <p>Speak through your computer's microphone or headset. The Mic bubble sends F8 to your desktop dictation app.</p>
+    <ol class="dial-help-steps">
+      <li><h3>Set F8 on the computer</h3><p>Open your dictation app. Choose its microphone, set the global shortcut to <strong>F8</strong>, and select <strong>hold to record</strong> with text insertion on release.</p></li>
+      <li><h3>Try one sentence</h3><p>Click a blank document. Hold F8 on the computer keyboard, say a sentence, and release. Once your words appear, keep the dictation app running.</p></li>
+      <li><h3>Use the Mic bubble</h3><p>Go back to the dial, click a text field, then hold <strong>Mic</strong> while speaking. Release to finish. If your app copies text to the clipboard, tap <strong>Paste</strong>.</p></li>
+    </ol>
+    <details><summary>Already using CM7 Dictation?</summary><p>Open the CM7 Dictation desktop shortcut and keep its widget running. Its default F8 shortcut records while held and transcribes and pastes on release. Test F8 in a document, then use the phone's Mic bubble.</p></details>
+    <details><summary>Permissions and shortcut tips</summary><p><strong>Windows</strong> allows microphone access under Settings &gt; Privacy &amp; security &gt; Microphone, including desktop apps.</p><p><strong>Mac</strong> needs Microphone access for the dictation app and Accessibility access for the Terminal or Python process running Open Wand. The dictation app may need Accessibility for text insertion.</p><p>On a physical Mac keyboard, try Fn/Globe+F8 if F8 controls media. The phone sends F8 directly.</p><p>If the dictation app uses toggle mode, tap Mic once to start and again to stop. Choose hold-to-record for press-and-release dictation.</p></details>
+    <p class="dial-help-links"><a href="https://github.com/TrentHunter82/open-wand-phone/blob/main/docs/DICTATION.md" target="_blank" rel="noopener noreferrer">Full setup guide and troubleshooting</a></p>
+  </section>`);
   const glass=window.DialGlass?.mount($('dialRoot'));
   const sliders=[['r','Outer wheel size',.5,1.3],['bw','Function selector thickness',.1,.25],['mr','Mic circle size',.25,.65],['rr','Right Click size',.25,.55],
     ['lr','Click bubble size',.08,.22],['lx','Click bubble horizontal offset',-1,1],['ly','Click bubble vertical offset',-1,1],
@@ -514,6 +526,36 @@
   $('dialMotion').onclick=()=>{if(!editing)setMotion(!B.motionEnabled());};
   $('dialMore').onclick=()=>{closeMenu();pause();B.more();};
   $('dialSettings').onclick=()=>{closeMenu();pause();B.settings();};
+  function closeDictation() {
+    settingsOpen = false;
+    $('dialDictation').hidden = true;
+    render();
+    $('dialMenuToggle').focus();
+  }
+  $('dialDictationOpen').onclick = () => {
+    closeMenu();
+    pause();
+    settingsOpen = true;
+    $('dialDictation').hidden = false;
+    $('dialDictationClose').focus();
+  };
+  $('dialDictationClose').onclick = closeDictation;
+  $('dialDictation').addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeDictation();
+    } else if (event.key === 'Tab') {
+      const controls = [...$('dialDictation').querySelectorAll('button, a, summary')];
+      const first = controls[0], last = controls.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+  });
   function closeMenu(focus=false){menuOpen=false;$('dialMenu').hidden=true;$('dialMenuToggle').setAttribute('aria-expanded','false');if(focus)$('dialMenuToggle').focus();}
   $('dialMenuToggle').onclick=()=>{
     if(menuOpen){closeMenu();return;}

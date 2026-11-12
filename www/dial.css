@@ -146,3 +146,20 @@ body.dial-view {background:#090909;color:#ededed;}
 .dial-rim-key.shift-locked .dial-key-face {filter:drop-shadow(0 0 4px #ffffff40);}
 .dial-press.shift-on > .dial-surface {stroke:#eee;stroke-width:2.5;}
 .dial-press.shift-locked > .dial-surface {fill-opacity:.7;}
+
+#dialDictation {position:fixed;z-index:55;inset:0;overflow:auto;overscroll-behavior:contain;touch-action:pan-y;background:#141414;color:#eee;padding:max(20px,env(safe-area-inset-top)) 20px max(24px,env(safe-area-inset-bottom));font-family:system-ui,-apple-system,sans-serif;box-sizing:border-box;}
+#dialDictation[hidden] {display:none;}
+#dialDictation * {box-sizing:border-box;}
+#dialDictation h2,#dialDictation h3,#dialDictation strong {font-family:inherit;}
+.dial-help-head {display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;background:#141414;padding-bottom:12px;}
+.dial-help-head h2 {font-size:20px;margin:0;min-width:0;}
+.dial-help-head button {flex:none;min-height:44px;border:1px solid #ffffff2b;border-radius:14px;padding:8px 12px;background:#292929;color:#eee;font:inherit;font-size:13px;}
+#dialDictation p {font-size:15px;line-height:1.55;color:#c5c5c5;max-width:680px;}
+.dial-help-steps {padding-left:24px;max-width:680px;}
+.dial-help-steps li {padding-left:8px;margin:26px 0;}
+.dial-help-steps h3 {font-size:17px;margin:0 0 8px;}
+.dial-help-steps p {margin:0;}
+#dialDictation details {max-width:680px;border-top:1px solid #ffffff26;padding-top:12px;}
+#dialDictation summary {min-height:44px;cursor:pointer;font-size:15px;line-height:1.5;padding:8px 0;}
+#dialDictation a {color:#eee;text-underline-offset:3px;overflow-wrap:anywhere;}
+#dialDictation button:focus-visible,#dialDictation a:focus-visible,#dialDictation summary:focus-visible {outline:2px solid #ddd;outline-offset:4px;}

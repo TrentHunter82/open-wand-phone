@@ -2947,7 +2947,7 @@ window.wandBridge = {
   },
   scrolling(on) {dialScrolling=on;engageT=performance.now();fYaw.reset();fPitch.reset();},
   motion(on) { freeMotion=on; sentLog=[]; engageT=performance.now();fYaw.reset();fPitch.reset(); },
-  busy: () => CAL.on || LAYOUT.editing || document.hidden || !$("actionsPanel").hidden || drawer.classList.contains("open"),
+  busy: () => CAL.on || LAYOUT.editing || document.hidden || !$("actionsPanel").hidden || $("dialDictation")?.hidden === false || drawer.classList.contains("open"),
   actions() {
     const mod=agentPlatform === "darwin" ? "cmd" : "ctrl";
     return [
