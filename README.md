@@ -177,6 +177,7 @@ Phone layouts stay in Safari's website data for that address. Using a different 
 | **Scroll is too slow** | Lower Scroll sensitivity, then slide farther from the pop-up's center. |
 | **New network or computer IP** | Restart the agent, scan its new QR code, and accept its certificate. |
 | **Held input seems stuck** | Close the remote tab or restart the agent. Disconnecting releases held keys and buttons. |
+| **VPN shows the wrong address** | A VPN on the computer can make the link use the VPN address. Start with `--host` and the computer's local address, such as `--host 192.168.1.20`. |
 | **Port 8443 is busy** | Stop the other agent, or start with `--port 8444`. |
 
 ## Security and privacy

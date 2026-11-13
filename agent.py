@@ -77,6 +77,15 @@ def get_lan_ip():
     return "127.0.0.1"
 
 
+def host_address(value):
+    """Validate --host: an IPv4 address, because the URL and cert use it as is."""
+    try:
+        return str(ipaddress.IPv4Address(value))
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            "%r is not an IPv4 address, for example 192.168.1.20" % value)
+
+
 def ensure_token(rotate=False):
     """Reuse the stored token, so an old phone tab still works after a restart."""
     if not rotate and TOKEN_FILE.exists():
@@ -382,7 +391,7 @@ def print_qr(url):
 
 async def main_async(args):
     set_dpi_aware()
-    lan_ip = get_lan_ip()
+    lan_ip = args.host or get_lan_ip()
     ensure_cert(lan_ip)
     token = ensure_token(rotate=args.new_token)
     url = "https://%s:%d/?k=%s" % (lan_ip, args.port, token)
@@ -444,6 +453,9 @@ def main():
         sys.exit("OPEN WAND supports Windows and macOS.")
     p = argparse.ArgumentParser(description="OPEN WAND phone bridge agent")
     p.add_argument("--port", type=int, default=8443)
+    p.add_argument("--host", type=host_address, default=None, metavar="IP",
+                   help="serve on this IPv4 address of the computer; use it when a "
+                        "VPN makes the agent pick the wrong address")
     p.add_argument("--absolute", action="store_true",
                    help="place the pointer directly; skips Windows pointer acceleration")
     p.add_argument("--new-token", action="store_true",
