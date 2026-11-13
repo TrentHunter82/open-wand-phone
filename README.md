@@ -2,7 +2,7 @@
 
 Use an iPhone as an air mouse, shortcut pad, and dictation trigger for a Windows PC or Mac. The phone runs the controls in Safari. A small Python program on the computer receives movements and button presses over your local network.
 
-[Download the latest project](https://github.com/TrentHunter82/open-wand-phone/archive/refs/heads/main.zip) · [Set up dictation](docs/DICTATION.md) · [Developer notes](HANDOFF.md)
+[Download the latest project](https://github.com/TrentHunter82/open-wand-phone/archive/refs/heads/main.zip) · [Set up dictation](docs/DICTATION.md) · [Install with an AI agent](AGENT_INSTALL.md) · [Developer notes](HANDOFF.md)
 
 ## What you need
 
