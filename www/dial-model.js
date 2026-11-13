@@ -158,7 +158,18 @@
       return {...slot,start,end,path};
     });
   }
-  const api={defaults,baseOrder,view,preset,normalize,geometry,delta,reorder,rimPage,rimSegments,placeControl,rimKeys,scrollButton,clickBubble,scrollPopup,fingerScrollStep};
+  function rimTextArc(g, slot, fontSize) {
+    // Preserve the safe label envelope from rimKeys while following the exact
+    // ring radius. Baseline offset centers the letter bodies across its width.
+    const middle=(g.r+g.clickR)/2, forward=Math.sin(slot.angle)<=0;
+    const radius=middle+(forward?1:-1)*fontSize*.32;
+    const half=Math.min((slot.kw-14)/(2*middle),.42);
+    const direction=forward?1:-1, a=slot.angle-direction*half,b=slot.angle+direction*half;
+    const point=t=>[g.cx+radius*Math.cos(t),g.cy+radius*Math.sin(t)];
+    return {radius,length:2*half*radius,forward,
+      path:`M${point(a)} A${radius} ${radius} 0 0 ${forward?1:0} ${point(b)}`};
+  }
+  const api={defaults,baseOrder,view,preset,normalize,geometry,delta,reorder,rimPage,rimSegments,rimTextArc,placeControl,rimKeys,scrollButton,clickBubble,scrollPopup,fingerScrollStep};
   if(typeof module!=='undefined' && module.exports) module.exports=api;
   else root.DialModel=api;
 })(typeof window==='undefined' ? globalThis : window);

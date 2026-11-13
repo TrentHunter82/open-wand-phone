@@ -156,6 +156,26 @@ test('metal rim sections meet without gaps and retain each readable label positi
   }
 });
 
+test('curved rim text follows its ring at every size and stays inside the label allowance',()=>{
+  for(const [w,h] of [[320,568],[390,844],[844,390]])for(const bw of [.1,.25]){
+    const g=M.geometry(M.view({...M.defaults(w>h?'landscape':'portrait'),bw}),w,h);
+    for(const slot of M.rimKeys(g,w,h))for(const size of [10.5,15]){
+      const arc=M.rimTextArc(g,slot,size),middle=(g.r+g.clickR)/2;
+      assert.ok(Math.abs(Math.abs(arc.radius-middle)-size*.32)<1e-8);
+      assert.ok(arc.radius>g.clickR+size*.5&&arc.radius<g.r-size*.5);
+      assert.ok(arc.length<=slot.kw-10&&arc.length>20);
+      assert.ok(!arc.path.includes('NaN'));
+      const match=arc.path.match(/^M([^ ]+) A([^ ]+) ([^ ]+) 0 0 ([01]) (.+)$/);
+      assert.ok(match);
+      for(const endpoint of [match[1],match[5]]){
+        const [x,y]=endpoint.split(',').map(Number);
+        assert.ok(Math.abs(Math.hypot(x-g.cx,y-g.cy)-arc.radius)<1e-7);
+      }
+      assert.equal(Number(match[4]),arc.forward?1:0);
+    }
+  }
+});
+
 test('floating controls find nearby space clear of other controls and the header',()=>{
   const bounds={left:10,top:74,right:310,bottom:548},blocks=[{x:146,y:74,w:46,h:46},{x:138,y:12,w:168,h:44}];
   const target={x:150,y:80,w:122,h:46},placed=M.placeControl(target,bounds,blocks);

@@ -46,6 +46,18 @@
       return sin(p.x*5.1+p.y*2.9+t*.75)*.038+sin(p.x*-3.9+p.y*6.3-t*.57)*.028
         +sin(p.x*9.7+p.y*3.5+t*.31)*.012;
     }
+    float softbox(vec2 uv,vec2 center,vec2 size,float blur){
+      vec2 d=max(abs(uv-center)-size,0.0);
+      return exp(-dot(d,d)/(blur*blur));
+    }
+    vec3 studio(vec3 ray,float roughness){
+      // Analytic, softened area-light reflections: no image downloads or video.
+      vec2 uv=ray.xy/(abs(ray.z)+.65);
+      float key=softbox(uv,vec2(-.31,-.38),vec2(.09,.28),roughness);
+      float strip=softbox(uv,vec2(.64,.12),vec2(.045,.65),roughness*.65);
+      float ceiling=softbox(uv,vec2(0,-1.25),vec2(1.2,.07),roughness);
+      return vec3(.018)+vec3(2.6,2.55,2.45)*key+vec3(.95,1.0,1.08)*strip+vec3(.6)*ceiling;
+    }
     void main(){
       vec2 pixel=vec2(gl_FragCoord.x/resolution.x,1.0-gl_FragCoord.y/resolution.y)*viewport;
       vec3 circle=outerCircle;float layer=0.0;
@@ -59,43 +71,55 @@
       vec2 p=(pixel-circle.xy)/circle.z;float radius=length(p);
       if(radius>1.0)discard;
       if(finish>.5){
-        // A shallow machined face catches one broad light and a narrow edge light.
+        // Lathed faces, rounded chamfers and inner lip all reflect the same room.
         float rim=step(2.5,layer)*(1.0-step(3.5,layer));
         float accent=step(3.5,layer)*step(2.5,finish);
         float titanium=step(1.5,finish)*(1.0-step(2.5,finish));
-        vec3 base=mix(vec3(.13),vec3(.165),titanium);
-        base=mix(base,vec3(.42,.40,.365),rim*titanium);
-        base=mix(base,vec3(.18),rim*(1.0-titanium));
         float bright=max(rim*step(2.5,finish),accent);
-        base=mix(base,vec3(.59),bright);
-        vec3 light=normalize(vec3(-.62+tilt.x*.8,-.75+tilt.y*.8,1.35));
-        float bevel=smoothstep(.89,.99,radius);
-        vec3 normal=normalize(vec3(p*(.14+bevel*1.7),1.0));
-        float diffuse=max(dot(normal,light),0.0);
-        float reflection=exp(-pow((p.x*.62+p.y*.78+tilt.x*.55+tilt.y*.4+.35)*2.4,2.0));
-        float brushing=sin(radius*circle.z*1.4);
-        float grain=(noise(pixel*.18)-.5)*.005+brushing*.002;
-        float edge=pow(smoothstep(.94,1.0,radius),2.0);
-        float edgeLight=max(dot(normalize(vec3(p,0.0)),light),0.0);
+        vec3 base=mix(vec3(.055,.059,.065),vec3(.075,.072,.065),titanium);
+        base=mix(base,vec3(.38,.34,.27),rim*titanium);
+        base=mix(base,vec3(.56,.58,.60),bright);
+        float roughness=mix(.19,.10,max(bright,rim*titanium));
+        float edgeDistance=(1.0-radius)*circle.z;
+        float bevel=1.0-smoothstep(.4,4.5,edgeDistance);
+        float innerLip=rim*(1.0-smoothstep(0.0,3.5,distance(pixel,outerCircle.xy)-outerCircle.z));
+        vec2 radial=p/max(radius,.001);
+        float machining=sin(radius*circle.z*1.1)*.0006;
+        float dome=layer<.5?.22:rim>.5?.13:.34;
+        vec3 normal=normalize(vec3(p*dome+radial*(bevel*.95-innerLip*.8+machining),1.0));
+        vec3 eye=normalize(vec3(-tilt.x*.9,-tilt.y*.9,1.0));
+        vec3 ray=reflect(-eye,normal);
+        // Directional brushing gently elongates reflections around the turned face.
+        vec3 environment=studio(ray,roughness);
+        vec3 tangent=vec3(-radial.y,radial.x,0.0);
+        environment=(environment*2.0+studio(normalize(ray+tangent*.10),roughness)+studio(normalize(ray-tangent*.10),roughness))*.25;
+        float facing=max(dot(normal,eye),0.0);
+        vec3 fresnel=base+(1.0-base)*pow(1.0-facing,5.0);
         float down=pressed.x*(1.0-rim);
         if(layer>.5 && layer<1.5)down=pressed.y;
         if(layer>1.5 && layer<2.5)down=pressed.z;
         if(layer>3.5 && layer<4.5)down=pressed.w;
         if(layer>4.5)down=scrolling;
-        vec3 metal=base*(.72+diffuse*.38)+vec3(reflection*(.11+bright*.08)+grain);
-        metal+=vec3(bevel*pow(edgeLight,3.0)*.42);
-        metal*=1.0-edge*.4-down*.12;
+        // Brighter finishes retain a room-fill reflection behind engraved type.
+        vec3 metal=base*mix(.20,.72,max(bright,rim*titanium))+environment*fresnel;
+        // A darker side wall gives the lit chamfer an actual sense of thickness.
+        metal*=1.0-(1.0-smoothstep(0.0,.15,edgeDistance))*.35;
+        metal*=1.0-down*.16;
         // Contact shadows sit on the parent face, below each raised button.
         if(layer<.5 || rim>.5){
-          float micShadow=1.0-smoothstep(0.0,10.0,distance(pixel,innerCircle.xy+vec2(0,5))-innerCircle.z);
-          float leftShadow=1.0-smoothstep(0.0,8.0,distance(pixel,leftCircle.xy+vec2(0,4))-leftCircle.z);
-          float scrollShadow=1.0-smoothstep(0.0,8.0,distance(pixel,scrollCircle.xy+vec2(0,4))-scrollCircle.z);
-          metal*=1.0-max(micShadow,max(leftShadow,scrollShadow))*.55;
+          vec2 shadowOffset=vec2(3,5)+tilt*3.0;
+          float micShadow=1.0-smoothstep(0.0,12.0,distance(pixel,innerCircle.xy+shadowOffset)-innerCircle.z);
+          float leftShadow=1.0-smoothstep(0.0,8.0,distance(pixel,leftCircle.xy+shadowOffset*.7)-leftCircle.z);
+          float scrollShadow=1.0-smoothstep(0.0,8.0,distance(pixel,scrollCircle.xy+shadowOffset*.7)-scrollCircle.z);
+          metal*=1.0-max(micShadow,max(leftShadow,scrollShadow))*.72;
         }
         if(layer>.5 && layer<1.5){
-          float rightShadow=1.0-smoothstep(0.0,8.0,distance(pixel,rightCircle.xy+vec2(0,4))-rightCircle.z);
-          metal*=1.0-rightShadow*.55;
+          float rightShadow=1.0-smoothstep(0.0,8.0,distance(pixel,rightCircle.xy+vec2(2,4)+tilt*2.0)-rightCircle.z);
+          metal*=1.0-rightShadow*.72;
         }
+        metal=pow(metal/(metal+vec3(.8)),vec3(1.0/2.2));
+        // Sub-LSB dither avoids visible bands without a patterned grain overlay.
+        metal+=vec3((fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))))-.5)/255.0);
         float alpha=1.0-smoothstep(.995,1.0,radius);
         gl_FragColor=vec4(metal*alpha,alpha);
         return;

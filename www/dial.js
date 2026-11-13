@@ -299,13 +299,17 @@
       const a=key.next?{name:'Next '+(page.index+1)+'/'+page.pages}:action(key.id);if(!a)continue;
       const {x,y,rotation,kw,kh}=slot;
       let name=a.name;
-      let fs=Math.min(14,w*.037);while(fs>11&&textWidth(name,fs)>kw-14)fs-=.5;name=singleLine(name,fs,kw-14);
+      let fs=Math.min(15,w*.039,g.bezelWidth*.34),arc=M.rimTextArc(g,slot,fs);
+      while(fs>10.5&&textWidth(name,fs)>arc.length-2){fs-=.5;arc=M.rimTextArc(g,slot,fs);}
+      name=singleLine(name,fs,arc.length-2);
+      const arcId='dialRimText'+key.index;
+      const curvedText=`<path id="${arcId}" d="${arc.path}" fill="none" pointer-events="none"/><text class="dial-label dial-rim-label" font-weight="550" font-size="${fs}" pointer-events="none"><textPath href="#${arcId}" startOffset="50%">${escape(name)}</textPath></text>`;
       const identity=key.next?'data-page="next"':`data-action="${escape(key.id)}"`;
       const label=key.next?'Next shortcuts page':'Run '+escape(a.name);
       if(metal){
-        svg+=`<g class="dial-rim-key dial-segment" ${identity} transform="" role="button" tabindex="0" aria-label="${label}"><title>${escape(a.name)}</title><path class="dial-key-face dial-segment-face" d="${slot.path}" fill="url(#dialKey)"/><path class="dial-segment-edge" d="${slot.path}"/><g transform="translate(${x} ${y}) rotate(${rotation})"><text class="dial-label" x="0" y="0" dominant-baseline="central" font-weight="550" font-size="${fs}">${escape(name)}</text></g></g>`;
+        svg+=`<g class="dial-rim-key dial-segment" ${identity} transform="" role="button" tabindex="0" aria-label="${label}"><title>${escape(a.name)}</title><path class="dial-key-face dial-segment-face" d="${slot.path}" fill="url(#dialKey)"/><path class="dial-segment-edge" d="${slot.path}"/>${curvedText}</g>`;
       }else{
-        svg+=`<g class="dial-rim-key" ${identity} transform="translate(${x} ${y}) rotate(${rotation})" role="button" tabindex="0" aria-label="${label}"><title>${escape(a.name)}</title><rect class="dial-key-face" x="${-kw/2}" y="${-kh/2}" width="${kw}" height="${kh}" rx="${kh*.4}" fill="url(#dialKey)" stroke="url(#dialBevel)" stroke-width="1" filter="url(#dialKeyShadow)"/><text class="dial-label" x="0" y="0" dominant-baseline="central" font-weight="650" font-size="${fs}">${escape(name)}</text></g>`;
+        svg+=`<g class="dial-rim-key" ${identity} transform="" role="button" tabindex="0" aria-label="${label}"><title>${escape(a.name)}</title><g transform="translate(${x} ${y}) rotate(${rotation})"><rect class="dial-key-face" x="${-kw/2}" y="${-kh/2}" width="${kw}" height="${kh}" rx="${kh*.4}" fill="url(#dialKey)" stroke="url(#dialBevel)" stroke-width="1" filter="url(#dialKeyShadow)"/></g>${curvedText}</g>`;
       }
       if(!key.next)rimSlots.push({id:key.id,x,y});
     }
