@@ -10,10 +10,10 @@ This file describes the current Open Wand phone remote. Start with [README.md](R
 | `input_windows.py` | Windows SendInput mouse and keyboard injection, absolute/relative movement, fractional wheel carry, and shared-key ownership. |
 | `input_macos.py` | Quartz mouse and keyboard injection, Accessibility checks, logical display coordinates, shared modifiers, and cursor feedback. |
 | `www/index.html` | Sensor pipeline, connection lifecycle, settings, calibration, macros, the earlier pad components, and `window.wandBridge`. |
-| `www/dial-model.js` | Browser-independent normalization, geometry, bubble placement, rim paging, and finger-scroll response. |
+| `www/dial-model.js` | Browser-independent normalization, geometry, bubble placement, contiguous rim sections, paging, and finger-scroll response. |
 | `www/dial.js` | Main dial rendering, touch/keyboard input, layout editor, presets, scroll pop-up, Shift feedback, and dictation setup dialog. |
 | `www/dial.css` | Dial surfaces, measured-label presentation, editor, pop-up, and setup-dialog styling. |
-| `www/dial-glass.js` | Decorative liquid/smoke WebGL material and a static fallback. |
+| `www/dial-glass.js` | Skin selection, motion-responsive metal and glass WebGL materials, and a static fallback. |
 | `start.bat` | Windows launcher with dependency installation, start/stop behavior, and absolute pointer mode enabled. |
 | `start-mac.command` | Mac launcher with a local virtual environment and dependency installation. |
 | `requirements.txt` | Python packages, including Quartz/PyObjC only on macOS. |
@@ -60,7 +60,9 @@ The live motion gate includes the calibration clutch, the earlier drag path, con
 
 `motionScrollDeg` is the persisted sensitivity field for the current finger-scroll controller. Its name is retained for saved settings compatibility. Lower values are faster. Values are clamped to 2–18. Scroll output is capped at 24–72 notches per second, with per-frame time capped to 50 ms. A suspended scroll loop recenters instead of replaying the previous command.
 
-The decorative glass pipeline is isolated from control input. It pauses behind menus, editing, help, and hidden pages. Reduce Motion and missing WebGL use static rendering.
+The decorative material pipeline is isolated from control input. Graphite, Titanium, and Silver / Graphite use moving metal reflections, machined grain, bevels, and contact shadows. Original glass retains Liquid, Smoke, and Still choices. The renderer pauses behind menus, editing, help, and hidden pages. Reduce Motion and missing WebGL use static rendering.
+
+Metal ring sections use the existing safe label positions and fill the arc between adjacent labels with adjoining annular sectors. The full section is the hit target. Original glass retains its separate rim keys. Both share paging, reordering, shortcut input, and label fitting.
 
 ## Persistence
 
@@ -68,11 +70,13 @@ The decorative glass pipeline is isolated from control input. It pauses behind m
 | --- | --- |
 | `wand.settings.v1` | Pointer tuning, feedback, hotkeys, and up to 32 macros. |
 | `wand.dial.v1` | Up to eight grips, separate orientation geometry, assignments, hidden actions, and rim order. |
-| `wand.appearance.v1` | Liquid, Smoke, or Still material choice. |
+| `wand.appearance.v1` | Skin plus retained Liquid, Smoke, or Still glass material choice. |
 | `wand.precalib.v1` | Previous calibration values for Undo calibration. |
 | `wand.layout.v1` | Earlier pad layout, kept independently of the current dial. |
 
 Normalize old and malformed stored data before use. Preserve user tuning and action identities during migrations. Layout editing should modify a draft and commit only on Save. Saved browser data belongs to that browser origin and does not sync to another computer.
+
+A missing or invalid skin defaults to Graphite. An older appearance object containing only `material` retains that glass choice so it is available when Original glass is selected. Skin changes do not write dial geometry or macro settings.
 
 The local `wand-token.txt`, `wand-cert.pem`, and `wand-key.pem` are generated at runtime and ignored by Git. The token persists across restarts. `--new-token` replaces it and invalidates earlier links. Never include real credentials, control links, or QR screenshots in commits.
 

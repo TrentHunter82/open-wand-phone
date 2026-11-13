@@ -1,4 +1,4 @@
-/* Graphite molded controls, drawn as vector surfaces for arbitrary phone sizes. */
+/* Tactile dial controls, drawn as vector surfaces for arbitrary phone sizes. */
 body.dial-view {background:#27282c;color:#f1ede5;}
 .dial-view #app > :not(#dialRoot):not(#banner):not(#pressFlash) {display:none!important;}
 .dial-view #banner {position:fixed;top:100px;left:12px;right:12px;z-index:70;}
@@ -163,3 +163,43 @@ body.dial-view {background:#090909;color:#ededed;}
 #dialDictation summary {min-height:44px;cursor:pointer;font-size:15px;line-height:1.5;padding:8px 0;}
 #dialDictation a {color:#eee;text-underline-offset:3px;overflow-wrap:anywhere;}
 #dialDictation button:focus-visible,#dialDictation a:focus-visible,#dialDictation summary:focus-visible {outline:2px solid #ddd;outline-offset:4px;}
+/* Machined metal skins share geometry and use one restrained light source. */
+#dialRoot[data-skin=graphite] {--pad-high:#53565a;--pad-mid:#292c2f;--pad-low:#111315;--cap-high:#5b5e62;--cap-low:#181a1d;--rim-high:#54575a;--rim-low:#25282b;--rim-ink:#ecebe7;background:radial-gradient(ellipse at 20% 5%,#252628,#131415 60%,#0c0d0e);}
+#dialRoot[data-skin=titanium] {--pad-high:#645f55;--pad-mid:#34322e;--pad-low:#1a1917;--cap-high:#6a655c;--cap-low:#26231f;--rim-high:#c6bfb0;--rim-low:#756e61;--rim-ink:#141310;background:radial-gradient(ellipse at 20% 5%,#35332e,#1e1d1a 60%,#121210);}
+#dialRoot[data-skin=silver] {--pad-high:#55595e;--pad-mid:#2b2e32;--pad-low:#131518;--cap-high:#5c6065;--cap-low:#1c1e22;--rim-high:#eeeeec;--rim-low:#a0a3a6;--rim-ink:#16181b;background:radial-gradient(ellipse at 20% 5%,#292b2e,#151719 60%,#0d0f11);}
+#dialRoot:not([data-skin=glass]) #dialBg stop:nth-child(1) {stop-color:var(--pad-high);}
+#dialRoot:not([data-skin=glass]) #dialBg stop:nth-child(2) {stop-color:var(--pad-mid);}
+#dialRoot:not([data-skin=glass]) #dialBg stop:nth-child(n+3) {stop-color:var(--pad-low);}
+#dialRoot:not([data-skin=glass]) #dialInner stop:first-child {stop-color:var(--cap-high);}
+#dialRoot:not([data-skin=glass]) #dialInner stop:nth-child(n+2) {stop-color:var(--cap-low);}
+#dialRoot:not([data-skin=glass]) #dialKey stop:first-child {stop-color:var(--rim-high);}
+#dialRoot:not([data-skin=glass]) #dialKey stop:nth-child(n+2) {stop-color:var(--rim-low);}
+#dialRoot.glass-ready:not([data-skin=glass]) .dial-surface {fill-opacity:.12;}
+#dialRoot.glass-ready:not([data-skin=glass]) .dial-press.active > .dial-surface {fill-opacity:.3;filter:brightness(.83);}
+#dialRoot.glass-ready:not([data-skin=glass]) .dial-bezel > path {fill-opacity:.08;stroke:url(#dialBevel);stroke-width:1.5;}
+#dialRoot.glass-ready:not([data-skin=glass]) .dial-segment-face {fill-opacity:.08;}
+#dialRoot:not([data-skin=glass]) .dial-label {fill:#eeeae3;font-weight:550;}
+#dialRoot .dial-segment .dial-label {fill:var(--rim-ink);}
+.dial-segment-edge {fill:none;stroke:#08090ac9;stroke-width:1.1;pointer-events:none;}
+.dial-segment-face {stroke:#ffffff35;stroke-width:.6;}
+#dialRoot .dial-segment {transition:filter 90ms ease;}
+#dialRoot:not(.editing) .dial-segment.active {transform:translateY(1px);}
+#dialRoot .dial-segment.active .dial-segment-face {fill-opacity:.75;fill:#08090a;}
+#dialRoot .dial-segment.active .dial-label {fill:#f4f2ec;}
+#dialRoot .dial-segment:focus-visible .dial-segment-edge {stroke:#eee;stroke-width:2;}
+#dialRoot .dial-segment.shift-on .dial-segment-face {fill-opacity:.6;fill:#686b6f;}
+#dialRoot .dial-segment.shift-on .dial-label {fill:#fff;}
+#dialRoot:not([data-skin=glass]) .dial-press {transition:transform 90ms ease;}
+#dialRoot:not([data-skin=glass]) .dial-press.active {transform:translate(0,1.2px);}
+#dialRoot[data-skin=silver] [data-zone=left] .dial-label,#dialRoot[data-skin=silver] [data-zone=scroll] .dial-label {fill:#17191d;}
+#dialRoot[data-skin=titanium] button {background:linear-gradient(160deg,#4a463e,#25231f);}
+#dialRoot[data-skin=titanium] #dialMenu {background:linear-gradient(145deg,#302d27fa,#1a1916fa);}
+#dialRoot[data-skin=titanium] #scrollFocusFace stop:first-child {stop-color:#575146;}
+#dialRoot[data-skin=titanium] #scrollThumbFace stop:first-child {stop-color:#ada391;}
+#dialRoot[data-skin=silver] #scrollThumbFace stop:first-child {stop-color:#ededeb;}
+#dialRoot[data-skin=silver] #scrollThumbFace stop:nth-child(2) {stop-color:#b6b8bb;}
+#dialRoot[data-skin=silver] .dial-scroll-thumb-grip {stroke:#303237;}
+#dialRoot:not([data-skin=glass]) .dial-scroll-popup-face {stroke:#ffffff50;}
+#dialSkin {width:100%;min-height:44px;border:1px solid #ffffff26;border-radius:12px;background:#181818;color:#eee;font:inherit;font-size:16px;padding:8px 12px;color-scheme:dark;}
+#dialGlassOptions {margin-top:16px;}
+@media (prefers-reduced-motion:reduce) {#dialRoot .dial-segment,#dialRoot .dial-press {transition:none;}}

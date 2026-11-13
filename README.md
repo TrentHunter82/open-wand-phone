@@ -108,7 +108,9 @@ A new manual press interrupts an active sequence. Closing the panel, opening an 
 
 ### Appearance and feedback
 
-**Menu > Under the glass** offers Liquid, Smoke, and Still glass. Touches and hand movements animate the liquid or smoke. The scroll pad shows engraved marks while scrolling. The phone's Reduce Motion preference freezes decorative animation. Unsupported WebGL falls back to static glass.
+**Menu > Skin** offers **Graphite** (the default), **Titanium**, **Silver / Graphite**, and **Original glass**. Metal skins use adjoining shortcut-ring sections, fine seams, machined bevels, and reflections that respond to hand movement. The full area of each ring section sends its shortcut. Labels stay clear of floating controls, and **Next** pages through extra shortcuts.
+
+Skin choices save on the phone separately from grip geometry. Original glass also exposes **Under the glass**, with Liquid, Smoke, and Still options. Its previous material choice is retained when switching skins. The scroll pop-up follows the metal finish, and engraved dial marks appear while scrolling. Reduce Motion freezes decorative lighting and animation. Unsupported or interrupted WebGL uses static lighting while the controls remain usable.
 
 **Ring haptics** requests vibration where the browser supports it. Safari can suppress it. **Ring tick sound** adds an optional audible response. The ringer switch and Bluetooth audio can affect sound.
 

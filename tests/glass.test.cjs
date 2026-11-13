@@ -7,6 +7,13 @@ test('invalid appearance choices fall back to liquid',()=>{
   for(const value of [null,undefined,{},'other'])assert.equal(G.material(value),'liquid');
 });
 
+test('metal skins default to Graphite and preserve the saved glass material',()=>{
+  for(const skin of ['graphite','titanium','silver','glass'])assert.equal(G.skin(skin),skin);
+  for(const raw of [null,{},[],{skin:'invalid'}])assert.equal(G.appearance(raw).skin,'graphite');
+  assert.deepEqual(G.appearance({material:'smoke'}),{skin:'graphite',material:'smoke'});
+  assert.deepEqual(G.appearance({skin:'silver',material:'still'}),{skin:'silver',material:'still'});
+});
+
 test('a slosh impulse settles without moving the saved target',()=>{
   let state={x:0,y:0,xv:1.2,yv:-.7};const target={x:0,y:0};let peak=0;
   for(let i=0;i<600;i++){state=G.advance(state,target,1/60);peak=Math.max(peak,Math.abs(state.x));}

@@ -265,6 +265,7 @@
     const sb=scrollGeometry,scrollCircle={x:sb.x,y:sb.y,r:sb.r};
     const leftBubble = M.clickBubble(v,g,w,h,sb,controlObstacles);
     g.left = leftBubble;
+    g.scroll = sb;
     const obstacles = [...controlObstacles, ...[sb,leftBubble].map(b=>({x:b.x-b.r-5,y:b.y-b.r-5,w:b.r*2+10,h:b.r*2+10}))];
     const outerCircle={x:g.cx,y:g.cy,r:ringR},innerCircle={x:g.mx,y:g.my,r:g.mr},rightCircle={x:g.rx,y:g.ry,r:g.rr};
     let svg=`<defs>
@@ -274,6 +275,7 @@
       <linearGradient id="dialBevel" x1="0" y1="0" x2=".65" y2="1"><stop stop-color="#dedede" stop-opacity=".78"/><stop offset=".45" stop-color="#999999" stop-opacity=".27"/><stop offset="1" stop-color="#050505" stop-opacity=".85"/></linearGradient>
       <filter id="dialShadow" x="-25%" y="-25%" width="150%" height="150%"><feDropShadow dx="0" dy="5" stdDeviation="3" flood-color="#000000" flood-opacity=".8"/></filter>
       <filter id="dialKeyShadow" x="-20%" y="-30%" width="140%" height="170%"><feDropShadow dx="0" dy="3" stdDeviation="1.2" flood-color="#000000" flood-opacity=".8"/></filter>
+      <radialGradient id="dialAccent" cx="28%" cy="14%" r="95%"><stop stop-color="#d5d5d5"/><stop offset=".5" stop-color="#a0a0a0"/><stop offset="1" stop-color="#626262"/></radialGradient>
       <clipPath id="dialClipOuter"><path clip-rule="evenodd" d="${circlePath(outerCircle)} ${circlePath(innerCircle)} ${circlePath(scrollCircle)} ${circlePath(leftBubble)}"/></clipPath>
       <clipPath id="dialClipInner"><path clip-rule="evenodd" d="${circlePath(innerCircle)} ${circlePath(rightCircle)}"/></clipPath>
       <clipPath id="dialClipRight"><circle cx="${g.rx}" cy="${g.ry}" r="${g.rr}"/></clipPath>
@@ -286,13 +288,25 @@
     const count=page.slots;
     const keys=page.items.map((id,i)=>({id,index:i}));
     if(page.pages>1)keys.push({next:true,index:count-1});
-    for(const key of keys){
+    const slots = keys.map(key=>{
+      const index = Math.round((count>1?key.index/(count-1):.5)*(availableKeys.length-1));
+      return {...availableKeys[index],key};
+    }).filter(slot=>Number.isFinite(slot.angle));
+    const metal = root.dataset.skin !== 'glass';
+    const faces = metal ? M.rimSegments(g,slots) : slots;
+    for(const slot of faces){
+      const key=slot.key;
       const a=key.next?{name:'Next '+(page.index+1)+'/'+page.pages}:action(key.id);if(!a)continue;
-      const slot=availableKeys[Math.round((count>1?key.index/(count-1):.5)*(availableKeys.length-1))];if(!slot)continue;
       const {x,y,rotation,kw,kh}=slot;
       let name=a.name;
       let fs=Math.min(14,w*.037);while(fs>11&&textWidth(name,fs)>kw-14)fs-=.5;name=singleLine(name,fs,kw-14);
-      svg+=`<g class="dial-rim-key" ${key.next?'data-page="next"':`data-action="${escape(key.id)}"`} transform="translate(${x} ${y}) rotate(${rotation})" role="button" tabindex="0" aria-label="${key.next?'Next shortcuts page':'Run '+escape(a.name)}"><title>${escape(a.name)}</title><rect class="dial-key-face" x="${-kw/2}" y="${-kh/2}" width="${kw}" height="${kh}" rx="${kh*.4}" fill="url(#dialKey)" stroke="url(#dialBevel)" stroke-width="1" filter="url(#dialKeyShadow)"/><text class="dial-label" x="0" y="0" dominant-baseline="central" font-weight="650" font-size="${fs}">${escape(name)}</text></g>`;
+      const identity=key.next?'data-page="next"':`data-action="${escape(key.id)}"`;
+      const label=key.next?'Next shortcuts page':'Run '+escape(a.name);
+      if(metal){
+        svg+=`<g class="dial-rim-key dial-segment" ${identity} transform="" role="button" tabindex="0" aria-label="${label}"><title>${escape(a.name)}</title><path class="dial-key-face dial-segment-face" d="${slot.path}" fill="url(#dialKey)"/><path class="dial-segment-edge" d="${slot.path}"/><g transform="translate(${x} ${y}) rotate(${rotation})"><text class="dial-label" x="0" y="0" dominant-baseline="central" font-weight="550" font-size="${fs}">${escape(name)}</text></g></g>`;
+      }else{
+        svg+=`<g class="dial-rim-key" ${identity} transform="translate(${x} ${y}) rotate(${rotation})" role="button" tabindex="0" aria-label="${label}"><title>${escape(a.name)}</title><rect class="dial-key-face" x="${-kw/2}" y="${-kh/2}" width="${kw}" height="${kh}" rx="${kh*.4}" fill="url(#dialKey)" stroke="url(#dialBevel)" stroke-width="1" filter="url(#dialKeyShadow)"/><text class="dial-label" x="0" y="0" dominant-baseline="central" font-weight="650" font-size="${fs}">${escape(name)}</text></g>`;
+      }
       if(!key.next)rimSlots.push({id:key.id,x,y});
     }
     svg+='</g>';
@@ -308,9 +322,9 @@
     svg+=surfaceText(innerCircle,rightCircle,inner,{x:g.mx,y:g.my-g.mr*.3},Math.min(25,g.mr*.24),w,h,obstacles,'dialClipInner')+'</g>';
     svg+=`<g data-zone="right" class="dial-press" role="button" tabindex="0" aria-label="${escape(right.name)}"><circle class="dial-surface" cx="${g.rx}" cy="${g.ry}" r="${g.rr}" fill="url(#dialInner)" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
     svg+=surfaceText(rightCircle,null,{...right,hint:''},{x:g.rx,y:g.ry},Math.min(16,g.rr*.4),w,h,obstacles,'dialClipRight')+'</g>';
-    svg+=`<g data-zone="scroll" class="dial-press dial-scroll-button ${scroll?'active':''}" role="button" tabindex="0" aria-label="Hold Scroll and slide your finger up or down; release to stop" aria-pressed="${scroll}"><circle class="dial-surface" cx="${sb.x}" cy="${sb.y}" r="${sb.r}" fill="url(#dialInner)" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
+    svg+=`<g data-zone="scroll" class="dial-press dial-scroll-button ${scroll?'active':''}" role="button" tabindex="0" aria-label="Hold Scroll and slide your finger up or down; release to stop" aria-pressed="${scroll}"><circle class="dial-surface" cx="${sb.x}" cy="${sb.y}" r="${sb.r}" fill="url(#${root.dataset.skin==='silver'?'dialAccent':'dialInner'})" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
     svg+=surfaceText(scrollCircle,null,{id:'scroll',name:'Scroll',hint:'hold'},{x:sb.x,y:sb.y},Math.min(15,sb.r*.36),w,h,controlObstacles,'dialClipScroll')+'</g>';
-    svg+=`<g data-zone="left" class="dial-press" role="button" tabindex="0" aria-label="${escape(left.name)}"><circle class="dial-surface" cx="${leftBubble.x}" cy="${leftBubble.y}" r="${leftBubble.r}" fill="url(#dialInner)" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
+    svg+=`<g data-zone="left" class="dial-press" role="button" tabindex="0" aria-label="${escape(left.name)}"><circle class="dial-surface" cx="${leftBubble.x}" cy="${leftBubble.y}" r="${leftBubble.r}" fill="url(#${root.dataset.skin==='silver'?'dialAccent':'dialInner'})" stroke="url(#dialBevel)" stroke-width="1.5" filter="url(#dialShadow)"/>`;
     svg+=surfaceText(leftBubble,null,{...left,hint:left.id==='left'?'':left.hint},leftBubble,Math.min(17,leftBubble.r*.39),w,h,controlObstacles,'dialClipLeft')+'</g>';
     const ix=g.cx+(g.cx>w/2?-g.r+3:g.r-3);svg+=`<circle class="dial-index" cx="${ix}" cy="${g.cy}" r="4" fill="#bfbfbf" pointer-events="none"/>`;
     if(editing)for(const [zone,x,y,r] of [['outer',g.cx,g.cy,g.r],['inner',g.mx,g.my,g.mr],['right',g.rx,g.ry,g.rr],['scroll',sb.x,sb.y,sb.r],['left',leftBubble.x,leftBubble.y,leftBubble.r]]){

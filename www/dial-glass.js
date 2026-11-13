@@ -4,6 +4,10 @@
   const STORAGE='wand.appearance.v1';
   const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,Number.isFinite(v)?v:0));
   const material=value=>['liquid','smoke','still'].includes(value)?value:'liquid';
+  const skin = value => ['graphite','titanium','silver','glass'].includes(value) ? value : 'graphite';
+  function appearance(value) {
+    return {skin:skin(value?.skin),material:material(value?.material)};
+  }
   function advance(state,target,dt) {
     // A damped spring gives a tilt or touch a small, settling slosh.
     const t=clamp(dt,0,.04),out={...state};
@@ -29,9 +33,10 @@
     void main(){gl_Position=vec4(position,0.0,1.0);}`;
   const fragment=`precision highp float;
     uniform vec2 resolution, viewport, tilt, flow;
-    uniform vec3 outerCircle, innerCircle, rightCircle;
+    uniform vec3 outerCircle, innerCircle, rightCircle, leftCircle, scrollCircle;
     uniform vec3 ripples[4];
-    uniform float time, smoke, still, mic, scrolling, activity;
+    uniform float time, smoke, still, mic, scrolling, activity, finish, wheelRadius;
+    uniform vec4 pressed;
     float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
     float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
       return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
@@ -44,10 +49,57 @@
     void main(){
       vec2 pixel=vec2(gl_FragCoord.x/resolution.x,1.0-gl_FragCoord.y/resolution.y)*viewport;
       vec3 circle=outerCircle;float layer=0.0;
+      if(finish>.5 && distance(pixel,outerCircle.xy)>outerCircle.z){
+        circle=vec3(outerCircle.xy,wheelRadius);layer=3.0;
+      }
       if(distance(pixel,innerCircle.xy)<innerCircle.z){circle=innerCircle;layer=1.0;}
       if(distance(pixel,rightCircle.xy)<rightCircle.z){circle=rightCircle;layer=2.0;}
+      if(finish>.5 && distance(pixel,leftCircle.xy)<leftCircle.z){circle=leftCircle;layer=4.0;}
+      if(finish>.5 && distance(pixel,scrollCircle.xy)<scrollCircle.z){circle=scrollCircle;layer=5.0;}
       vec2 p=(pixel-circle.xy)/circle.z;float radius=length(p);
       if(radius>1.0)discard;
+      if(finish>.5){
+        // A shallow machined face catches one broad light and a narrow edge light.
+        float rim=step(2.5,layer)*(1.0-step(3.5,layer));
+        float accent=step(3.5,layer)*step(2.5,finish);
+        float titanium=step(1.5,finish)*(1.0-step(2.5,finish));
+        vec3 base=mix(vec3(.13),vec3(.165),titanium);
+        base=mix(base,vec3(.42,.40,.365),rim*titanium);
+        base=mix(base,vec3(.18),rim*(1.0-titanium));
+        float bright=max(rim*step(2.5,finish),accent);
+        base=mix(base,vec3(.59),bright);
+        vec3 light=normalize(vec3(-.62+tilt.x*.8,-.75+tilt.y*.8,1.35));
+        float bevel=smoothstep(.89,.99,radius);
+        vec3 normal=normalize(vec3(p*(.14+bevel*1.7),1.0));
+        float diffuse=max(dot(normal,light),0.0);
+        float reflection=exp(-pow((p.x*.62+p.y*.78+tilt.x*.55+tilt.y*.4+.35)*2.4,2.0));
+        float brushing=sin(radius*circle.z*1.4);
+        float grain=(noise(pixel*.18)-.5)*.005+brushing*.002;
+        float edge=pow(smoothstep(.94,1.0,radius),2.0);
+        float edgeLight=max(dot(normalize(vec3(p,0.0)),light),0.0);
+        float down=pressed.x*(1.0-rim);
+        if(layer>.5 && layer<1.5)down=pressed.y;
+        if(layer>1.5 && layer<2.5)down=pressed.z;
+        if(layer>3.5 && layer<4.5)down=pressed.w;
+        if(layer>4.5)down=scrolling;
+        vec3 metal=base*(.72+diffuse*.38)+vec3(reflection*(.11+bright*.08)+grain);
+        metal+=vec3(bevel*pow(edgeLight,3.0)*.42);
+        metal*=1.0-edge*.4-down*.12;
+        // Contact shadows sit on the parent face, below each raised button.
+        if(layer<.5 || rim>.5){
+          float micShadow=1.0-smoothstep(0.0,10.0,distance(pixel,innerCircle.xy+vec2(0,5))-innerCircle.z);
+          float leftShadow=1.0-smoothstep(0.0,8.0,distance(pixel,leftCircle.xy+vec2(0,4))-leftCircle.z);
+          float scrollShadow=1.0-smoothstep(0.0,8.0,distance(pixel,scrollCircle.xy+vec2(0,4))-scrollCircle.z);
+          metal*=1.0-max(micShadow,max(leftShadow,scrollShadow))*.55;
+        }
+        if(layer>.5 && layer<1.5){
+          float rightShadow=1.0-smoothstep(0.0,8.0,distance(pixel,rightCircle.xy+vec2(0,4))-rightCircle.z);
+          metal*=1.0-rightShadow*.55;
+        }
+        float alpha=1.0-smoothstep(.995,1.0,radius);
+        gl_FragColor=vec4(metal*alpha,alpha);
+        return;
+      }
       float t=time+layer*3.7;
       float ripple=0.0;
       for(int i=0;i<4;i++){
@@ -98,16 +150,25 @@
     const canvas=document.createElement('canvas');canvas.id='dialLiquid';canvas.setAttribute('aria-hidden','true');
     root.prepend(canvas);
     const menu=document.getElementById('dialMenu'),panel=document.createElement('div');panel.className='dial-appearance';
-    panel.innerHTML='<label for="dialMaterial">Under the glass</label><select id="dialMaterial"><option value="liquid">Liquid</option><option value="smoke">Smoke</option><option value="still">Still glass</option></select><p id="dialMaterialHint"></p>';
+    panel.innerHTML='<label for="dialSkin">Skin</label><select id="dialSkin"><option value="graphite">Graphite</option><option value="titanium">Titanium</option><option value="silver">Silver / Graphite</option><option value="glass">Original glass</option></select><div id="dialGlassOptions"><label for="dialMaterial">Under the glass</label><select id="dialMaterial"><option value="liquid">Liquid</option><option value="smoke">Smoke</option><option value="still">Still glass</option></select></div><p id="dialMaterialHint"></p>';
     menu.append(panel);
-    const select=panel.querySelector('select'),hint=panel.querySelector('p');
-    let mode='liquid';try{mode=material(JSON.parse(localStorage.getItem(STORAGE))?.material);}catch{}
+    const select=panel.querySelector('#dialMaterial'),skinSelect=panel.querySelector('#dialSkin'),hint=panel.querySelector('p');
+    let saved = appearance();
+    try { saved = appearance(JSON.parse(localStorage.getItem(STORAGE))); } catch {}
+    let mode = saved.material, selectedSkin = saved.skin;
     const reduced=matchMedia('(prefers-reduced-motion: reduce)');
     let gl,program,buffer,uniforms={},available=false,lost=false,frame=0,clock=0,last=0,lastDraw=0,quality=1,slow=0,geometry=null;
     let spring={x:0,y:0,xv:0,yv:0},target={x:0,y:0},ripples=Array.from({length:4},()=>[-1000,-1000,-100]),rippleIndex=0,lastTouch=0;
     let energy=0,energyTarget=0,flow={x:0,y:0},flowTarget={x:0,y:0};
     const activePointers=new Set();
-    function setHint(){hint.textContent=!available?'Glass lighting is active. Animated effects are unavailable in this browser.':mode==='still'?'Still reflections, with no continuous animation.':reduced.matches?'Reduce Motion is on; this material stays still.':mode==='smoke'?'Soft silver wisps respond to touch and tilt.':'Tilt to slosh. Touch the glass to send ripples through the liquid.';}
+    function setHint(){
+      panel.querySelector('#dialGlassOptions').hidden = selectedSkin !== 'glass';
+      if (selectedSkin !== 'glass') {
+        hint.textContent = reduced.matches ? 'Reduce Motion keeps the metal lighting still.' : available ? 'Metal reflections follow your hand. Pressed controls sink slightly.' : 'Static metal lighting is active.';
+      } else {
+        hint.textContent=!available?'Glass lighting is active. Animated effects are unavailable in this browser.':mode==='still'?'Still reflections, with no continuous animation.':reduced.matches?'Reduce Motion is on; this material stays still.':mode==='smoke'?'Soft silver wisps respond to touch and tilt.':'Tilt to slosh. Touch the glass to send ripples through the liquid.';
+      }
+    }
     function init(){
       try{
         gl=canvas.getContext('webgl',{alpha:true,antialias:false,depth:false,stencil:false,powerPreference:'low-power'});
@@ -121,10 +182,10 @@
           program=gl.createProgram();shaders.forEach(shader=>gl.attachShader(program,shader));gl.linkProgram(program);
           if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error('Material shader unavailable');
         }finally{shaders.forEach(shader=>gl.deleteShader(shader));}
-        gl.useProgram(program);buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
+        gl.useProgram(program);gl.disable(gl.DITHER);buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
         gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
         const position=gl.getAttribLocation(program,'position');gl.enableVertexAttribArray(position);gl.vertexAttribPointer(position,2,gl.FLOAT,false,0,0);
-        for(const name of ['resolution','viewport','tilt','outerCircle','innerCircle','rightCircle','time','smoke','still','mic','scrolling','flow','activity','ripples[0]'])uniforms[name]=gl.getUniformLocation(program,name);
+        for(const name of ['resolution','viewport','tilt','outerCircle','innerCircle','rightCircle','leftCircle','scrollCircle','finish','wheelRadius','pressed','time','smoke','still','mic','scrolling','flow','activity','ripples[0]'])uniforms[name]=gl.getUniformLocation(program,name);
         available=true;lost=false;root.classList.add('glass-ready');
       }catch{
         if(gl&&program)gl.deleteProgram(program);if(gl&&buffer)gl.deleteBuffer(buffer);
@@ -137,7 +198,7 @@
         ['dialEditor','dialPresets','dialDictation','actionsPanel'].some(id=>!document.getElementById(id).hidden)||
         document.getElementById('drawer').classList.contains('open')||document.getElementById('startOverlay').style.display!=='none';
     }
-    function animated(){return mode!=='still'&&!reduced.matches&&!blocked();}
+    function animated(){return (selectedSkin!=='glass'||mode!=='still')&&!reduced.matches&&!blocked();}
     function paint(dt){
       if(!available||!geometry)return;
       const {g,w,h,scroll}=geometry,size=resolution(w,h,devicePixelRatio||1,quality);
@@ -148,6 +209,13 @@
       flowTarget.x*=Math.exp(-dt*3);flowTarget.y*=Math.exp(-dt*3);
       gl.uniform2f(uniforms.resolution,canvas.width,canvas.height);gl.uniform2f(uniforms.viewport,w,h);
       gl.uniform3f(uniforms.outerCircle,g.cx,g.cy,g.clickR);gl.uniform3f(uniforms.innerCircle,g.mx,g.my,g.mr);gl.uniform3f(uniforms.rightCircle,g.rx,g.ry,g.rr);
+      const left = g.left || {x:0,y:0,r:0}, scrollButton = g.scroll || {x:0,y:0,r:0};
+      gl.uniform3f(uniforms.leftCircle,left.x,left.y,left.r);
+      gl.uniform3f(uniforms.scrollCircle,scrollButton.x,scrollButton.y,scrollButton.r);
+      gl.uniform1f(uniforms.wheelRadius,g.r);
+      gl.uniform1f(uniforms.finish,{glass:0,graphite:1,titanium:2,silver:3}[selectedSkin]);
+      const down = zone => root.querySelector('[data-zone="'+zone+'"].active') ? 1 : 0;
+      gl.uniform4f(uniforms.pressed,down('outer'),down('inner'),down('right'),down('left'));
       gl.uniform2f(uniforms.tilt,spring.x,spring.y);gl.uniform2f(uniforms.flow,flow.x,flow.y);gl.uniform1f(uniforms.activity,energy);gl.uniform1f(uniforms.time,clock);
       gl.uniform1f(uniforms.smoke,mode==='smoke'?1:0);gl.uniform1f(uniforms.still,mode==='still'?1:0);gl.uniform1f(uniforms.scrolling,scroll?1:0);
       gl.uniform1f(uniforms.mic,root.querySelector('[data-zone="inner"].active')?1:0);
@@ -168,11 +236,12 @@
     function wake(){if(!frame&&available&&!lost&&!document.hidden){last=0;lastDraw=0;frame=requestAnimationFrame(tick);}}
     function cancel(){if(frame)cancelAnimationFrame(frame);frame=0;last=0;activePointers.clear();target={x:0,y:0};flowTarget={x:0,y:0};energyTarget=0;}
     function disturb(e){
-      if(!available||reduced.matches||mode==='still'||blocked())return;
+      if(!available||reduced.matches||(selectedSkin==='glass'&&mode==='still')||blocked())return;
       const b=root.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;
       ripples[rippleIndex]=[x,y,clock];rippleIndex=(rippleIndex+1)%4;
       energyTarget=Math.max(energyTarget,.3);
-      spring.xv=clamp(spring.xv+(x/b.width-.5)*.8,-2,2);spring.yv=clamp(spring.yv+.25,-2,2);wake();
+      const impulse = selectedSkin==='glass' ? .8 : .08;
+      spring.xv=clamp(spring.xv+(x/b.width-.5)*impulse,-2,2);spring.yv=clamp(spring.yv+impulse*.3,-2,2);wake();
     }
     root.addEventListener('pointerdown',e=>{if(e.target.closest('[data-zone],[data-action]')){activePointers.add(e.pointerId);disturb(e);}},true);
     root.addEventListener('pointermove',e=>{
@@ -189,12 +258,21 @@
       spring.yv=clamp(spring.yv+sample.push.y*sample.dt*4,-2,2);
       energyTarget=Math.max(energyTarget,sample.energy);flowTarget=sample.push;
     },{passive:true});
-    select.value=mode;root.dataset.material=mode;
-    select.addEventListener('change',()=>{
-      mode=material(select.value);root.dataset.material=mode;
-      try{localStorage.setItem(STORAGE,JSON.stringify({material:mode}));}catch{}
-      spring={x:0,y:0,xv:0,yv:0};energy=energyTarget=0;flow={x:0,y:0};flowTarget={x:0,y:0};ripples=Array.from({length:4},()=>[-1000,-1000,-100]);setHint();wake();
-    });
+    function applyAppearance() {
+      select.value=mode;skinSelect.value=selectedSkin;
+      root.dataset.material=mode;root.dataset.skin=selectedSkin;
+      spring={x:0,y:0,xv:0,yv:0};energy=energyTarget=0;flow={x:0,y:0};flowTarget={x:0,y:0};
+      ripples=Array.from({length:4},()=>[-1000,-1000,-100]);
+      setHint();wake();
+    }
+    function saveAppearance() {
+      try { localStorage.setItem(STORAGE,JSON.stringify({skin:selectedSkin,material:mode})); } catch {}
+      applyAppearance();
+      window.Dial?.refresh();
+    }
+    select.addEventListener('change',()=>{mode=material(select.value);saveAppearance();});
+    skinSelect.addEventListener('change',()=>{selectedSkin=skin(skinSelect.value);saveAppearance();});
+    applyAppearance();
     reduced.addEventListener('change',()=>{setHint();wake();});
     document.addEventListener('visibilitychange',()=>{if(document.hidden)cancel();else wake();});
     window.addEventListener('pagehide',cancel);window.addEventListener('pageshow',wake);
@@ -205,6 +283,6 @@
     init();
     return {layout(g,w,h,scroll){geometry={g,w,h,scroll};wake();},wake};
   }
-  const api={mount,material,advance,resolution,motionSample};
+  const api={mount,material,skin,appearance,advance,resolution,motionSample};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else global.DialGlass=api;
 })(typeof window==='undefined'?globalThis:window);

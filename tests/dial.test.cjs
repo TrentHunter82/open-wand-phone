@@ -139,6 +139,23 @@ test('every rim action remains reachable on small screens and macro-heavy layout
   }
 });
 
+test('metal rim sections meet without gaps and retain each readable label position',()=>{
+  for(const [w,h] of [[320,568],[390,844],[844,390]])for(const x of [.25,.96,1.25]){
+    const g=M.geometry(M.view({...M.defaults(w>h?'landscape':'portrait'),x}),w,h);
+    const slots=M.rimKeys(g,w,h);
+    const sections=M.rimSegments(g,slots);
+    assert.equal(sections.length,slots.length);
+    assert.ok(Math.abs(sections[0].start-sections.at(-1).end-Math.PI*2)<1e-8);
+    sections.forEach((section,i)=>{
+      assert.ok(section.start>section.angle&&section.angle>section.end);
+      assert.ok(Number.isFinite(section.x)&&!section.path.includes('NaN'));
+      if(i)assert.equal(sections[i-1].end,section.start);
+    });
+    const single=M.rimSegments(g,[slots[0]]);
+    assert.equal(single.length,1);assert.equal((single[0].path.match(/ A/g)||[]).length,4);
+  }
+});
+
 test('floating controls find nearby space clear of other controls and the header',()=>{
   const bounds={left:10,top:74,right:310,bottom:548},blocks=[{x:146,y:74,w:46,h:46},{x:138,y:12,w:168,h:44}];
   const target={x:150,y:80,w:122,h:46},placed=M.placeControl(target,bounds,blocks);

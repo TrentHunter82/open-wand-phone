@@ -137,7 +137,28 @@
     const index=((page%pages)+pages)%pages;
     return {items:list.slice(index*size,(index+1)*size),index,pages,slots:pages>1?capacity:Math.max(1,list.length)};
   }
-  const api={defaults,baseOrder,view,preset,normalize,geometry,delta,reorder,rimPage,placeControl,rimKeys,scrollButton,clickBubble,scrollPopup,fingerScrollStep};
+  function rimSegments(g, slots) {
+    const points = [...slots].sort((a,b)=>b.angle-a.angle);
+    if (!points.length) return [];
+    const wrap = (points[0].angle+points.at(-1).angle+Math.PI*2)/2;
+    const edges = [wrap];
+    for (let i=1;i<points.length;i++)edges.push((points[i-1].angle+points[i].angle)/2);
+    edges.push(wrap-Math.PI*2);
+    const point = (radius,angle) => [g.cx+radius*Math.cos(angle),g.cy+radius*Math.sin(angle)];
+    return points.map((slot,index)=>{
+      const start=edges[index],end=edges[index+1];
+      const outerStart=point(g.r,start),outerEnd=point(g.r,end);
+      const innerStart=point(g.clickR,end),innerEnd=point(g.clickR,start);
+      const large=start-end>Math.PI?1:0;
+      let path=`M${outerStart} A${g.r} ${g.r} 0 ${large} 0 ${outerEnd} L${innerStart} A${g.clickR} ${g.clickR} 0 ${large} 1 ${innerEnd} Z`;
+      if (points.length === 1) {
+        const outerMiddle=point(g.r,start-Math.PI),innerMiddle=point(g.clickR,end+Math.PI);
+        path=`M${outerStart} A${g.r} ${g.r} 0 0 0 ${outerMiddle} A${g.r} ${g.r} 0 0 0 ${outerEnd} L${innerStart} A${g.clickR} ${g.clickR} 0 0 1 ${innerMiddle} A${g.clickR} ${g.clickR} 0 0 1 ${innerEnd} Z`;
+      }
+      return {...slot,start,end,path};
+    });
+  }
+  const api={defaults,baseOrder,view,preset,normalize,geometry,delta,reorder,rimPage,rimSegments,placeControl,rimKeys,scrollButton,clickBubble,scrollPopup,fingerScrollStep};
   if(typeof module!=='undefined' && module.exports) module.exports=api;
   else root.DialModel=api;
 })(typeof window==='undefined' ? globalThis : window);
