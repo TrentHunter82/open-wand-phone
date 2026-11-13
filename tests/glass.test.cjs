@@ -14,6 +14,21 @@ test('metal skins default to Graphite and preserve the saved glass material',()=
   assert.deepEqual(G.appearance({skin:'silver',material:'still'}),{skin:'silver',material:'still'});
 });
 
+test('machining map is repeatable, mipmap-compatible and has directional tool marks',()=>{
+  const map=G.metalTexture(),again=G.metalTexture();
+  assert.equal(map.width&(map.width-1),0);assert.equal(map.height&(map.height-1),0);
+  assert.equal(map.data.byteLength,map.width*map.height*4);assert.ok(map.data.byteLength<=262144);
+  assert.deepEqual(map.data,again.data);
+  let across=0,along=0;
+  for(let y=0;y<map.height;y++)for(let x=0;x<map.width;x++){
+    const i=(y*map.width+x)*4;
+    assert.equal(map.data[i+3],255);
+    across+=Math.abs(map.data[i+1]-map.data[(y*map.width+(x+1)%map.width)*4+1]);
+    along+=Math.abs(map.data[i+1]-map.data[(((y+1)%map.height)*map.width+x)*4+1]);
+  }
+  assert.ok(across>along*3,'Tool marks should extend around the angle rather than form speckled noise');
+});
+
 test('a slosh impulse settles without moving the saved target',()=>{
   let state={x:0,y:0,xv:1.2,yv:-.7};const target={x:0,y:0};let peak=0;
   for(let i=0;i<600;i++){state=G.advance(state,target,1/60);peak=Math.max(peak,Math.abs(state.x));}

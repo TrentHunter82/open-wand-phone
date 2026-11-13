@@ -177,7 +177,7 @@
   }
   function rimMetrics(text,size){
     if(!textMeasure)return {width:text.length*size*.6,ascent:size*.73,descent:size*.04};
-    textMeasure.font='500 '+size+'px system-ui, -apple-system, sans-serif';
+    textMeasure.font='450 '+size+'px system-ui, -apple-system, sans-serif';
     const m=textMeasure.measureText(text);
     return {width:m.width,ascent:m.actualBoundingBoxAscent,descent:m.actualBoundingBoxDescent};
   }
@@ -311,8 +311,8 @@
       arc=M.rimTextArc(g,slot,fs,rimMetrics(name,fs));
       const arcId='dialRimText'+key.index;
       const glyphs=`<textPath href="#${arcId}" startOffset="50%">${escape(name)}</textPath>`;
-      const engraving=metal?`<text class="dial-etch-layer dial-etch-light" transform="translate(.3 .65)" aria-hidden="true">${glyphs}</text><text class="dial-etch-layer dial-etch-shadow" transform="translate(-.2 -.35)" aria-hidden="true">${glyphs}</text>`:'';
-      const curvedText=`<g class="dial-rim-lettering" font-weight="500" font-size="${fs}" pointer-events="none"><path id="${arcId}" d="${arc.path}" fill="none"/>${engraving}<text class="dial-label dial-rim-label">${glyphs}</text></g>`;
+      const engraving=metal?`<text class="dial-etch-layer dial-etch-light" transform="translate(.12 .3)" aria-hidden="true">${glyphs}</text><text class="dial-etch-layer dial-etch-shadow" transform="translate(-.1 -.18)" aria-hidden="true">${glyphs}</text>`:'';
+      const curvedText=`<g class="dial-rim-lettering" font-weight="450" font-size="${fs}" pointer-events="none"><path id="${arcId}" d="${arc.path}" fill="none"/>${engraving}<text class="dial-label dial-rim-label">${glyphs}</text></g>`;
       const identity=key.next?'data-page="next"':`data-action="${escape(key.id)}"`;
       const label=key.next?'Next shortcuts page':'Run '+escape(a.name);
       if(metal){

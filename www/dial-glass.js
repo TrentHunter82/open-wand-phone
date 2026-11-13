@@ -29,6 +29,25 @@
       push:{x:clamp((rate('alpha')+rate('gamma')*.5)/95,-1,1),y:clamp(rate('beta')/95,-1,1)},
       energy:speed<2?0:clamp(speed/90,0,1.8),dt:clamp(event.interval/1000,.008,.05)};
   }
+  function metalTexture() {
+    // Radius runs horizontally, angle vertically. Mipmaps filter these subpixel
+    // tool marks instead of letting procedural stripes shimmer at phone scale.
+    const width=1024,height=64,data=new Uint8Array(width*height*4);
+    let seed=17031;
+    const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+    const lines=Array.from({length:width},()=>random());
+    const coarse=Array.from({length:128},()=>random());
+    for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+      const i=(y*width+x)*4,angle=y/height*Math.PI*2;
+      const grain=(lines[x]-.5)*.70+(coarse[x>>3]-.5)*.08;
+      const drift=Math.sin(angle*3+x*.021)*.018+Math.cos(angle*7-x*.008)*.012;
+      data[i]=Math.round((.5+grain*.55+drift)*255);
+      data[i+1]=Math.round((.5+grain+drift+(random()-.5)*.08)*255);
+      data[i+2]=Math.round((.5+grain*.4+(random()-.5)*.15)*255);
+      data[i+3]=255;
+    }
+    return {width,height,data};
+  }
   const vertex=`attribute vec2 position;
     void main(){gl_Position=vec4(position,0.0,1.0);}`;
   const fragment=`precision highp float;
@@ -37,6 +56,7 @@
     uniform vec3 ripples[4];
     uniform float time, smoke, still, mic, scrolling, activity, finish, wheelRadius;
     uniform vec4 pressed;
+    uniform sampler2D metalMap;
     float hash(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+45.32);return fract(p.x*p.y);}
     float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
       return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
@@ -53,10 +73,23 @@
     vec3 studio(vec3 ray,float roughness){
       // Analytic, softened area-light reflections: no image downloads or video.
       vec2 uv=ray.xy/(abs(ray.z)+.65);
-      float key=softbox(uv,vec2(-.20,-.26),vec2(.055,.27),roughness);
-      float strip=softbox(uv,vec2(.40,.12),vec2(.027,.65),roughness*.65);
+      float key=softbox(uv,vec2(-.30,-.40),vec2(.09,.25),roughness);
+      float strip=softbox(uv,vec2(.48,.12),vec2(.035,.65),roughness*.65);
       float ceiling=softbox(uv,vec2(0,-1.25),vec2(1.2,.07),roughness);
-      return vec3(.012)+vec3(4.8,4.7,4.5)*key+vec3(2.8,2.9,3.0)*strip+vec3(.8)*ceiling;
+      return vec3(.045)+vec3(2.5,2.46,2.38)*key+vec3(1.4,1.44,1.5)*strip+vec3(.5)*ceiling;
+    }
+    float turnedLight(vec3 n,vec3 v,vec3 light,vec3 tangent,float along,float across){
+      vec3 halfVector=normalize(v+light),bitangent=normalize(cross(n,tangent));
+      float a=dot(halfVector,tangent)/along,b=dot(halfVector,bitangent)/across;
+      float nh=max(dot(n,halfVector),0.0),denom=a*a+b*b+nh*nh;
+      float distribution=1.0/(3.141593*along*across*denom*denom);
+      return distribution*max(dot(n,light),0.0)/max(4.0*dot(n,v),.5);
+    }
+    float contact(vec2 pixel,vec3 cap,float height){
+      float seam=1.0-smoothstep(0.0,2.0,distance(pixel,cap.xy)-cap.z);
+      vec2 offset=(vec2(1.6,3.2)+tilt*.8)*height;
+      float projected=1.0-smoothstep(0.0,7.0,distance(pixel,cap.xy+offset)-cap.z);
+      return seam*.48+projected*.45;
     }
     void main(){
       vec2 pixel=vec2(gl_FragCoord.x/resolution.x,1.0-gl_FragCoord.y/resolution.y)*viewport;
@@ -72,14 +105,13 @@
       if(radius>1.0){
         if(finish<.5)discard;
         // A raised assembly casts a soft shadow onto the background as well.
-        vec2 offset=vec2(4,12)+tilt*5.0;
-        float shadow=1.0-smoothstep(0.0,25.0,distance(pixel,outerCircle.xy+offset)-wheelRadius);
-        shadow=max(shadow,1.0-smoothstep(0.0,13.0,distance(pixel,leftCircle.xy+offset*.6)-leftCircle.z));
-        shadow=max(shadow,1.0-smoothstep(0.0,13.0,distance(pixel,scrollCircle.xy+offset*.6)-scrollCircle.z));
-        gl_FragColor=vec4(0,0,0,shadow*.72);return;
+        float shadow=contact(pixel,vec3(outerCircle.xy,wheelRadius),1.5);
+        shadow=max(shadow,contact(pixel,leftCircle,1.0));
+        shadow=max(shadow,contact(pixel,scrollCircle,1.0));
+        gl_FragColor=vec4(0,0,0,shadow);return;
       }
       if(finish>.5){
-        // Lathed faces, rounded chamfers and inner lip all reflect the same room.
+        // Flat machined faces and narrow chamfers reflect one shared room.
         float rim=step(2.5,layer)*(1.0-step(3.5,layer));
         float accent=step(3.5,layer)*step(2.5,finish);
         float titanium=step(1.5,finish)*(1.0-step(2.5,finish));
@@ -87,21 +119,26 @@
         vec3 base=mix(vec3(.055,.058,.062),vec3(.067,.064,.059),titanium);
         base=mix(base,vec3(.38,.355,.30),rim*titanium);
         base=mix(base,vec3(.56,.58,.60),bright);
-        float roughness=mix(.125,.075,max(bright,rim*titanium));
         float edgeDistance=(1.0-radius)*circle.z;
-        float bevelWidth=layer<.5?7.0:rim>.5?4.5:5.0;
-        float bevel=1.0-smoothstep(.9,bevelWidth,edgeDistance);
-        float innerLip=rim*(1.0-smoothstep(.5,5.0,distance(pixel,outerCircle.xy)-outerCircle.z));
-        vec2 radial=p/max(radius,.001);
-        float machining=(noise(vec2(radius*circle.z*1.5,2.0))-.5)*.006;
-        float dome=layer<.5?.24:rim>.5?.17:.26;
-        vec3 normal=normalize(vec3(p*dome+radial*(bevel*1.4-innerLip*1.1+machining),1.0));
-        vec3 eye=normalize(vec3(-tilt.x*1.45,-tilt.y*1.45,1.0));
+        float bevelWidth=layer<.5?3.8:rim>.5?2.6:3.1;
+        float bevel=1.0-smoothstep(1.0,bevelWidth,edgeDistance);
+        float innerLip=rim*(1.0-smoothstep(.7,2.7,distance(pixel,outerCircle.xy)-outerCircle.z));
+        vec2 radial=radius>.0001?p/radius:vec2(1,0);
+        float angle=atan(radial.y,radial.x)/6.283185+.5;
+        // Texture coordinates stay attached to each physical part while it moves.
+        vec2 uv=vec2(radius*circle.z/512.0,angle+layer*.137);
+        vec3 machining=texture2D(metalMap,uv).rgb;
+        float groove=(texture2D(metalMap,uv+vec2(1.0/1024.0,0)).r-texture2D(metalMap,uv-vec2(1.0/1024.0,0)).r);
+        float cap=1.0-max(rim,1.0-step(.5,layer));
+        float roughness=mix(.22,.145,cap)+(machining.b-.5)*.055;
+        float crown=mix(.035,.11,cap);
+        vec3 normal=normalize(vec3(p*crown+radial*(bevel*1.25-innerLip+groove*.030),1.0));
+        vec3 eye=normalize(vec3(-tilt*1.30-(pixel-viewport*.5)/max(viewport.x,viewport.y)*.40,1.0));
         vec3 ray=reflect(-eye,normal);
         // Directional brushing gently elongates reflections around the turned face.
         vec3 environment=studio(ray,roughness);
         vec3 tangent=vec3(-radial.y,radial.x,0.0);
-        environment=(environment*2.0+studio(normalize(ray+tangent*.10),roughness)+studio(normalize(ray-tangent*.10),roughness))*.25;
+        environment=(environment*2.0+studio(normalize(ray+tangent*.18),roughness)+studio(normalize(ray-tangent*.18),roughness))*.25;
         float facing=max(dot(normal,eye),0.0);
         vec3 fresnel=base+(1.0-base)*pow(1.0-facing,5.0);
         float down=pressed.x*(1.0-rim);
@@ -109,29 +146,32 @@
         if(layer>1.5 && layer<2.5)down=pressed.z;
         if(layer>3.5 && layer<4.5)down=pressed.w;
         if(layer>4.5)down=scrolling;
-        // Brighter finishes retain a room-fill reflection behind engraved type.
-        vec3 metal=base*mix(.12,.70,max(bright,rim*titanium))+environment*fresnel;
+        // Broader, direction-dependent sheen on spun faces; finer satin on caps.
+        vec3 light=normalize(vec3((viewport*vec2(.05,.03)-pixel)/viewport.y,.85));
+        float sheen=turnedLight(normal,eye,light,tangent,mix(.12,.19,cap),mix(.47,.30,cap));
+        vec3 metal=base*mix(.24,.66,max(bright,rim*titanium))+environment*fresnel*.66;
+        metal+=base*min(sheen,4.0)*mix(2.3,1.6,cap);
         float highlight=pow(max(dot(radial,normalize(vec2(-.65,-.75)-tilt*.5)),0.0),2.5);
-        float polished=exp(-pow((edgeDistance-2.8)/1.1,2.0));
-        metal+=vec3(.55)*highlight*polished;
+        float polished=exp(-pow((edgeDistance-2.0)/.48,2.0));
+        metal+=vec3(1.1)*highlight*polished;
         // Fine lathe lines modulate reflected light rather than floating above it.
-        float brushed=(noise(vec2(radius*circle.z*1.4,8.0))-.5)*.045;
+        float brushed=(machining.g-.5)*mix(.30,.14,cap);
         metal*=1.0+brushed;
+        // A small, non-directional grain distinguishes satin silver caps.
+        metal*=1.0+(noise(pixel*.85)-.5)*accent*.055;
         // A darker side wall gives the lit chamfer an actual sense of thickness.
-        float side=1.0-smoothstep(.5,2.0,edgeDistance);
-        metal*=1.0-side*(.45+max(radial.y,0.0)*.38);
+        float side=1.0-smoothstep(.65,1.45,edgeDistance);
+        metal*=1.0-side*(.50+max(radial.y,0.0)*.33);
         metal*=1.0-down*.24;
         // Contact shadows sit on the parent face, below each raised button.
         if(layer<.5 || rim>.5){
-          vec2 shadowOffset=vec2(4,8)+tilt*4.0;
-          float micShadow=1.0-smoothstep(0.0,18.0,distance(pixel,innerCircle.xy+shadowOffset)-innerCircle.z);
-          float leftShadow=1.0-smoothstep(0.0,12.0,distance(pixel,leftCircle.xy+shadowOffset*.7)-leftCircle.z);
-          float scrollShadow=1.0-smoothstep(0.0,12.0,distance(pixel,scrollCircle.xy+shadowOffset*.7)-scrollCircle.z);
-          metal*=1.0-max(micShadow,max(leftShadow,scrollShadow))*.88;
+          float micShadow=contact(pixel,innerCircle,1.15);
+          float leftShadow=contact(pixel,leftCircle,1.0);
+          float scrollShadow=contact(pixel,scrollCircle,1.0);
+          metal*=1.0-max(micShadow,max(leftShadow,scrollShadow));
         }
         if(layer>.5 && layer<1.5){
-          float rightShadow=1.0-smoothstep(0.0,12.0,distance(pixel,rightCircle.xy+vec2(3,6)+tilt*3.0)-rightCircle.z);
-          metal*=1.0-rightShadow*.86;
+          metal*=1.0-contact(pixel,rightCircle,1.0);
         }
         metal=pow(metal/(metal+vec3(.8)),vec3(1.0/2.2));
         // Sub-LSB dither avoids visible bands without a patterned grain overlay.
@@ -198,7 +238,7 @@
     try { saved = appearance(JSON.parse(localStorage.getItem(STORAGE))); } catch {}
     let mode = saved.material, selectedSkin = saved.skin;
     const reduced=matchMedia('(prefers-reduced-motion: reduce)');
-    let gl,program,buffer,uniforms={},available=false,lost=false,frame=0,clock=0,last=0,lastDraw=0,quality=1,slow=0,geometry=null;
+    let gl,program,buffer,texture,uniforms={},available=false,lost=false,frame=0,clock=0,last=0,lastDraw=0,quality=1,slow=0,geometry=null;
     let spring={x:0,y:0,xv:0,yv:0},target={x:0,y:0},ripples=Array.from({length:4},()=>[-1000,-1000,-100]),rippleIndex=0,lastTouch=0;
     let energy=0,energyTarget=0,flow={x:0,y:0},flowTarget={x:0,y:0};
     const activePointers=new Set();
@@ -227,9 +267,15 @@
         gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
         const position=gl.getAttribLocation(program,'position');gl.enableVertexAttribArray(position);gl.vertexAttribPointer(position,2,gl.FLOAT,false,0,0);
         for(const name of ['resolution','viewport','tilt','outerCircle','innerCircle','rightCircle','leftCircle','scrollCircle','finish','wheelRadius','pressed','time','smoke','still','mic','scrolling','flow','activity','ripples[0]'])uniforms[name]=gl.getUniformLocation(program,name);
+        const map=metalTexture();texture=gl.createTexture();if(!texture)throw Error('Material texture unavailable');
+        gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,texture);
+        gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,map.width,map.height,0,gl.RGBA,gl.UNSIGNED_BYTE,map.data);
+        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR_MIPMAP_LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+        gl.generateMipmap(gl.TEXTURE_2D);gl.uniform1i(gl.getUniformLocation(program,'metalMap'),0);
         available=true;lost=false;root.classList.add('glass-ready');
       }catch{
-        if(gl&&program)gl.deleteProgram(program);if(gl&&buffer)gl.deleteBuffer(buffer);
+        if(gl&&program)gl.deleteProgram(program);if(gl&&buffer)gl.deleteBuffer(buffer);if(gl&&texture)gl.deleteTexture(texture);
         available=false;root.classList.remove('glass-ready');
       }
       canvas.hidden=!available;setHint();wake();
@@ -324,6 +370,6 @@
     init();
     return {layout(g,w,h,scroll){geometry={g,w,h,scroll};wake();},wake};
   }
-  const api={mount,material,skin,appearance,advance,resolution,motionSample};
+  const api={mount,material,skin,appearance,advance,resolution,motionSample,metalTexture};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else global.DialGlass=api;
 })(typeof window==='undefined'?globalThis:window);

@@ -175,21 +175,22 @@ body.dial-view {background:#090909;color:#ededed;}
 #dialRoot:not([data-skin=glass]) #dialInner stop:nth-child(n+2) {stop-color:var(--cap-low);}
 #dialRoot:not([data-skin=glass]) #dialKey stop:first-child {stop-color:var(--rim-high);}
 #dialRoot:not([data-skin=glass]) #dialKey stop:nth-child(n+2) {stop-color:var(--rim-low);}
-#dialRoot.glass-ready:not([data-skin=glass]) .dial-surface {fill-opacity:.035;stroke-opacity:.32;filter:none;}
+#dialRoot.glass-ready:not([data-skin=glass]) .dial-surface {fill-opacity:.012;stroke-opacity:.14;filter:none;}
 #dialRoot.glass-ready:not([data-skin=glass]) .dial-press.active > .dial-surface {fill-opacity:.12;filter:none;}
-#dialRoot.glass-ready:not([data-skin=glass]) .dial-bezel > path {fill-opacity:.08;stroke:url(#dialBevel);stroke-width:1.5;}
-#dialRoot.glass-ready:not([data-skin=glass]) .dial-segment-face {fill-opacity:.08;}
-#dialRoot:not([data-skin=glass]) .dial-label {fill:#eeeae3;font-weight:550;}
+#dialRoot.glass-ready:not([data-skin=glass]) .dial-bezel > path {fill-opacity:.035;stroke:url(#dialBevel);stroke-width:.7;}
+#dialRoot.glass-ready:not([data-skin=glass]) .dial-segment-face {fill-opacity:.025;}
+#dialRoot:not([data-skin=glass]) .dial-label {fill:#eeeae3;font-weight:500;}
+#dialRoot:not([data-skin=glass]) .dial-secondary {fill:#c2c0ba;font-weight:400;}
 #dialRoot .dial-segment .dial-label {fill:var(--rim-ink);}
-.dial-segment-edge {fill:none;stroke:#08090ac9;stroke-width:1.1;pointer-events:none;}
+.dial-segment-edge {fill:none;stroke:#050607b3;stroke-width:.8;pointer-events:none;}
 .dial-segment-face {stroke:#ffffff35;stroke-width:.6;}
-.dial-rim-lettering {--etch-light:#ffffff70;--etch-shadow:#000e;letter-spacing:.08px;}
+.dial-rim-lettering {--etch-light:#ffffff50;--etch-shadow:#000b;letter-spacing:.08px;}
 .dial-rim-label,.dial-etch-layer {text-anchor:middle;font-family:system-ui,-apple-system,sans-serif;pointer-events:none;}
-#dialRoot .dial-rim-lettering .dial-rim-label {font-weight:500;paint-order:stroke;stroke:#0009;stroke-width:.35px;stroke-linejoin:round;}
+#dialRoot .dial-rim-lettering .dial-rim-label {font-weight:450;paint-order:stroke;stroke:#0006;stroke-width:.12px;stroke-linejoin:round;}
 .dial-etch-light {fill:var(--etch-light);}
-.dial-etch-shadow {fill:var(--etch-shadow);stroke:#0008;stroke-width:.4px;}
-#dialRoot[data-skin=titanium] .dial-rim-lettering,#dialRoot[data-skin=silver] .dial-rim-lettering {--etch-light:#fff9;--etch-shadow:#000b;}
-#dialRoot[data-skin=titanium] .dial-rim-label,#dialRoot[data-skin=silver] .dial-rim-label {stroke:#12120f80;stroke-width:.22px;}
+.dial-etch-shadow {fill:var(--etch-shadow);}
+#dialRoot[data-skin=titanium] .dial-rim-lettering,#dialRoot[data-skin=silver] .dial-rim-lettering {--etch-light:#fff6;--etch-shadow:#0008;}
+#dialRoot[data-skin=titanium] .dial-rim-label,#dialRoot[data-skin=silver] .dial-rim-label {stroke:none;}
 #dialRoot .dial-segment {transition:filter 90ms ease;}
 #dialRoot:not(.editing) .dial-segment.active {transform:translateY(1px);}
 #dialRoot .dial-segment.active .dial-segment-face {fill-opacity:.75;fill:#08090a;}
