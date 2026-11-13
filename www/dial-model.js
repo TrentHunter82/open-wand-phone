@@ -158,11 +158,16 @@
       return {...slot,start,end,path};
     });
   }
-  function rimTextArc(g, slot, fontSize) {
+  function rimTextArc(g, slot, fontSize, metrics = {}) {
     // Preserve the safe label envelope from rimKeys while following the exact
     // ring radius. Baseline offset centers the letter bodies across its width.
     const middle=(g.r+g.clickR)/2, forward=Math.sin(slot.angle)<=0;
-    const radius=middle+(forward?1:-1)*fontSize*.32;
+    const ascent=Number.isFinite(metrics.ascent)?metrics.ascent:fontSize*.73;
+    const descent=Number.isFinite(metrics.descent)?metrics.descent:fontSize*.04;
+    const center=(ascent-descent)/2;
+    // On a clockwise path the tops of the glyphs point OUT, not in.
+    // Reverse the baseline offset when the text direction changes at the bottom.
+    const radius=middle-(forward?1:-1)*center;
     const half=Math.min((slot.kw-14)/(2*middle),.42);
     const direction=forward?1:-1, a=slot.angle-direction*half,b=slot.angle+direction*half;
     const point=t=>[g.cx+radius*Math.cos(t),g.cy+radius*Math.sin(t)];

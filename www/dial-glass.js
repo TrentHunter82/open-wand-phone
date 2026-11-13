@@ -53,10 +53,10 @@
     vec3 studio(vec3 ray,float roughness){
       // Analytic, softened area-light reflections: no image downloads or video.
       vec2 uv=ray.xy/(abs(ray.z)+.65);
-      float key=softbox(uv,vec2(-.31,-.38),vec2(.09,.28),roughness);
-      float strip=softbox(uv,vec2(.64,.12),vec2(.045,.65),roughness*.65);
+      float key=softbox(uv,vec2(-.20,-.26),vec2(.055,.27),roughness);
+      float strip=softbox(uv,vec2(.40,.12),vec2(.027,.65),roughness*.65);
       float ceiling=softbox(uv,vec2(0,-1.25),vec2(1.2,.07),roughness);
-      return vec3(.018)+vec3(2.6,2.55,2.45)*key+vec3(.95,1.0,1.08)*strip+vec3(.6)*ceiling;
+      return vec3(.012)+vec3(4.8,4.7,4.5)*key+vec3(2.8,2.9,3.0)*strip+vec3(.8)*ceiling;
     }
     void main(){
       vec2 pixel=vec2(gl_FragCoord.x/resolution.x,1.0-gl_FragCoord.y/resolution.y)*viewport;
@@ -69,25 +69,34 @@
       if(finish>.5 && distance(pixel,leftCircle.xy)<leftCircle.z){circle=leftCircle;layer=4.0;}
       if(finish>.5 && distance(pixel,scrollCircle.xy)<scrollCircle.z){circle=scrollCircle;layer=5.0;}
       vec2 p=(pixel-circle.xy)/circle.z;float radius=length(p);
-      if(radius>1.0)discard;
+      if(radius>1.0){
+        if(finish<.5)discard;
+        // A raised assembly casts a soft shadow onto the background as well.
+        vec2 offset=vec2(4,12)+tilt*5.0;
+        float shadow=1.0-smoothstep(0.0,25.0,distance(pixel,outerCircle.xy+offset)-wheelRadius);
+        shadow=max(shadow,1.0-smoothstep(0.0,13.0,distance(pixel,leftCircle.xy+offset*.6)-leftCircle.z));
+        shadow=max(shadow,1.0-smoothstep(0.0,13.0,distance(pixel,scrollCircle.xy+offset*.6)-scrollCircle.z));
+        gl_FragColor=vec4(0,0,0,shadow*.72);return;
+      }
       if(finish>.5){
         // Lathed faces, rounded chamfers and inner lip all reflect the same room.
         float rim=step(2.5,layer)*(1.0-step(3.5,layer));
         float accent=step(3.5,layer)*step(2.5,finish);
         float titanium=step(1.5,finish)*(1.0-step(2.5,finish));
         float bright=max(rim*step(2.5,finish),accent);
-        vec3 base=mix(vec3(.055,.059,.065),vec3(.075,.072,.065),titanium);
-        base=mix(base,vec3(.38,.34,.27),rim*titanium);
+        vec3 base=mix(vec3(.055,.058,.062),vec3(.067,.064,.059),titanium);
+        base=mix(base,vec3(.38,.355,.30),rim*titanium);
         base=mix(base,vec3(.56,.58,.60),bright);
-        float roughness=mix(.19,.10,max(bright,rim*titanium));
+        float roughness=mix(.125,.075,max(bright,rim*titanium));
         float edgeDistance=(1.0-radius)*circle.z;
-        float bevel=1.0-smoothstep(.4,4.5,edgeDistance);
-        float innerLip=rim*(1.0-smoothstep(0.0,3.5,distance(pixel,outerCircle.xy)-outerCircle.z));
+        float bevelWidth=layer<.5?7.0:rim>.5?4.5:5.0;
+        float bevel=1.0-smoothstep(.9,bevelWidth,edgeDistance);
+        float innerLip=rim*(1.0-smoothstep(.5,5.0,distance(pixel,outerCircle.xy)-outerCircle.z));
         vec2 radial=p/max(radius,.001);
-        float machining=sin(radius*circle.z*1.1)*.0006;
-        float dome=layer<.5?.22:rim>.5?.13:.34;
-        vec3 normal=normalize(vec3(p*dome+radial*(bevel*.95-innerLip*.8+machining),1.0));
-        vec3 eye=normalize(vec3(-tilt.x*.9,-tilt.y*.9,1.0));
+        float machining=(noise(vec2(radius*circle.z*1.5,2.0))-.5)*.006;
+        float dome=layer<.5?.24:rim>.5?.17:.26;
+        vec3 normal=normalize(vec3(p*dome+radial*(bevel*1.4-innerLip*1.1+machining),1.0));
+        vec3 eye=normalize(vec3(-tilt.x*1.45,-tilt.y*1.45,1.0));
         vec3 ray=reflect(-eye,normal);
         // Directional brushing gently elongates reflections around the turned face.
         vec3 environment=studio(ray,roughness);
@@ -101,26 +110,34 @@
         if(layer>3.5 && layer<4.5)down=pressed.w;
         if(layer>4.5)down=scrolling;
         // Brighter finishes retain a room-fill reflection behind engraved type.
-        vec3 metal=base*mix(.20,.72,max(bright,rim*titanium))+environment*fresnel;
+        vec3 metal=base*mix(.12,.70,max(bright,rim*titanium))+environment*fresnel;
+        float highlight=pow(max(dot(radial,normalize(vec2(-.65,-.75)-tilt*.5)),0.0),2.5);
+        float polished=exp(-pow((edgeDistance-2.8)/1.1,2.0));
+        metal+=vec3(.55)*highlight*polished;
+        // Fine lathe lines modulate reflected light rather than floating above it.
+        float brushed=(noise(vec2(radius*circle.z*1.4,8.0))-.5)*.045;
+        metal*=1.0+brushed;
         // A darker side wall gives the lit chamfer an actual sense of thickness.
-        metal*=1.0-(1.0-smoothstep(0.0,.15,edgeDistance))*.35;
-        metal*=1.0-down*.16;
+        float side=1.0-smoothstep(.5,2.0,edgeDistance);
+        metal*=1.0-side*(.45+max(radial.y,0.0)*.38);
+        metal*=1.0-down*.24;
         // Contact shadows sit on the parent face, below each raised button.
         if(layer<.5 || rim>.5){
-          vec2 shadowOffset=vec2(3,5)+tilt*3.0;
-          float micShadow=1.0-smoothstep(0.0,12.0,distance(pixel,innerCircle.xy+shadowOffset)-innerCircle.z);
-          float leftShadow=1.0-smoothstep(0.0,8.0,distance(pixel,leftCircle.xy+shadowOffset*.7)-leftCircle.z);
-          float scrollShadow=1.0-smoothstep(0.0,8.0,distance(pixel,scrollCircle.xy+shadowOffset*.7)-scrollCircle.z);
-          metal*=1.0-max(micShadow,max(leftShadow,scrollShadow))*.72;
+          vec2 shadowOffset=vec2(4,8)+tilt*4.0;
+          float micShadow=1.0-smoothstep(0.0,18.0,distance(pixel,innerCircle.xy+shadowOffset)-innerCircle.z);
+          float leftShadow=1.0-smoothstep(0.0,12.0,distance(pixel,leftCircle.xy+shadowOffset*.7)-leftCircle.z);
+          float scrollShadow=1.0-smoothstep(0.0,12.0,distance(pixel,scrollCircle.xy+shadowOffset*.7)-scrollCircle.z);
+          metal*=1.0-max(micShadow,max(leftShadow,scrollShadow))*.88;
         }
         if(layer>.5 && layer<1.5){
-          float rightShadow=1.0-smoothstep(0.0,8.0,distance(pixel,rightCircle.xy+vec2(2,4)+tilt*2.0)-rightCircle.z);
-          metal*=1.0-rightShadow*.72;
+          float rightShadow=1.0-smoothstep(0.0,12.0,distance(pixel,rightCircle.xy+vec2(3,6)+tilt*3.0)-rightCircle.z);
+          metal*=1.0-rightShadow*.86;
         }
         metal=pow(metal/(metal+vec3(.8)),vec3(1.0/2.2));
         // Sub-LSB dither avoids visible bands without a patterned grain overlay.
         metal+=vec3((fract(52.9829189*fract(dot(gl_FragCoord.xy,vec2(.06711056,.00583715))))-.5)/255.0);
-        float alpha=1.0-smoothstep(.995,1.0,radius);
+        float aa=1.2*viewport.x/resolution.x;
+        float alpha=smoothstep(0.0,aa,edgeDistance);
         gl_FragColor=vec4(metal*alpha,alpha);
         return;
       }

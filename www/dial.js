@@ -175,6 +175,12 @@
     let value=text;while(value&&textWidth(value+'\u2026',size)>width)value=value.slice(0,-1);
     return value?value+'\u2026':'';
   }
+  function rimMetrics(text,size){
+    if(!textMeasure)return {width:text.length*size*.6,ascent:size*.73,descent:size*.04};
+    textMeasure.font='500 '+size+'px system-ui, -apple-system, sans-serif';
+    const m=textMeasure.measureText(text);
+    return {width:m.width,ascent:m.actualBoundingBoxAscent,descent:m.actualBoundingBoxDescent};
+  }
   function titleLines(text,size,width){
     const lines=[];let line='';
     for(const word of text.split(/\s+/)){
@@ -299,11 +305,14 @@
       const a=key.next?{name:'Next '+(page.index+1)+'/'+page.pages}:action(key.id);if(!a)continue;
       const {x,y,rotation,kw,kh}=slot;
       let name=a.name;
-      let fs=Math.min(15,w*.039,g.bezelWidth*.34),arc=M.rimTextArc(g,slot,fs);
-      while(fs>10.5&&textWidth(name,fs)>arc.length-2){fs-=.5;arc=M.rimTextArc(g,slot,fs);}
-      name=singleLine(name,fs,arc.length-2);
+      let fs=Math.min(15,w*.039,g.bezelWidth*.34),metrics=rimMetrics(name,fs),arc=M.rimTextArc(g,slot,fs,metrics);
+      while(fs>10.5&&metrics.width>arc.length-2){fs-=.5;metrics=rimMetrics(name,fs);arc=M.rimTextArc(g,slot,fs,metrics);}
+      while(name&&rimMetrics(name,fs).width>arc.length-2)name=name.slice(0,-2)+'…';
+      arc=M.rimTextArc(g,slot,fs,rimMetrics(name,fs));
       const arcId='dialRimText'+key.index;
-      const curvedText=`<path id="${arcId}" d="${arc.path}" fill="none" pointer-events="none"/><text class="dial-label dial-rim-label" font-weight="550" font-size="${fs}" pointer-events="none"><textPath href="#${arcId}" startOffset="50%">${escape(name)}</textPath></text>`;
+      const glyphs=`<textPath href="#${arcId}" startOffset="50%">${escape(name)}</textPath>`;
+      const engraving=metal?`<text class="dial-etch-layer dial-etch-light" transform="translate(.3 .65)" aria-hidden="true">${glyphs}</text><text class="dial-etch-layer dial-etch-shadow" transform="translate(-.2 -.35)" aria-hidden="true">${glyphs}</text>`:'';
+      const curvedText=`<g class="dial-rim-lettering" font-weight="500" font-size="${fs}" pointer-events="none"><path id="${arcId}" d="${arc.path}" fill="none"/>${engraving}<text class="dial-label dial-rim-label">${glyphs}</text></g>`;
       const identity=key.next?'data-page="next"':`data-action="${escape(key.id)}"`;
       const label=key.next?'Next shortcuts page':'Run '+escape(a.name);
       if(metal){

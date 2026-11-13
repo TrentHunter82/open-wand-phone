@@ -160,8 +160,10 @@ test('curved rim text follows its ring at every size and stays inside the label 
   for(const [w,h] of [[320,568],[390,844],[844,390]])for(const bw of [.1,.25]){
     const g=M.geometry(M.view({...M.defaults(w>h?'landscape':'portrait'),bw}),w,h);
     for(const slot of M.rimKeys(g,w,h))for(const size of [10.5,15]){
-      const arc=M.rimTextArc(g,slot,size),middle=(g.r+g.clickR)/2;
-      assert.ok(Math.abs(Math.abs(arc.radius-middle)-size*.32)<1e-8);
+      const ascent=size*.73,descent=size*.04;
+      const arc=M.rimTextArc(g,slot,size,{ascent,descent}),middle=(g.r+g.clickR)/2;
+      const direction=arc.forward?1:-1;
+      assert.ok(Math.abs(arc.radius+direction*(ascent-descent)/2-middle)<1e-8);
       assert.ok(arc.radius>g.clickR+size*.5&&arc.radius<g.r-size*.5);
       assert.ok(arc.length<=slot.kw-10&&arc.length>20);
       assert.ok(!arc.path.includes('NaN'));
